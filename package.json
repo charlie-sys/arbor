@@ -1,0 +1,75 @@
+{
+  "name": "zotero-agent",
+  "version": "0.1.0",
+  "description": "文献阅读管理与 AI Agent 工作台",
+  "author": "ZotAgent",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "prepare:pdfjs": "node scripts/prepare-pdfjs.mjs",
+    "predev": "npm run prepare:pdfjs",
+    "dev": "electron-vite dev",
+    "prebuild": "npm run prepare:pdfjs",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "start": "electron-vite preview",
+    "dist": "npm run prepare:pdfjs && electron-vite build && electron-builder --win nsis",
+    "progress:sync": "node scripts/progress.mjs sync",
+    "progress:audit": "node scripts/progress.mjs audit",
+    "progress:verify": "node scripts/progress.mjs verify",
+    "progress:block": "node scripts/progress.mjs block",
+    "progress:reset": "node scripts/progress.mjs reset",
+    "progress:status": "node scripts/progress.mjs status"
+  },
+  "dependencies": {
+    "docx": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^4.0.0",
+    "katex": "^0.19.1",
+    "lucide-react": "^1.70.0",
+    "pdfjs-dist": "^6.5.438",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  },
+  "build": {
+    "appId": "com.zotagent.desktop",
+    "productName": "ZotAgent",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}
