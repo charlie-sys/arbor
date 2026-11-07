@@ -6,6 +6,7 @@ release[0-9]*/
 scripts/demo/.generated/
 scripts/acceptance/.generated/
 *.log
+docs/*.md
 docs/progress.lock
 .DS_Store
 Thumbs.db
