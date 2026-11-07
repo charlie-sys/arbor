@@ -1,7 +1,6 @@
 (() => {
-  // 问卷结果回传地址：在 formspree.io 创建表单后，把 f/ 后面的 ID 填进来。
-  // 例如 https://formspree.io/f/abcdwxyz
-  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID'
+  // 问卷结果经 Formspree 回传
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xjyydegn'
 
   const form = document.getElementById('survey')
   const success = document.getElementById('success')
