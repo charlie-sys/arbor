@@ -1,0 +1,1 @@
+localStorage.setItem('zotagent-reader-panel-width-v2','440'); location.reload(); return 'ok';

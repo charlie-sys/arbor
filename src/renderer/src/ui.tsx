@@ -1,4 +1,4 @@
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
@@ -36,30 +36,76 @@ export function truncate(text: string, max: number): string {
   return `${text.slice(0, max)}…`
 }
 
+function wrapLatexEnvironments(text: string): string {
+  const pattern =
+    /\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|cases|matrix|pmatrix|bmatrix|vmatrix)\}[\s\S]*?\\end\{\1\}/g
+  return text.replace(pattern, (match, _env, offset: number) => {
+    const before = text.slice(0, offset)
+    const displayDelimiters = (before.match(/\$\$/g) || []).length
+    if (displayDelimiters % 2 === 1) return match
+    return `\n$$\n${match}\n$$\n`
+  })
+}
+
 function normalizeMath(text: string): string {
   return text
     .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
     .map((segment, index) => {
       if (index % 2 === 1) return segment
-      return segment
+      const converted = segment
+        .replace(/\\tag\*?\{([^{}]*)\}/g, (_match, tag: string) => `\\quad\\text{(${tag})}`)
+        .replace(/\\label\{[^{}]*\}/g, '')
+        .replace(/\\nonumber|\\notag/g, '')
+        .replace(/\\eqref\{([^{}]*)\}/g, (_match, tag: string) => `\\text{(${tag})}`)
+        .replace(/\\bm\{([^{}]*)\}/g, (_match, expression: string) => `\\boldsymbol{${expression}}`)
         .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression: string) => `\n$$\n${expression.trim()}\n$$\n`)
         .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression: string) => `$${expression.trim()}$`)
+      return wrapLatexEnvironments(converted)
     })
     .join('')
 }
 
-export function Markdown({ children }: { children: string }): React.JSX.Element {
+export function Markdown({
+  children,
+  onPageRef
+}: {
+  children: string
+  onPageRef?: (docId: string, page: number) => void
+}): React.JSX.Element {
   return (
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[[rehypeKatex, { throwOnError: false }]]}
+        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
+        urlTransform={(url) =>
+          url.startsWith('zotagent:page:') || url.startsWith('zotfile:') || url.startsWith('data:image/')
+            ? url
+            : defaultUrlTransform(url)
+        }
         components={{
-          a: ({ href, children: content }) => (
-            <a href={href} target="_blank" rel="noreferrer">
-              {content}
-            </a>
-          )
+          a: ({ href, children: content }) => {
+            if (href?.startsWith('zotagent:page:') && onPageRef) {
+              return (
+                <a
+                  href="#"
+                  className="page-ref"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    const [, , docId = '', page = '0'] = href.split(':')
+                    const pageNumber = Number(page)
+                    if (Number.isFinite(pageNumber) && pageNumber > 0) onPageRef(docId, pageNumber)
+                  }}
+                >
+                  {content}
+                </a>
+              )
+            }
+            return (
+              <a href={href} target="_blank" rel="noreferrer">
+                {content}
+              </a>
+            )
+          }
         }}
       >
         {normalizeMath(children)}

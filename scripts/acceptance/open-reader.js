@@ -1,0 +1,1 @@
+Array.from(document.querySelectorAll('.nav-item')).find((b)=>b.innerText.includes('文献库'))?.click(); setTimeout(()=>{Array.from(document.querySelectorAll('button')).find((b)=>b.title==='表格视图')?.click(); setTimeout(()=>{Array.from(document.querySelectorAll('.cell-title-text'))[0]?.click();},300);},500); return 'ok';

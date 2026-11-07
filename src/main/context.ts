@@ -1,4 +1,5 @@
 import { store } from './store'
+import type { ChatContext } from '../shared/types'
 
 interface Chunk {
   page: number
@@ -62,19 +63,47 @@ function scoreChunk(text: string, terms: string[]): number {
 export async function buildContext(
   docIds: string[],
   query: string,
-  budget: number
+  budget: number,
+  options?: ChatContext
 ): Promise<{ context: string; usedDocIds: string[] }> {
+  if (options?.contextMode === 'none') return { context: '', usedDocIds: [] }
   const docs = docIds.map((id) => store.getDocument(id)).filter((d): d is NonNullable<ReturnType<typeof store.getDocument>> => !!d)
   if (!docs.length) return { context: '', usedDocIds: [] }
 
-  const perDocBudget = Math.max(3000, Math.floor(budget / docs.length))
+  const perDocBudget = Math.max(
+    3000,
+    Math.floor((budget - (options?.contextMode === 'selection' ? options.selection?.trim().length ?? 0 : 0)) / docs.length)
+  )
   const terms = queryTerms(query)
   const blocks: string[] = []
   const usedDocIds: string[] = []
 
+  if (options?.contextMode === 'selection' && options.selection?.trim()) {
+    const selPage = options.page ? `（第 ${options.page} 页）` : ''
+    blocks.push(`===== 用户选中的原文${selPage}（最高优先级，回答必须依据此段） =====\n${options.selection.trim()}`)
+  }
+
+  const pageMode = options?.contextMode === 'page' ? Math.max(1, Math.round(options.page ?? 1)) : null
+
   for (const doc of docs) {
     const pages = await store.getDocumentTexts(doc.id)
     if (!pages.length) continue
+
+    const info = [doc.authors, doc.year, doc.journal].filter(Boolean).join(' · ')
+    const header = `===== 文献：《${doc.title}》${info ? `（${info}）` : ''} =====`
+
+    if (options?.includeNotes && doc.notes.trim()) {
+      blocks.push(`${header}\n【文献笔记】\n${doc.notes.trim()}`)
+    }
+
+    if (pageMode !== null) {
+      const pageText = pages[pageMode - 1]
+      if (!pageText) continue
+      blocks.push(`${header}\n[第${pageMode}页] ${normalize(pageText)}`)
+      usedDocIds.push(doc.id)
+      continue
+    }
+
     const chunks: Chunk[] = []
     pages.forEach((pageText, pageIndex) => {
       splitPage(pageText, 1400).forEach((text, order) => {
@@ -100,8 +129,6 @@ export async function buildContext(
       selected = kept
     }
 
-    const info = [doc.authors, doc.year, doc.journal].filter(Boolean).join(' · ')
-    const header = `===== 文献：《${doc.title}》${info ? `（${info}）` : ''} =====`
     const body = selected.map((c) => `[第${c.page}页] ${c.text}`).join('\n')
     blocks.push(`${header}\n${body}`)
     usedDocIds.push(doc.id)

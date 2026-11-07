@@ -4,11 +4,19 @@ import { EventBus, LinkTarget, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/
 import 'pdfjs-dist/web/pdf_viewer.css'
 import { Loader2, TriangleAlert } from 'lucide-react'
 import { pdfOptions } from '../pdf'
+import type { Highlight, HighlightRect } from '@shared/types'
 
 export interface PdfSelection {
   text: string
   page: number
   rect: { left: number; top: number; right: number; bottom: number }
+  rects: HighlightRect[]
+}
+
+export interface PdfOutlineItem {
+  title: string
+  page: number | null
+  children: PdfOutlineItem[]
 }
 
 export interface PdfViewerHandle {
@@ -23,9 +31,17 @@ export interface PdfViewerHandle {
 interface Props {
   docId: string
   initialPage: number
+  highlights: Highlight[]
+  flashHighlightId?: string | null
   onPageChange(page: number): void
   onPagesLoaded(count: number): void
   onSelection(selection: PdfSelection | null): void
+  onHighlightClick(highlight: Highlight, position: { left: number; top: number }): void
+  onOutline(items: PdfOutlineItem[]): void
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
 }
 
 const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, ref) {
@@ -34,12 +50,60 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
   const viewerObj = useRef<any>(null)
   const loadingTaskRef = useRef<any>(null)
   const pageRef = useRef(props.initialPage || 1)
+  const layersRef = useRef(new Map<number, HTMLDivElement>())
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const callbacks = useRef(props)
   callbacks.current = props
+
+  const paintHighlights = (): void => {
+    const viewer = viewerObj.current
+    if (!viewer) return
+    const list = callbacks.current.highlights
+    const pages = new Set(list.map((item) => item.page))
+    for (const [page, layer] of layersRef.current) {
+      if (!pages.has(page) || !layer.isConnected) {
+        layer.remove()
+        layersRef.current.delete(page)
+      }
+    }
+    for (const page of pages) {
+      let pageView: any
+      try {
+        pageView = viewer.getPageView(page - 1)
+      } catch {
+        continue
+      }
+      const pageDiv = pageView?.div as HTMLElement | undefined
+      if (!pageDiv) continue
+      let layer = layersRef.current.get(page)
+      if (!layer) {
+        layer = document.createElement('div')
+        layer.className = 'pdf-highlight-layer'
+        pageDiv.appendChild(layer)
+        layersRef.current.set(page, layer)
+      } else if (layer.parentElement !== pageDiv) {
+        pageDiv.appendChild(layer)
+      }
+      layer.replaceChildren()
+      for (const highlight of list) {
+        if (highlight.page !== page) continue
+        for (const rect of highlight.rects) {
+          const el = document.createElement('div')
+          el.className = `pdf-highlight hl-${highlight.color}`
+          if (callbacks.current.flashHighlightId === highlight.id) el.classList.add('flash')
+          el.style.left = `${rect.x * 100}%`
+          el.style.top = `${rect.y * 100}%`
+          el.style.width = `${rect.width * 100}%`
+          el.style.height = `${rect.height * 100}%`
+          el.dataset.highlightId = highlight.id
+          layer.appendChild(el)
+        }
+      }
+    }
+  }
 
   useImperativeHandle(ref, () => ({
     goToPage(page: number) {
@@ -79,7 +143,8 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     let cancelled = false
     setLoading(true)
     setError('')
-    setLoading(true)
+    layersRef.current.forEach((layer) => layer.remove())
+    layersRef.current.clear()
 
     const init = async (): Promise<void> => {
       try {
@@ -90,6 +155,39 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
           await task.destroy()
           return
         }
+
+        const loadOutline = async (): Promise<void> => {
+          try {
+            const raw = await pdf.getOutline()
+            const resolvePage = async (dest: unknown): Promise<number | null> => {
+              try {
+                const explicit =
+                  typeof dest === 'string' ? await pdf.getDestination(dest) : (dest as unknown[] | null)
+                if (!Array.isArray(explicit) || !explicit.length) return null
+                const index = await pdf.getPageIndex(explicit[0] as never)
+                return typeof index === 'number' ? index + 1 : null
+              } catch {
+                return null
+              }
+            }
+            const walk = async (items: any[]): Promise<PdfOutlineItem[]> => {
+              const result: PdfOutlineItem[] = []
+              for (const item of items) {
+                result.push({
+                  title: String(item.title ?? '').trim() || '未命名章节',
+                  page: await resolvePage(item.dest),
+                  children: Array.isArray(item.items) && item.items.length ? await walk(item.items) : []
+                })
+              }
+              return result
+            }
+            const outline = raw && raw.length ? await walk(raw) : []
+            if (!cancelled) callbacks.current.onOutline(outline)
+          } catch {
+            if (!cancelled) callbacks.current.onOutline([])
+          }
+        }
+        void loadOutline()
 
         const eventBus = new EventBus()
         const linkService = new PDFLinkService({ eventBus, externalLinkTarget: LinkTarget.BLANK })
@@ -110,12 +208,15 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
           pageRef.current = event.pageNumber
           callbacks.current.onPageChange(event.pageNumber)
         })
+        eventBus.on('pagerendered', () => paintHighlights())
+        eventBus.on('scalechanging', () => window.requestAnimationFrame(paintHighlights))
         eventBus.on('pagesinit', () => {
           viewer.currentScaleValue = 'page-width'
           const page = Math.min(callbacks.current.initialPage || 1, pdf.numPages)
           viewer.currentPageNumber = page
           callbacks.current.onPagesLoaded(pdf.numPages)
           if (!cancelled) setLoading(false)
+          paintHighlights()
         })
       } catch (err) {
         if (!cancelled) {
@@ -138,6 +239,8 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
       viewerObj.current = null
       loadingTaskRef.current?.destroy?.()
       loadingTaskRef.current = null
+      layersRef.current.forEach((layer) => layer.remove())
+      layersRef.current.clear()
     }
   }, [props.docId])
 
@@ -171,12 +274,22 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     return () => container.removeEventListener('wheel', onWheel)
   }, [])
 
-  const handleMouseUp = (): void => {
+  useEffect(() => {
+    paintHighlights()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.highlights, props.flashHighlightId])
+
+  const handleMouseUp = (event: React.MouseEvent): void => {
     window.setTimeout(() => {
       const selection = window.getSelection()
       const text = selection?.toString().trim()
       if (!selection || !text || selection.rangeCount === 0) {
-        callbacks.current.onSelection(null)
+        const hit = findHighlightAt(event.clientX, event.clientY)
+        if (hit) {
+          callbacks.current.onHighlightClick(hit, { left: event.clientX, top: event.clientY })
+        } else {
+          callbacks.current.onSelection(null)
+        }
         return
       }
       const range = selection.getRangeAt(0)
@@ -189,12 +302,56 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
       const element = (node.nodeType === Node.TEXT_NODE ? node.parentElement : node) as HTMLElement | null
       const pageElement = element?.closest('.page') as HTMLElement | null
       const page = pageElement?.dataset.pageNumber ? Number(pageElement.dataset.pageNumber) : pageRef.current
+      const textLayer = pageElement?.querySelector('.textLayer') as HTMLElement | null
+      const pageRect = (textLayer ?? pageElement)?.getBoundingClientRect()
+      const rects: HighlightRect[] = []
+      if (pageRect && pageRect.width > 0 && pageRect.height > 0) {
+        for (const item of Array.from(range.getClientRects())) {
+          if (item.width < 2 || item.height < 2) continue
+          const top = Math.max(item.top, pageRect.top)
+          const bottom = Math.min(item.bottom, pageRect.bottom)
+          if (bottom - top < 2) continue
+          const left = Math.max(item.left, pageRect.left)
+          const right = Math.min(item.right, pageRect.right)
+          if (right - left < 2) continue
+          rects.push({
+            x: clamp01((left - pageRect.left) / pageRect.width),
+            y: clamp01((top - pageRect.top) / pageRect.height),
+            width: clamp01((right - left) / pageRect.width),
+            height: clamp01((bottom - top) / pageRect.height)
+          })
+        }
+      }
       callbacks.current.onSelection({
         text,
         page,
-        rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }
+        rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+        rects
       })
     }, 10)
+  }
+
+  const findHighlightAt = (x: number, y: number): Highlight | null => {
+    const target = document.elementFromPoint(x, y) as HTMLElement | null
+    const pageElement = target?.closest('.page') as HTMLElement | null
+    if (!pageElement) return null
+    const pageNumber = Number(pageElement.dataset.pageNumber)
+    if (!pageNumber) return null
+    const textLayer = pageElement.querySelector('.textLayer') as HTMLElement | null
+    const pageRect = (textLayer ?? pageElement).getBoundingClientRect()
+    if (!pageRect.width || !pageRect.height) return null
+    const nx = (x - pageRect.left) / pageRect.width
+    const ny = (y - pageRect.top) / pageRect.height
+    return (
+      callbacks.current.highlights.find(
+        (highlight) =>
+          highlight.page === pageNumber &&
+          highlight.rects.some(
+            (rect) =>
+              nx >= rect.x && nx <= rect.x + rect.width && ny >= rect.y && ny <= rect.y + rect.height
+          )
+      ) ?? null
+    )
   }
 
   return (

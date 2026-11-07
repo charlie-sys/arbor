@@ -1,0 +1,1 @@
+const name = sessionStorage.getItem('qa-nav') || 'AI 对话'; Array.from(document.querySelectorAll('.nav-item')).find((b)=>b.innerText.includes(name))?.click(); return name;

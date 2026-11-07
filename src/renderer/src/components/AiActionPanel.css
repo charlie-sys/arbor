@@ -1,0 +1,143 @@
+.ai-action-panel {
+  position: fixed;
+  top: 76px;
+  right: 18px;
+  bottom: 92px;
+  width: min(400px, calc(100vw - 36px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 1.75rem);
+  background: var(--panel, #fff);
+  box-shadow: 0 14px 34px rgba(63, 52, 45, 0.18);
+  z-index: 60;
+}
+
+.ai-action-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-action-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ai-action-source {
+  max-height: 90px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 1.1rem);
+  border: 1px solid var(--border);
+  background: #f3ece2;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-soft, #6b6258);
+  white-space: pre-wrap;
+}
+
+.ai-action-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-action-target select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--pill, 999px);
+  background: var(--panel, #fffdf9);
+  font-size: 12px;
+}
+
+.ai-action-body {
+  flex: 1;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.ai-action-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.ai-action-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ai-action-actions {
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.ai-spin {
+  animation: ai-spin 1s linear infinite;
+}
+
+@keyframes ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.selection-action-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.selection-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 1.1rem);
+  background: var(--panel, #fffdf9);
+  box-shadow: 0 12px 28px rgba(63, 52, 45, 0.16);
+  z-index: 61;
+}
+
+.selection-toolbar .selection-action-menu button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  height: auto;
+  padding: 7px 9px;
+  border: none;
+  border-radius: var(--pill, 999px);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.selection-toolbar .selection-action-menu button:hover {
+  background: #f1e9dd;
+  color: var(--text);
+}
+
+.selection-action-menu .muted {
+  font-size: 11px;
+}

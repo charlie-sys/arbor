@@ -1,11 +1,30 @@
-import { app, BrowserWindow, globalShortcut, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, globalShortcut, net, protocol, screen, shell } from 'electron'
+import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { store } from './store'
 import { registerIpc } from './ipc'
 import { initCapture, startCapture } from './capture'
+import { startMcpServer } from './mcp'
+import { startBackupScheduler } from './backup'
 
-app.setName('ZotAgent')
+const APP_NAME = 'Arbor'
+app.setName(APP_NAME)
+
+const appDataDir = app.getPath('appData')
+const legacyUserData = path.join(appDataDir, 'ZotAgent')
+const targetUserData = path.join(appDataDir, APP_NAME)
+if (!fs.existsSync(targetUserData) && fs.existsSync(legacyUserData)) {
+  try {
+    fs.renameSync(legacyUserData, targetUserData)
+  } catch {
+    /* fall back to the legacy folder when another instance holds a file lock */
+  }
+}
+app.setPath(
+  'userData',
+  fs.existsSync(targetUserData) || !fs.existsSync(legacyUserData) ? targetUserData : legacyUserData
+)
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -38,6 +57,9 @@ const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.bmp': 'image/bmp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
@@ -63,12 +85,16 @@ function focusMainWindow(): void {
 }
 
 function createMainWindow(): void {
+  const workArea = screen.getPrimaryDisplay().workAreaSize
+  const width = Math.min(1440, workArea.width, Math.max(720, Math.round(workArea.width * 0.92)))
+  const height = Math.min(920, workArea.height, Math.max(520, Math.round(workArea.height * 0.92)))
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1080,
-    minHeight: 680,
-    title: 'ZotAgent — 文献阅读与 AI 研究助手',
+    width,
+    height,
+    minWidth: Math.min(1080, width),
+    minHeight: Math.min(680, height),
+    title: 'Arbor — 文献阅读与 AI 研究工坊',
     backgroundColor: '#f3f5f9',
     show: false,
     autoHideMenuBar: true,
@@ -79,6 +105,8 @@ function createMainWindow(): void {
       sandbox: false
     }
   })
+  mainWindow.center()
+  mainWindow.maximize()
 
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.on('closed', () => {
@@ -129,6 +157,19 @@ function registerProtocols(): void {
     try {
       const url = new URL(request.url)
       const name = decodeURIComponent(url.pathname.replace(/^\//, ''))
+      if (url.host === 'attachments') {
+        const parts = name.split('/')
+        const inboxId = parts.shift() ?? ''
+        if (!/^[0-9a-f-]{36}$/i.test(inboxId) || !parts.length) {
+          return new Response('Forbidden', { status: 403 })
+        }
+        const base = path.join(store.attachmentsDir, inboxId)
+        const filePath = path.normalize(path.join(base, ...parts))
+        if (!filePath.startsWith(base + path.sep)) {
+          return new Response('Forbidden', { status: 403 })
+        }
+        return await serveFile(filePath)
+      }
       if (!/^[0-9a-f-]{36}(?:-translated)?\.(?:pdf|png)$/i.test(name)) {
         return new Response('Forbidden', { status: 403 })
       }
@@ -148,6 +189,8 @@ if (gotLock) {
 
   app.whenReady().then(async () => {
     await store.init()
+    startBackupScheduler()
+    void startMcpServer()
     registerProtocols()
     initCapture(() => mainWindow)
     registerIpc()

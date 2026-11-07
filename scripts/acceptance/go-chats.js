@@ -1,0 +1,1 @@
+Array.from(document.querySelectorAll('.nav-item')).find((b)=>b.innerText.includes('AI 对话'))?.click(); return 'ok';

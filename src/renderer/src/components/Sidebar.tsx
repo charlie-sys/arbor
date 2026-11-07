@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { BookOpen, MessagesSquare, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard } from 'lucide-react'
+import { BookOpen, Inbox, Layers, MessagesSquare, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter } from 'lucide-react'
 import type { LibraryData } from '@shared/types'
 import type { View } from '../nav'
 import { cx } from '../ui'
+import CollectionTree from './CollectionTree'
 
 interface Props {
   data: LibraryData
@@ -17,13 +18,6 @@ interface Props {
 export default function Sidebar({ data, view, importing, onNavigate, onImport, onChanged, notify }: Props): React.JSX.Element {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
-
-  const counts = new Map<string, number>()
-  for (const doc of data.documents) {
-    for (const collectionId of doc.collections) {
-      counts.set(collectionId, (counts.get(collectionId) ?? 0) + 1)
-    }
-  }
 
   const submitCollection = async (): Promise<void> => {
     const value = name.trim()
@@ -41,12 +35,12 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
     }
   }
 
-  const deleteCollection = async (id: string, title: string): Promise<void> => {
-    if (!window.confirm(`删除分类「${title}」？文献本身不会被删除。`)) return
+  const deleteSavedView = async (id: string, title: string): Promise<void> => {
+    if (!window.confirm(`删除保存视图「${title}」？`)) return
     try {
-      await window.api.collections.remove(id)
+      await window.api.views.remove(id)
       await onChanged()
-      if (view.name === 'library' && view.collectionId === id) onNavigate({ name: 'library' })
+      if (view.name === 'library' && view.savedViewId === id) onNavigate({ name: 'library' })
     } catch (err) {
       notify(`删除失败：${(err as Error).message}`, 'error')
     }
@@ -55,10 +49,10 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">Z</div>
+        <img className="brand-mark-img" src="./arbor-logo.svg" alt="Arbor" />
         <div>
-          <div className="brand-name">ZotAgent</div>
-          <div className="brand-sub">文献 · Agent 工作台</div>
+          <div className="brand-name">Arbor</div>
+          <div className="brand-sub">文献 · AI 研究工坊</div>
         </div>
       </div>
 
@@ -78,6 +72,16 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
           <span>AI 对话</span>
           <span className="nav-count">{data.chats.length}</span>
         </button>
+        <button className={cx('nav-item', view.name === 'topics' && 'active')} onClick={() => onNavigate({ name: 'topics' })}>
+          <Layers size={17} />
+          <span>研究主题</span>
+          <span className="nav-count">{data.researchTopics.length}</span>
+        </button>
+        <button className={cx('nav-item', view.name === 'inbox' && 'active')} onClick={() => onNavigate({ name: 'inbox' })}>
+          <Inbox size={17} />
+          <span>灵感收集</span>
+          <span className="nav-count">{data.inbox.filter((item) => !item.archived).length}</span>
+        </button>
         <button className={cx('nav-item', view.name === 'translations' && 'active')} onClick={() => onNavigate({ name: 'translations' })}>
           <ScanLine size={17} />
           <span>截图翻译</span>
@@ -92,7 +96,7 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
       <div className="collections">
         <div className="collections-head">
           <span>分类</span>
-          <button className="icon-btn tiny" title="新建分类" onClick={() => setAdding(true)}>
+          <button className="icon-btn tiny" title="新建分类（支持层级）" onClick={() => setAdding(true)}>
             <Plus size={14} />
           </button>
         </div>
@@ -116,21 +120,39 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
           />
         )}
         {data.collections.length === 0 && !adding && <div className="collections-empty">暂无分类，点击 + 新建</div>}
-        {data.collections.map((collection) => (
+        <CollectionTree
+          collections={data.collections}
+          documents={data.documents}
+          activeId={view.name === 'library' ? view.collectionId : undefined}
+          onNavigate={(collectionId) => onNavigate({ name: 'library', collectionId })}
+          onChanged={onChanged}
+          onActiveRemoved={(collectionId) => {
+            if (view.name === 'library' && view.collectionId === collectionId) onNavigate({ name: 'library' })
+          }}
+          notify={notify}
+        />
+      </div>
+
+      <div className="collections">
+        <div className="collections-head">保存视图</div>
+        {data.savedViews.length === 0 && <div className="collections-empty">在文献库表格中保存当前筛选与排序</div>}
+        {data.savedViews.map((savedView) => (
           <div
-            key={collection.id}
-            className={cx('collection-item', view.name === 'library' && view.collectionId === collection.id && 'active')}
-            onClick={() => onNavigate({ name: 'library', collectionId: collection.id })}
+            key={savedView.id}
+            className={cx(
+              'collection-item',
+              view.name === 'library' && view.savedViewId === savedView.id && 'active'
+            )}
+            onClick={() => onNavigate({ name: 'library', savedViewId: savedView.id })}
           >
-            <span className="collection-dot" />
-            <span className="collection-name">{collection.name}</span>
-            <span className="nav-count">{counts.get(collection.id) ?? 0}</span>
+            <Filter size={13} className="collection-dot" />
+            <span className="collection-name">{savedView.name}</span>
             <button
               className="icon-btn tiny collection-delete"
-              title="删除分类"
+              title="删除保存视图"
               onClick={(event) => {
                 event.stopPropagation()
-                void deleteCollection(collection.id, collection.name)
+                void deleteSavedView(savedView.id, savedView.name)
               }}
             >
               <Trash2 size={12} />

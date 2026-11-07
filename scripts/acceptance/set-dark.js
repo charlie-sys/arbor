@@ -1,0 +1,1 @@
+localStorage.setItem('zotagent-theme','dark'); location.reload(); return 'dark';

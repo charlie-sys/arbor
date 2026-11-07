@@ -1,0 +1,1 @@
+document.querySelector('.sidebar-hide')?.click(); return 'ok';

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Arbor">
+  <path
+    d="M512 50C700 28 900 140 936 340C960 476 940 604 868 730C780 884 600 974 420 928C240 882 82 758 52 574C20 380 96 188 266 104C338 66 424 48 512 50Z"
+    fill="#4a3f35"
+  />
+  <path
+    d="M512 82C688 62 874 164 908 348C930 474 912 592 844 708C762 850 596 936 428 894C262 852 116 736 88 566C58 386 128 208 282 130C350 94 430 78 512 82Z"
+    fill="none"
+    stroke="#8b9d77"
+    stroke-opacity="0.32"
+    stroke-width="10"
+  />
+  <path d="M512 700C428 630 328 604 240 624L258 384C348 362 452 394 512 462Z" fill="#faf6f1" />
+  <path d="M512 700C596 630 696 604 784 624L766 384C676 362 572 394 512 462Z" fill="#efe3d2" />
+  <path d="M512 462V700" stroke="#3f342d" stroke-width="18" stroke-linecap="round" />
+  <path d="M294 438C366 424 436 444 484 486" stroke="#d8cbbb" stroke-width="9" fill="none" stroke-linecap="round" />
+  <path d="M306 502C372 490 432 506 476 540" stroke="#d8cbbb" stroke-width="9" fill="none" stroke-linecap="round" />
+  <path d="M730 438C658 424 588 444 540 486" stroke="#e2d2bc" stroke-width="9" fill="none" stroke-linecap="round" />
+  <path d="M718 502C652 490 592 506 548 540" stroke="#e2d2bc" stroke-width="9" fill="none" stroke-linecap="round" />
+  <path d="M512 508C526 396 604 306 702 276C714 386 650 476 540 512Z" fill="#a3b18a" />
+  <path d="M522 500C566 420 620 358 690 306" stroke="#5f7150" stroke-width="12" fill="none" stroke-linecap="round" />
+  <path d="M570 452C596 442 620 428 644 408" stroke="#5f7150" stroke-width="8" fill="none" stroke-linecap="round" />
+  <path d="M604 512C624 492 648 478 674 470" stroke="#5f7150" stroke-width="8" fill="none" stroke-linecap="round" />
+  <path d="M702 276C662 350 590 420 512 470" stroke="#7f9169" stroke-width="8" fill="none" stroke-linecap="round" />
+  <circle cx="704" cy="276" r="17" fill="#d4a373" />
+</svg>

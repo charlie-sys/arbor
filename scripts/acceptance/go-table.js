@@ -1,0 +1,1 @@
+Array.from(document.querySelectorAll('button')).find((b)=>b.title==='表格视图')?.click(); return 'ok';

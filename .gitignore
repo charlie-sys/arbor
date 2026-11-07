@@ -4,5 +4,6 @@ release/
 release-*/
 release[0-9]*/
 *.log
+docs/progress.lock
 .DS_Store
 Thumbs.db

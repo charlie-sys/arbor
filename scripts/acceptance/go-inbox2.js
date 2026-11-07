@@ -1,0 +1,1 @@
+Array.from(document.querySelectorAll('.nav-item')).find((b)=>b.innerText.includes('Inbox'))?.click(); return 'ok';

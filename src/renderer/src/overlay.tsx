@@ -77,14 +77,14 @@ function Overlay(): React.JSX.Element {
             top: 24,
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'rgba(17, 24, 39, 0.88)',
-            color: '#e8eefc',
+            background: 'rgba(63, 52, 45, 0.9)',
+            color: '#f4ece0',
             padding: '10px 18px',
-            borderRadius: 10,
+            borderRadius: 16,
             fontSize: 13,
             letterSpacing: 0.2,
-            boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 8px 26px rgba(43, 35, 29, 0.35)',
+            border: '1px solid rgba(244, 236, 224, 0.14)',
             fontFamily: '"Segoe UI", "Microsoft YaHei", sans-serif',
             pointerEvents: 'none'
           }}
@@ -101,9 +101,9 @@ function Overlay(): React.JSX.Element {
               top: rect.y,
               width: rect.width,
               height: rect.height,
-              border: '1.5px solid #4f8cff',
-              background: 'rgba(79, 140, 255, 0.08)',
-              boxShadow: '0 0 0 9999px rgba(8, 12, 20, 0.35)',
+              border: '1.5px solid #8b9d77',
+              background: 'rgba(139, 157, 119, 0.1)',
+              boxShadow: '0 0 0 9999px rgba(43, 35, 29, 0.35)',
               pointerEvents: 'none'
             }}
           />
@@ -112,10 +112,10 @@ function Overlay(): React.JSX.Element {
               position: 'absolute',
               left: rect.x,
               top: rect.y + rect.height + 8,
-              background: 'rgba(17, 24, 39, 0.9)',
-              color: '#dbe7ff',
-              padding: '3px 8px',
-              borderRadius: 6,
+              background: 'rgba(63, 52, 45, 0.92)',
+              color: '#ece3d6',
+              padding: '3px 10px',
+              borderRadius: 999,
               fontSize: 12,
               fontFamily: 'Consolas, monospace',
               pointerEvents: 'none'
@@ -133,8 +133,8 @@ function Overlay(): React.JSX.Element {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(10, 14, 22, 0.45)',
-            color: '#dbe7ff',
+            background: 'rgba(43, 35, 29, 0.45)',
+            color: '#f4ece0',
             fontFamily: '"Segoe UI", "Microsoft YaHei", sans-serif',
             fontSize: 14,
             pointerEvents: 'none'

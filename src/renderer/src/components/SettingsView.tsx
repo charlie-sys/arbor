@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Eye, EyeOff, FolderOpen, Loader2, Plug, Save, XCircle } from 'lucide-react'
-import type { AppSettings } from '@shared/types'
+import { CheckCircle2, FolderOpen, Loader2, Lock, Plug, RotateCcw, Save, XCircle } from 'lucide-react'
+import type { AppSettings, BackupInfo } from '@shared/types'
 import type { AppInfo, TestResult } from '@shared/api'
+import { useUnsavedChanges } from '../unsaved'
 
 interface Props {
   settings: AppSettings
@@ -44,15 +45,57 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
   const [temperature, setTemperature] = useState(String(settings.temperature))
   const [maxContextChars, setMaxContextChars] = useState(String(settings.maxContextChars))
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt)
-  const [showKey, setShowKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const [info, setInfo] = useState<AppInfo | null>(null)
+  const [backups, setBackups] = useState<BackupInfo[]>([])
+  const [backingUp, setBackingUp] = useState(false)
+  const [restoring, setRestoring] = useState<string | null>(null)
+  const settingsDirty =
+    baseUrl !== settings.apiBaseUrl ||
+    apiKey !== settings.apiKey ||
+    chatModel !== settings.chatModel ||
+    visionModel !== settings.visionModel ||
+    temperature !== String(settings.temperature) ||
+    maxContextChars !== String(settings.maxContextChars) ||
+    systemPrompt !== settings.systemPrompt
+  useUnsavedChanges('settings-editor', settingsDirty)
 
   useEffect(() => {
     void window.api.settings.info().then(setInfo)
   }, [])
+
+  useEffect(() => {
+    void window.api.backup.list().then(setBackups).catch(() => undefined)
+  }, [])
+
+  const backupNow = async (): Promise<void> => {
+    setBackingUp(true)
+    try {
+      await window.api.backup.run()
+      setBackups(await window.api.backup.list())
+      notify('备份完成', 'success')
+    } catch (err) {
+      notify(`备份失败：${(err as Error).message}`, 'error')
+    } finally {
+      setBackingUp(false)
+    }
+  }
+
+  const restore = async (backup: BackupInfo): Promise<void> => {
+    const label = new Date(backup.createdAt).toLocaleString('zh-CN')
+    if (!window.confirm(`恢复到 ${label} 的备份？当前数据会先保存一份安全副本，随后应用将重新加载。`)) return
+    setRestoring(backup.name)
+    try {
+      await window.api.backup.restore(backup.name)
+      window.location.reload()
+    } catch (err) {
+      notify(`恢复失败：${(err as Error).message}`, 'error')
+    } finally {
+      setRestoring(null)
+    }
+  }
 
   const save = async (): Promise<void> => {
     setSaving(true)
@@ -67,6 +110,13 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
         systemPrompt
       })
       onSaved(updated)
+      setBaseUrl(updated.apiBaseUrl)
+      setApiKey(updated.apiKey)
+      setChatModel(updated.chatModel)
+      setVisionModel(updated.visionModel)
+      setTemperature(String(updated.temperature))
+      setMaxContextChars(String(updated.maxContextChars))
+      setSystemPrompt(updated.systemPrompt)
       notify('设置已保存', 'success')
     } catch (err) {
       notify(`保存失败：${(err as Error).message}`, 'error')
@@ -127,18 +177,17 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
 
           <label className="field">
             <span>API Key</span>
-            <div className="input-with-action">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder="sk-…"
-              />
-              <button className="icon-btn" onClick={() => setShowKey((value) => !value)} title={showKey ? '隐藏' : '显示'}>
-                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <small className="hint">使用 Windows 系统加密（DPAPI）保存在本机配置中。</small>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="sk-…"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <small className="hint key-hint">
+              <Lock size={12} /> 密钥仅以 Windows DPAPI 加密形式保存在本机，界面不提供明文回显。
+            </small>
           </label>
 
           <div className="field-row">
@@ -227,6 +276,37 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
             数据目录包含文献 PDF、全文缓存、对话记录与翻译截图。迁移或备份时复制整个目录即可；API Key
             受系统加密保护，迁移到其他电脑后需要重新填写。
           </p>
+        </section>
+
+        <section className="card">
+          <h2>自动备份</h2>
+          <p className="hint" style={{ marginTop: 0 }}>
+            每天首次启动时自动快照数据目录，保留最近 7 份；恢复前会为当前数据保留一份安全副本。
+          </p>
+          <div className="settings-actions">
+            <button className="btn ghost" onClick={() => void backupNow()} disabled={backingUp}>
+              {backingUp ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+              {backingUp ? '备份中…' : '立即备份'}
+            </button>
+          </div>
+          {backups.length === 0 ? (
+            <p className="hint">还没有备份。</p>
+          ) : (
+            <div className="kv-list">
+              {backups.map((backup) => (
+                <div className="kv" key={backup.name}>
+                  <span>
+                    {new Date(backup.createdAt).toLocaleString('zh-CN')}
+                    <span className="muted small"> · {(backup.size / 1024 / 1024).toFixed(1)} MB</span>
+                  </span>
+                  <button className="btn ghost" onClick={() => void restore(backup)} disabled={!!restoring}>
+                    {restoring === backup.name ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+                    恢复
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

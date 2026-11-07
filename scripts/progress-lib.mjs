@@ -55,7 +55,9 @@ const PROBES = {
   'P1-2': [
     { label: 'Tag 实体', file: 'src/shared/types.ts', re: /interface\s+Tag\b/ },
     { label: 'Property 实体', file: 'src/shared/types.ts', re: /interface\s+Property\b/ },
-    { label: 'savedViews', file: 'src/shared/types.ts', re: /savedViews/ }
+    { label: 'savedViews', file: 'src/shared/types.ts', re: /savedViews/ },
+    { label: '属性筛选 UI', file: 'src/renderer/src/components/LibraryView.tsx', re: /property|属性筛选/ },
+    { label: '属性管理入口', file: 'src/renderer/src/App.tsx', re: /PropertyManager/ }
   ],
   'P1-3': [
     { label: 'TaskItem 实体', file: 'src/shared/types.ts', re: /interface\s+TaskItem\b/ },

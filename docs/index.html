@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Arbor 是一款本地优先的文献阅读、知识整理与 AI 研究工坊，支持 PDF 阅读、可溯源 AI 对话、灵感收集、截图翻译、研究主题与阅读计划。" />
+    <meta name="theme-color" content="#faf6f1" />
+    <title>Arbor — 让研究与阅读自然生长</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/arbor-logo.svg" />
+    <link rel="stylesheet" href="./site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand-link" href="./index.html" aria-label="Arbor 首页">
+          <img src="./assets/arbor-logo.svg" alt="Arbor logo" />
+          <span>
+            <strong>Arbor</strong>
+            <span>文献 · AI 研究工坊</span>
+          </span>
+        </a>
+        <nav class="site-nav" aria-label="主导航">
+          <a href="#features">功能</a>
+          <a href="#interface">界面</a>
+          <a href="#guide">使用说明</a>
+          <a href="./demo.html">在线体验</a>
+          <a href="./questionnaire.html">体验问卷</a>
+        </nav>
+        <div class="header-actions">
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换深浅色" title="切换深浅色">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+            </svg>
+          </button>
+          <a class="btn primary small" data-download href="https://github.com/" target="_blank" rel="noreferrer">下载桌面版</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <span class="eyebrow">本地优先 · 可溯源的 AI 研究工坊</span>
+            <h1>让研究与阅读，自然生长。</h1>
+            <p class="hero-lead">
+              Arbor 把文献阅读、笔记摘录、灵感收集与 AI 对话放进同一个安静的空间。数据留在本机，
+              每一条 AI 结论都能回到原文页码。
+            </p>
+            <div class="hero-actions">
+              <a class="btn primary" data-download href="https://github.com/" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v12" /><path d="m7 11 5 5 5-5" /><path d="M5 21h14" />
+                </svg>
+                下载 Arbor
+              </a>
+              <a class="btn" href="./demo.html">在线交互体验</a>
+            </div>
+            <p class="hero-meta">
+              <strong>Windows 10/11</strong> · v0.1.0 · 开源 · API Key 使用系统级加密
+            </p>
+          </div>
+          <div class="hero-visual">
+            <div class="window">
+              <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 文献库</span></div>
+              <img src="./assets/screens/library.png" alt="Arbor 文献库列表界面，支持拖动列宽和列表宽度" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="features">
+        <div class="wrap">
+          <div class="section-head center">
+            <div class="section-kicker">功能</div>
+            <h2>一个空间，完成从阅读到研究</h2>
+            <p>不打断阅读心流，也不让资料散落。每个功能都围绕“原文可追溯”和“本地可掌控”设计。</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <h3>可拖拽的文献列表</h3>
+              <p>列表宽度与每列列宽都能用鼠标拖动，双击列边界恢复默认；宽窄随你，阅读节奏也随你。</p>
+              <span class="feature-tag">列表 · 拖拽</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg>
+              </div>
+              <h3>有出处的 AI 对话</h3>
+              <p>回答自动附带原文片段与页码，点击引用即可回到 PDF 对应位置，减少“看起来对”的幻觉。</p>
+              <span class="feature-tag">AI · 引用</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.9-5.4 5.1-6C9.5 14.5 12 13 13 12"/></svg>
+              </div>
+              <h3>灵感收集</h3>
+              <p>随手收集文字、链接、摘录和待办，AI 会给出归类建议，之后再慢慢整理成主题或笔记。</p>
+              <span class="feature-tag">收集 · 整理</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
+              </div>
+              <h3>研究主题空间</h3>
+              <p>把多篇文献聚合成一个主题，汇总建议问题、成员文献与摘录，直接进入主题内对话。</p>
+              <span class="feature-tag">主题 · 综述</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/></svg>
+              </div>
+              <h3>截图翻译</h3>
+              <p>框选任意区域即可翻译，保留原图、结构化译文与纯文本三种形态，历史记录随时回看。</p>
+              <span class="feature-tag">截图 · 翻译</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
+              </div>
+              <h3>本地优先与加密</h3>
+              <p>文献、笔记、对话与截图保存在本机；API Key 以 Windows DPAPI 加密落盘，界面不回显明文。</p>
+              <span class="feature-tag">隐私 · 安全</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="m9 15 2 2 4-4"/></svg>
+              </div>
+              <h3>主题阅读计划</h3>
+              <p>输入学习目标，让 AI 依据库内文献生成阅读顺序、关注点与问题清单，按计划推进。</p>
+              <span class="feature-tag">学习 · 计划</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8h14"/><path d="M7 8c0 6 2 10 5 13"/><path d="M17 8c0 6-2 10-5 13"/></svg>
+              </div>
+              <h3>主题画布</h3>
+              <p>把文献、摘录与问答卡片放到一张无限画布上，建立连线、分区、缩放并导出 PNG。</p>
+              <span class="feature-tag">画布 · 关联</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="interface">
+        <div class="wrap">
+          <div class="section-head">
+            <div class="section-kicker">深读</div>
+            <h2>读到哪里，问到哪里</h2>
+            <p>PDF 主区与右侧 AI 工作台并行。选中文字即可高亮、摘录或直接追问，回答回到原文。</p>
+          </div>
+          <div class="split">
+            <div class="split-copy">
+              <h2>让 AI 成为阅读的延伸</h2>
+              <p>Arbor 会把当前文献、选区与笔记作为上下文，回答时标注页码与引用，避免脱离原文的泛泛而谈。</p>
+              <ul class="check-list">
+                <li>PDF 缩放、翻页、大纲与文本层检索</li>
+                <li>高亮、摘录、笔记与引用一键串联</li>
+                <li>右侧面板页签：AI 助手 / 大纲 / 高亮 / 摘录 / 文献信息 / 笔记 / 任务</li>
+                <li>深色模式与自适应分栏，长时间阅读更舒适</li>
+              </ul>
+            </div>
+            <div class="split-visual">
+              <div class="window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 阅读器</span></div>
+                <img src="./assets/screens/reader.png" alt="Arbor 阅读器与右侧 AI 助手、摘录和笔记面板" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="split reverse">
+            <div class="split-visual">
+              <div class="window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · AI 对话</span></div>
+                <img src="./assets/screens/chat.png" alt="Arbor 的 AI 文献对话界面，包含引用与整理为文档" />
+              </div>
+            </div>
+            <div class="split-copy">
+              <div class="section-kicker">可溯源回答</div>
+              <h2>每个结论，都能回到原文</h2>
+              <p>对话会携带当前文献或整库上下文，回答中给出页码引用。支持把整段对话整理为 Markdown 文档，继续写作。</p>
+              <ul class="check-list">
+                <li>多会话管理：每篇文献可拥有独立对话</li>
+                <li>引用列表可展开，点击跳转到对应页</li>
+                <li>支持“整篇文献 / 当前页 / 选中段落 / 不引用 / 笔记”上下文模式</li>
+                <li>回答可复制、重新生成、整理为文档</li>
+              </ul>
+              <div class="note">Arbor 不替你做判断，只帮你更快找到原文依据。所有 AI 输出都建议回到 PDF 核对。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt">
+        <div class="wrap">
+          <div class="section-head">
+            <div class="section-kicker">收集与整理</div>
+            <h2>先收集，再让结构自然出现</h2>
+            <p>灵感收集负责“接住”，研究主题负责“聚合”。零散想法不会消失，成熟后再长成主题与计划。</p>
+          </div>
+          <div class="split">
+            <div class="split-copy">
+              <h3>灵感收集</h3>
+              <p>文字、链接、摘录、待办都可以先放进来。AI 会建议归类到分类、标签或研究主题，也可以直接转为任务。</p>
+              <ul class="check-list">
+                <li>Ctrl+N 在任意页面快速收集</li>
+                <li>支持图片与文件附件</li>
+                <li>归档、恢复、转任务与 AI 归类建议</li>
+              </ul>
+              <h3 style="margin-top: 28px">研究主题</h3>
+              <p>把同类文献聚合成主题空间，自动汇总建议问题，并把成员文献作为主题对话的上下文。</p>
+            </div>
+            <div class="split-visual">
+              <div class="window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 灵感收集</span></div>
+                <img src="./assets/screens/inspiration.png" alt="Arbor 灵感收集页面，包含链接卡片、归档与恢复操作" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="split reverse">
+            <div class="split-visual">
+              <div class="window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 截图翻译</span></div>
+                <img src="./assets/screens/translations.png" alt="Arbor 截图翻译页面，保留原文、结构化译文与纯文本" />
+              </div>
+            </div>
+            <div class="split-copy">
+              <div class="section-kicker">截图翻译</div>
+              <h2>看不懂的图表与公式，框一下</h2>
+              <p>通过全局快捷键框选屏幕区域，Arbor 会保留原图并给出结构化译文与纯文本，适合论文图表、扫描页与公式密集段落。</p>
+              <ul class="check-list">
+                <li>全局快捷键 Ctrl + Shift + T</li>
+                <li>原图 / 结构化 / 纯文本三种视图</li>
+                <li>历史记录与一键复制</li>
+                <li>译文图支持导出与放大查看</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt">
+        <div class="wrap">
+          <div class="section-head center">
+            <div class="section-kicker">数据与安全</div>
+            <h2>你掌控数据，AI 只是工具</h2>
+            <p>默认本地保存，自动备份保留最近 7 份；API Key 使用 Windows DPAPI 加密，输入后不再显示明文。</p>
+          </div>
+          <div class="split">
+            <div class="split-visual">
+              <div class="window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 设置</span></div>
+                <img src="./assets/screens/settings.png" alt="Arbor 设置页面，API Key 输入为隐藏状态，并显示本地加密说明" />
+              </div>
+            </div>
+            <div class="split-copy">
+              <h3>安全与可控</h3>
+              <ul class="check-list">
+                <li>API Key 始终以密码形式输入，界面不提供明文回显</li>
+                <li>密钥经 Windows DPAPI 加密后写入本机配置</li>
+                <li>文献、笔记、对话与翻译均保存在本机数据目录</li>
+                <li>自动备份与恢复，迁移只需复制数据目录</li>
+                <li>可配置任意 OpenAI 兼容接口，模型自由选择</li>
+              </ul>
+              <div class="note">Arbor 不会把文献库上传到自有服务器；AI 请求只会发送给你配置的模型服务。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="gallery">
+        <div class="wrap">
+          <div class="section-head center">
+            <div class="section-kicker">界面</div>
+            <h2>界面一览</h2>
+            <p>自然有机的暖色界面，支持浅色与深色。所有截图均来自真实运行的 Arbor。</p>
+          </div>
+          <div class="split" style="align-items: stretch">
+            <div class="window">
+              <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>研究主题</span></div>
+              <img src="./assets/screens/topics.png" alt="Arbor 研究主题页面" />
+            </div>
+            <div class="window">
+              <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>命令面板</span></div>
+              <img src="./assets/screens/palette.png" alt="Arbor 命令面板，可快速搜索文献与执行操作" />
+            </div>
+          </div>
+          <div class="split" style="margin-top: 24px; align-items: stretch">
+            <div class="window">
+              <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>深色模式</span></div>
+              <img src="./assets/screens/dark.png" alt="Arbor 深色模式下的文献列表" />
+            </div>
+            <div class="window">
+              <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>主题画布</span></div>
+              <img src="./assets/screens/canvas.png" alt="Arbor 主题画布页面" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="guide">
+        <div class="wrap">
+          <div class="section-head center">
+            <div class="section-kicker">快速开始</div>
+            <h2>四步开始使用</h2>
+            <p>从下载到第一次可溯源的 AI 问答，通常只需要几分钟。</p>
+          </div>
+          <div class="steps">
+            <article class="step reveal">
+              <h3>下载并安装</h3>
+              <p>从 GitHub Release 下载 Windows 安装包，按向导完成安装。应用与数据均保存在本机。</p>
+            </article>
+            <article class="step reveal">
+              <h3>配置模型</h3>
+              <p>打开“设置”，填写 OpenAI 兼容接口的 Base URL、API Key 与模型名，点击“测试连接”。</p>
+            </article>
+            <article class="step reveal">
+              <h3>导入文献</h3>
+              <p>点击“导入 PDF”，Arbor 会自动提取全文。列表宽度与列宽可拖动调整，Ctrl+O 全局搜索。</p>
+            </article>
+            <article class="step reveal">
+              <h3>阅读与提问</h3>
+              <p>打开文献，选中文字高亮或摘录，在右侧 AI 助手中提问；引用可跳回原文核对。</p>
+            </article>
+          </div>
+          <div class="note" style="margin-top: 28px">
+            快捷键：Ctrl+O 搜索 · Ctrl+K 命令面板 · Ctrl+N 快速收集 · Ctrl+Shift+T 截图翻译 · Esc 关闭浮层 · Ctrl+Enter 发送。
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="try">
+        <div class="wrap">
+          <div class="cta-card">
+            <div>
+              <h2>先在线看看，再把 Arbor 带回桌面</h2>
+              <p>在线 Demo 使用模拟数据，展示主要界面与交互；完整阅读、真实 AI 与本地文件功能请下载桌面版。</p>
+            </div>
+            <div class="cta-actions">
+              <a class="btn primary" href="./demo.html">进入在线 Demo</a>
+              <a class="btn" data-download href="https://github.com/" target="_blank" rel="noreferrer">下载桌面版</a>
+            </div>
+          </div>
+          <div class="cta-card" style="margin-top: 20px; background: var(--panel)">
+            <div>
+              <h2 style="font-size: clamp(1.5rem, 2.6vw, 2rem)">帮助 Arbor 长得更好</h2>
+              <p>用 2 分钟填写体验问卷。题目以选择题为主，仅有一道填空题，匿名且只保存在你的浏览器里。</p>
+            </div>
+            <div class="cta-actions">
+              <a class="btn primary" href="./questionnaire.html">填写体验问卷</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a class="brand-link" href="./index.html">
+              <img src="./assets/arbor-logo.svg" alt="Arbor logo" />
+              <span><strong>Arbor</strong><span>文献 · AI 研究工坊</span></span>
+            </a>
+            <p>本地优先的文献阅读、知识整理与 AI 研究工具。让资料自然生长，让结论回到原文。</p>
+          </div>
+          <div class="footer-col">
+            <h4>产品</h4>
+            <a href="#features">功能</a>
+            <a href="#interface">界面</a>
+            <a href="./demo.html">在线 Demo</a>
+            <a href="./questionnaire.html">体验问卷</a>
+          </div>
+          <div class="footer-col">
+            <h4>资源</h4>
+            <a data-github href="https://github.com/" target="_blank" rel="noreferrer">GitHub 仓库</a>
+            <a data-download href="https://github.com/" target="_blank" rel="noreferrer">最新 Release</a>
+            <a href="#guide">使用说明</a>
+            <span>版本 0.1.0 · Windows 10/11</span>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>© <span id="year">2026</span> Arbor · 采用 MIT License 开源</span>
+          <span>本地优先 · 不收集你的文献内容 · 在线 Demo 为模拟数据</span>
+        </div>
+      </div>
+    </footer>
+
+    <script src="./site.js"></script>
+  </body>
+</html>

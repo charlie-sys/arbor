@@ -1,8 +1,8 @@
 {
-  "name": "zotero-agent",
+  "name": "arbor-desktop",
   "version": "0.1.0",
-  "description": "文献阅读管理与 AI Agent 工作台",
-  "author": "ZotAgent",
+  "description": "Arbor — 文献阅读、知识整理与 AI 研究工坊",
+  "author": "Arbor",
   "main": "./out/main/index.js",
   "private": true,
   "scripts": {
@@ -22,7 +22,8 @@
     "progress:status": "node scripts/progress.mjs status"
   },
   "dependencies": {
-    "docx": "^9.5.0"
+    "docx": "^9.5.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
@@ -45,8 +46,8 @@
     "vite": "^7.1.0"
   },
   "build": {
-    "appId": "com.zotagent.desktop",
-    "productName": "ZotAgent",
+    "appId": "com.arbor.desktop",
+    "productName": "Arbor",
     "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "release"

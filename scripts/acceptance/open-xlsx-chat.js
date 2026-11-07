@@ -1,0 +1,1 @@
+document.querySelector('.sidebar-edge')?.dispatchEvent(new MouseEvent('mouseenter',{bubbles:true})); setTimeout(()=>{Array.from(document.querySelectorAll('.nav-item')).find(b=>b.innerText.includes('AI 对话'))?.click(); setTimeout(()=>{Array.from(document.querySelectorAll('.session-item')).find(el=>el.innerText.includes('表格解析测试'))?.click();},600);},400); return 'ok';

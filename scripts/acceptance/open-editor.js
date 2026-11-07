@@ -1,0 +1,1 @@
+document.querySelector('.inbox-item')?.click(); return 'ok';

@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#faf6f1" />
+    <title>Arbor 在线交互 Demo（模拟数据）</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/arbor-logo.svg" />
+    <link rel="stylesheet" href="./demo.css" />
+  </head>
+  <body>
+    <div class="demo-bar">
+      <a class="demo-brand" href="./index.html">
+        <img src="./assets/arbor-logo.svg" alt="Arbor logo" />
+        Arbor
+      </a>
+      <span class="demo-badge">在线交互 Demo · 模拟数据</span>
+      <div class="demo-links">
+        <a class="demo-link" href="./index.html">产品首页</a>
+        <a class="demo-link" href="./questionnaire.html">体验问卷</a>
+        <button class="demo-link" id="themeToggle" type="button">深色模式</button>
+        <a class="demo-link primary" href="./index.html#try">下载桌面版</a>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="./assets/arbor-logo.svg" alt="Arbor" />
+          <div>
+            <strong>Arbor</strong>
+            <span>文献 · AI 研究工坊</span>
+          </div>
+        </div>
+        <button class="import-btn" type="button" data-toast="在线 Demo 不读取本地 PDF，请下载桌面版体验完整导入。">导入 PDF 文献</button>
+        <nav class="nav" aria-label="演示导航">
+          <button class="active" data-view="library" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            文献库 <span class="count">6</span>
+          </button>
+          <button data-view="chat" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            AI 对话 <span class="count">3</span>
+          </button>
+          <button data-view="topics" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
+            研究主题 <span class="count">2</span>
+          </button>
+          <button data-view="inspiration" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg>
+            灵感收集 <span class="count">3</span>
+          </button>
+          <button data-view="translations" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/></svg>
+            截图翻译 <span class="count">4</span>
+          </button>
+          <button data-view="settings" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+            设置
+          </button>
+        </nav>
+        <div class="sidebar-section">
+          <h4>分类</h4>
+          <div class="sidebar-item active"><span class="dot"></span>电池状态估计 <span class="count">6</span></div>
+          <div class="sidebar-item"><span class="dot"></span>研究方法</div>
+        </div>
+        <div class="sidebar-foot">在线 Demo 只演示界面与交互，不连接真实 AI，也不会读取本地文件。</div>
+      </aside>
+
+      <main class="main">
+        <section class="view active" data-page="library">
+          <div class="scroll-view">
+            <div class="view-head">
+              <div>
+                <h1>文献库</h1>
+                <p>共 6 篇文献 · 列表宽度与列宽可拖动调整（演示数据）</p>
+              </div>
+              <button class="btn primary" type="button" data-toast="桌面版支持导入 PDF 并自动提取全文。">导入 PDF</button>
+            </div>
+            <div class="toolbar">
+              <label class="search">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="librarySearch" type="search" placeholder="搜索标题、作者、期刊…" />
+              </label>
+              <select class="select" aria-label="年份筛选">
+                <option>全部年份</option>
+                <option>2024</option>
+                <option>2023</option>
+              </select>
+              <select class="select" aria-label="状态筛选">
+                <option>全部阅读状态</option>
+                <option>阅读中</option>
+                <option>未读</option>
+              </select>
+            </div>
+            <div class="list-panel">
+              <table class="doc-list">
+                <thead>
+                  <tr>
+                    <th style="width: 40%">标题</th>
+                    <th style="width: 17%">作者</th>
+                    <th style="width: 10%">年份</th>
+                    <th style="width: 17%">期刊</th>
+                    <th style="width: 16%">状态</th>
+                  </tr>
+                </thead>
+                <tbody id="libraryBody">
+                  <tr data-doc="1" data-title="Generalized State of Health Estimation Approach based on Neural Networks">
+                    <td><span class="doc-title"><span class="star">★</span>Generalized State of Health Estimation Approach…</span></td>
+                    <td>—</td><td>2024</td><td>e-Energy</td><td><span class="pill reading">阅读中</span></td>
+                  </tr>
+                  <tr data-doc="2" data-title="MambaLithium Selective state space model for battery health">
+                    <td><span class="doc-title">MambaLithium Selective state space model…</span></td>
+                    <td>—</td><td>2024</td><td>—</td><td><span class="pill reading">阅读中</span></td>
+                  </tr>
+                  <tr data-doc="3" data-title="State-of-Health Estimation of Li-Ion Batteries Using Transfer Learning">
+                    <td><span class="doc-title">State-of-Health Estimation of Li-Ion Batteries…</span></td>
+                    <td>Yunwei Zhang</td><td>2023</td><td>—</td><td><span class="pill reading">阅读中</span></td>
+                  </tr>
+                  <tr data-doc="4" data-title="Physics-informed neural network for lithium-ion battery health">
+                    <td><span class="doc-title">Physics-informed neural network for lithium-ion…</span></td>
+                    <td>Fujin Wang</td><td>2023</td><td>Applied Energy</td><td><span class="pill unread">未读</span></td>
+                  </tr>
+                  <tr data-doc="5" data-title="Deep learning to estimate lithium-ion battery state of charge">
+                    <td><span class="doc-title">Deep learning to estimate lithium-ion battery…</span></td>
+                    <td>Jiahuan Lu</td><td>2022</td><td>—</td><td><span class="pill reading">阅读中</span></td>
+                  </tr>
+                  <tr data-doc="6" data-title="A hybrid machine learning framework for joint SOC estimation">
+                    <td><span class="doc-title">A hybrid machine learning framework for joint SOC…</span></td>
+                    <td>Yihuan Li</td><td>2022</td><td>—</td><td><span class="pill unread">未读</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="panel-note" style="margin-top: 12px">提示：点击任意一行进入模拟阅读器；桌面版中此处可直接打开真实的 PDF。</p>
+          </div>
+        </section>
+
+        <section class="view" data-page="reader">
+          <div class="reader">
+            <div class="reader-main">
+              <div class="reader-toolbar">
+                <button class="icon-btn" id="backToLibrary" type="button" aria-label="返回文献库">←</button>
+                <span class="reader-title" id="readerTitle">Generalized State of Health Estimation Approach based on Neural Networks</span>
+                <span class="pill reading">阅读中</span>
+              </div>
+              <div class="pdf-scroll">
+                <article class="pdf-sheet">
+                  <h2 id="pdfTitle">Generalized State of Health Estimation Approach based on Neural Networks for Various Lithium-Ion Battery Chemistries</h2>
+                  <div class="pdf-authors">Steffen Bockrath and Marco Pruckner · e-Energy '23 · 2023</div>
+                  <p>
+                    Accurate state-of-health (SOH) estimation is essential for safe and reliable operation of lithium-ion
+                    batteries. This work introduces a generalized data-driven approach that estimates SOH from partial
+                    charging curves without requiring complete cycles.
+                  </p>
+                  <div class="pdf-line"></div>
+                  <div class="pdf-line"></div>
+                  <div class="pdf-line short"></div>
+                  <h3>3. Methodology</h3>
+                  <p>
+                    We train a Bayesian hyperparameter-tuned neural network on 16 features extracted from partial charging
+                    segments. Transfer learning is then applied across three battery chemistries to improve generalization.
+                  </p>
+                  <div class="pdf-line"></div>
+                  <div class="pdf-line short"></div>
+                  <div class="pdf-figure" aria-label="模拟图表"><i></i><i></i><i></i><i></i><i></i></div>
+                  <h3>4. Results</h3>
+                  <p>
+                    The proposed model achieves a mean absolute percentage error of 1.43% across the evaluated chemistries,
+                    outperforming the baseline on unseen partial charging windows.
+                  </p>
+                  <div class="pdf-line"></div>
+                  <div class="pdf-line"></div>
+                  <div class="pdf-line short"></div>
+                </article>
+              </div>
+            </div>
+            <aside class="panel">
+              <div class="panel-tabs" role="tablist">
+                <button class="tab active" data-panel="assistant" type="button">AI 助手</button>
+                <button class="tab" data-panel="highlights" type="button">高亮 4</button>
+                <button class="tab" data-panel="notes" type="button">笔记</button>
+              </div>
+              <div class="panel-body" data-panel-body="assistant">
+                <div class="chat-msg user">这篇论文的核心贡献和局限性分别是什么？</div>
+                <div class="chat-msg assistant">
+                  核心贡献是从部分充电曲线估计 SOH，并用迁移学习覆盖多种化学体系，报告 MAPE 约为 1.43%
+                  <span class="cite">[第 1 页]</span>。局限性在于：实验仅覆盖三种化学体系，且对充电片段长度与数据质量较敏感
+                  <span class="cite">[第 8 页]</span>。
+                  <ul>
+                    <li>贡献：无需完整循环，适合在线估计</li>
+                    <li>方法：贝叶斯调参 + 迁移学习</li>
+                    <li>风险：跨体系泛化仍需更多验证</li>
+                  </ul>
+                </div>
+                <div class="composer">
+                  <textarea id="readerInput" placeholder="针对当前文献提问，Ctrl+Enter 发送…"></textarea>
+                  <div class="composer-row">
+                    <button class="btn small" type="button" data-toast="已复制引用格式。">复制引用</button>
+                    <button class="btn primary small" id="readerSend" type="button">发送</button>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-body" data-panel-body="highlights" hidden>
+                <div class="highlight-item"><strong>第 3 页 · 鼠尾草</strong>We train a Bayesian hyperparameter-tuned neural network on 16 features extracted from partial charging segments.</div>
+                <div class="highlight-item"><strong>第 4 页 · 暖沙</strong>The proposed model achieves a mean absolute percentage error of 1.43% across the evaluated chemistries.</div>
+                <div class="highlight-item"><strong>第 8 页 · 陶土</strong>Generalization to unseen chemistries remains sensitive to the length of the partial charging window.</div>
+              </div>
+              <div class="panel-body" data-panel-body="notes" hidden>
+                <div class="field">
+                  <span>阅读笔记</span>
+                  <textarea style="height: 280px; resize: vertical; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fbf7f0; padding: 12px; font-size: 12.5px; outline: none">## 方法
+- 16 个部分充电曲线特征
+- 贝叶斯超参数优化
+- 跨化学体系迁移学习
+
+## 待核对
+- 训练集与测试集的划分方式
+- 不同充电窗口长度下的误差</textarea>
+                </div>
+                <button class="btn primary small" type="button" data-toast="笔记已保存（演示）。">保存笔记</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" data-page="chat">
+          <div class="chat-layout">
+            <div class="sessions">
+              <div class="session active"><strong>这篇论文讲了什么</strong><span>1 篇文献 · 18:27</span></div>
+              <div class="session"><strong>总结核心结论与贡献</strong><span>1 篇文献 · 15:55</span></div>
+              <div class="session"><strong>三篇文献的异同</strong><span>3 篇文献 · 14:12</span></div>
+              <div class="session"><strong>方法部分有哪些假设</strong><span>2 篇文献 · 11:51</span></div>
+            </div>
+            <div class="chat-main">
+              <div class="chat-head">
+                <h2>这篇论文讲了什么</h2>
+                <p>上下文：Generalized State of Health Estimation Approach… · 整篇文献</p>
+              </div>
+              <div class="chat-thread" id="chatThread">
+                <div class="chat-msg user">用三点总结这篇论文，并说明它能解决什么实际问题。</div>
+                <div class="chat-msg assistant">
+                  1. 提出从部分充电曲线估计 SOH 的广义方法，避免等待完整充放电循环
+                  <span class="cite">[第 1 页]</span>。<br />
+                  2. 使用贝叶斯超参数调优的神经网络，并结合迁移学习覆盖多种电池化学体系
+                  <span class="cite">[第 3 页]</span>。<br />
+                  3. 在三种化学体系上取得约 1.43% 的 MAPE，说明跨体系迁移具有可行性
+                  <span class="cite">[第 4 页]</span>。<br /><br />
+                  它可用于在线电池健康监测、二手电池评估和实验数据不足时的快速建模。
+                </div>
+                <div class="chat-msg user">如果我要复现，最需要注意什么？</div>
+                <div class="chat-msg assistant">
+                  优先核对特征提取窗口与数据清洗流程；论文中 16 个特征依赖部分充电片段的完整性
+                  <span class="cite">[第 5 页]</span>。其次注意不同化学体系的数据划分，避免训练集与测试集泄漏
+                  <span class="cite">[第 7 页]</span>。
+                </div>
+              </div>
+              <div class="composer">
+                <textarea id="chatInput" placeholder="继续提问，Enter 发送，Shift+Enter 换行…"></textarea>
+                <div class="composer-row">
+                  <button class="btn small" type="button" data-toast="已整理为 Markdown 文档（演示）。">整理为文档</button>
+                  <button class="btn primary small" id="chatSend" type="button">发送</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-page="topics">
+          <div class="scroll-view">
+            <div class="view-head">
+              <div>
+                <h1>研究主题</h1>
+                <p>把文献聚合成主题空间，汇总问题、摘录与主题对话</p>
+              </div>
+              <button class="btn primary" type="button" data-toast="桌面版可根据选中文献生成主题与建议问题。">新建研究主题</button>
+            </div>
+            <div class="cards-grid">
+              <article class="topic-card">
+                <h3>锂电池健康状态估计</h3>
+                <p>6 篇文献 · 8 个建议问题 · 更新于今天</p>
+                <div class="chips">
+                  <span class="pill sage">部分充电曲线</span>
+                  <span class="pill sage">迁移学习</span>
+                  <span class="pill sage">SOH</span>
+                </div>
+              </article>
+              <article class="topic-card">
+                <h3>跨化学体系泛化</h3>
+                <p>3 篇文献 · 5 个建议问题 · 更新于昨天</p>
+                <div class="chips">
+                  <span class="pill sage">LFP</span>
+                  <span class="pill sage">NCM</span>
+                  <span class="pill sage">域适应</span>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-page="inspiration">
+          <div class="scroll-view">
+            <div class="view-head">
+              <div>
+                <h1>灵感收集</h1>
+                <p>随手接住文字、链接、摘录与待办，之后再慢慢整理</p>
+              </div>
+              <button class="btn primary" type="button" data-toast="桌面版支持 Ctrl+N 在任意页面快速收集。">快速捕捉</button>
+            </div>
+            <div class="capture-box">
+              <input id="captureInput" type="text" placeholder="写下一条灵感，回车保存（演示）…" />
+              <button class="btn primary" id="captureSave" type="button">保存</button>
+            </div>
+            <div id="inspirationList">
+              <article class="inbox-card">
+                <div class="inbox-head"><span class="pill sage">链接</span><span>今天 14:20</span></div>
+                <h3>DeepSeek 文档 · 快速开始</h3>
+                <p>https://api-docs.deepseek.com/zh-cn/quick_start/pricing 下面是它的 Logo，你觉得好看吗？</p>
+              </article>
+              <article class="inbox-card">
+                <div class="inbox-head"><span class="pill reading">待办</span><span>今天 11:02</span></div>
+                <h3>核对迁移学习的训练集划分</h3>
+                <p>重点确认是否按电池单体划分，而不是按时间片段随机划分。</p>
+              </article>
+              <article class="inbox-card">
+                <div class="inbox-head"><span class="pill unread">摘录</span><span>昨天 16:40</span></div>
+                <h3>部分充电窗口长度敏感性</h3>
+                <p>当窗口短于 10 分钟时，SOH 估计误差明显上升，需要更多上下文特征。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-page="translations">
+          <div class="scroll-view" style="display: flex; flex-direction: column">
+            <div class="view-head">
+              <div>
+                <h1>截图翻译</h1>
+                <p>框选屏幕区域，保留原图、结构化译文与纯文本</p>
+              </div>
+              <button class="btn primary" type="button" data-toast="桌面版使用 Ctrl+Shift+T 全局框选截图。">开始截图</button>
+            </div>
+            <div class="translate-layout">
+              <div class="translate-list" id="translateList">
+                <button class="translate-item active" type="button" data-translate="1"><strong>2026/11/07 16:43</strong><span>deepseek-flash · 结构化译文</span></button>
+                <button class="translate-item" type="button" data-translate="2"><strong>2026/11/07 15:08</strong><span>qwen-vl-plus · 图表翻译</span></button>
+                <button class="translate-item" type="button" data-translate="3"><strong>2026/11/06 21:12</strong><span>deepseek-flash · 扫描页</span></button>
+              </div>
+              <article class="translate-detail" id="translateDetail">
+                <h3>译文</h3>
+                <p>本工作的目标是弥合上述研究空白，并提供一种广义的数据驱动老化估计方法。该方法仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。</p>
+                <div class="translate-image">模拟截图区域 · 保留原图</div>
+                <p>开发了一种使用贝叶斯超参数调优的神经网络，该网络能够在无需执行进一步预处理或特征工程的情况下估计 SOH。神经网络仅接收描述部分充电曲线的 16 个参数作为输入数据。</p>
+                <div class="chips">
+                  <span class="pill sage">结构化译文</span>
+                  <span class="pill sage">纯文本可复制</span>
+                  <span class="pill sage">原文可追溯</span>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-page="settings">
+          <div class="scroll-view">
+            <div class="view-head">
+              <div>
+                <h1>设置</h1>
+                <p>模型通过 OpenAI 兼容接口接入；所有文献与笔记保存在本机</p>
+              </div>
+              <button class="btn primary" type="button" data-toast="设置已保存（演示）。">保存设置</button>
+            </div>
+            <div class="settings-grid">
+              <section class="settings-card">
+                <h3>模型服务</h3>
+                <div class="chips" style="margin: 0 0 12px">
+                  <span class="pill sage">DeepSeek</span>
+                  <span class="pill sage">通义千问</span>
+                  <span class="pill sage">OpenAI</span>
+                  <span class="pill sage">Kimi</span>
+                </div>
+                <label class="field">
+                  <span>API Base URL</span>
+                  <input value="https://api.deepseek.com/v1" readonly />
+                </label>
+                <label class="field">
+                  <span>API Key</span>
+                  <input type="password" value="sk-demo-not-a-real-key" readonly />
+                  <small>密钥仅以 Windows DPAPI 加密形式保存在本机，界面不提供明文回显。</small>
+                </label>
+                <div class="field-row">
+                  <label class="field"><span>对话模型</span><input value="deepseek-chat" readonly /></label>
+                  <label class="field"><span>视觉模型</span><input value="deepseek-vl" readonly /></label>
+                </div>
+                <button class="btn" type="button" data-toast="演示环境不会发起真实网络请求。">测试连接</button>
+              </section>
+              <section class="settings-card">
+                <h3>数据与备份</h3>
+                <div class="field"><span>数据目录</span><input value="C:\Users\you\AppData\Roaming\Arbor\data" readonly /></div>
+                <div class="field-row">
+                  <label class="field"><span>自动备份</span><input value="保留最近 7 份" readonly /></label>
+                  <label class="field"><span>快捷键</span><input value="Ctrl + Shift + T" readonly /></label>
+                </div>
+                <p class="panel-note">文献、笔记、对话、翻译与截图均保存在本机。迁移或备份时复制整个数据目录即可。</p>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="demo-toast" id="demoToast" role="status" aria-live="polite"></div>
+    <script src="./demo.js"></script>
+  </body>
+</html>

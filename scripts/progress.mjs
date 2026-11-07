@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { ROOT, sync, audit, setStatus, loadState } from './progress-lib.mjs'
 
 const STATE = path.join(ROOT, 'docs/progress.json')
+const LOCK = path.join(ROOT, 'docs/progress.lock')
 const args = process.argv.slice(2)
 const command = args[0] || 'help'
 const flags = new Set(args.filter((arg) => arg.startsWith('--')))
@@ -96,6 +97,27 @@ switch (command) {
     break
   }
 
+  case 'lock': {
+    const ttlMinutes = Number(positional[0]) || 20
+    if (existsSync(LOCK)) {
+      const ageMinutes = (Date.now() - statSync(LOCK).mtimeMs) / 60000
+      if (ageMinutes < ttlMinutes) {
+        console.log(`LOCKED: 上一轮仍在运行或未释放锁（${Math.round(ageMinutes)} 分钟前）`)
+        process.exitCode = 2
+        break
+      }
+    }
+    writeFileSync(LOCK, `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() })}\n`, 'utf8')
+    console.log('ACQUIRED')
+    break
+  }
+
+  case 'unlock': {
+    rmSync(LOCK, { force: true })
+    console.log('RELEASED')
+    break
+  }
+
   case 'status': {
     printStatus(readState())
     break
@@ -110,6 +132,8 @@ switch (command) {
   verify <ID> ["证据"]              人工验收通过（UI/交互项）
   block <ID> ["原因"]               标记阻塞，自动推进 loop 会跳过
   reset <ID>                        重置为 todo
+  lock [TTL分钟]                    获取运行锁，防止多轮并发修改（默认 20 分钟）
+  unlock                            释放运行锁
   status                            查看当前状态
 
 示例：

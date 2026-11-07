@@ -8,13 +8,15 @@ import { cx, formatTime } from '../ui'
 interface Props {
   data: LibraryData
   initialChatId?: string
+  initialQuestion?: string
+  visible?: boolean
   onChanged(): Promise<void> | void
-  onOpenDoc(docId: string): void
+  onOpenDoc(docId: string, page?: number): void
   onOpenSettings(): void
   notify(message: string, kind?: 'info' | 'success' | 'error'): void
 }
 
-export default function ChatPage({ data, initialChatId, onChanged, onOpenDoc, onOpenSettings, notify }: Props): React.JSX.Element {
+export default function ChatPage({ data, initialChatId, initialQuestion, visible = true, onChanged, onOpenDoc, onOpenSettings, notify }: Props): React.JSX.Element {
   const [activeId, setActiveId] = useState<string | null>(initialChatId ?? null)
   const [showNew, setShowNew] = useState(false)
   const [selectedDocs, setSelectedDocs] = useState<string[]>([])
@@ -145,15 +147,6 @@ export default function ChatPage({ data, initialChatId, onChanged, onOpenDoc, on
                 </button>
               </div>
             )}
-
-            <ChatThread
-              key={activeChat.id}
-              chat={activeChat}
-              docs={docs}
-              onChanged={onChanged}
-              onCompose={(chat) => setComposeChat(chat)}
-              notify={notify}
-            />
           </>
         ) : (
           <div className="empty-state chat-empty-state">
@@ -167,6 +160,26 @@ export default function ChatPage({ data, initialChatId, onChanged, onOpenDoc, on
             </button>
           </div>
         )}
+
+        <div className="chat-thread-stack">
+          {chats.map((chat) => {
+            const chatDocs = data.documents.filter((doc) => chat.docIds.includes(doc.id))
+            return (
+              <div key={chat.id} className={cx('chat-thread-slot', chat.id === activeId && 'active')}>
+                <ChatThread
+                  chat={chat}
+                  docs={chatDocs}
+                  initialQuestion={chat.id === activeId ? initialQuestion : undefined}
+                  active={visible && chat.id === activeId}
+                  onChanged={onChanged}
+                  onCompose={(value) => setComposeChat(value)}
+                  openPage={onOpenDoc}
+                  notify={notify}
+                />
+              </div>
+            )
+          })}
+        </div>
       </section>
 
       {showNew && (

@@ -8,6 +8,51 @@ export interface AppSettings {
   systemPrompt: string
 }
 
+export interface Tag {
+  id: string
+  name: string
+  parentId?: string
+  color?: string
+}
+
+export type PropertyType = 'text' | 'number' | 'select' | 'multiselect' | 'date' | 'checkbox' | 'url'
+
+export interface PropertyOption {
+  id: string
+  name: string
+  color?: string
+}
+
+export interface Property {
+  id: string
+  name: string
+  type: PropertyType
+  options?: PropertyOption[]
+}
+
+export type PropertyValue = string | number | boolean | string[] | null
+
+export interface SavedViewConfig {
+  query?: string
+  starredOnly?: boolean
+  status?: ReadingStatus | 'all'
+  year?: string
+  tag?: string
+  collectionId?: string
+  propertyFilters?: Record<string, string>
+  viewMode?: 'cards' | 'table'
+  sorts?: { key: string; dir: 'asc' | 'desc' }[]
+  columns?: string[]
+}
+
+export interface SavedView {
+  id: string
+  name: string
+  config: SavedViewConfig
+  createdAt: number
+  updatedAt: number
+}
+
 export interface DocumentMeta {
   id: string
   title: string
@@ -24,9 +69,13 @@ export interface DocumentMeta {
   fileName: string
   pageCount: number
   starred: boolean
+  readingStatus: ReadingStatus
   lastPage: number
   notes: string
+  propertyValues?: Record<string, PropertyValue>
 }
+
+export type ReadingStatus = 'unread' | 'reading' | 'read'
 
 export type Role = 'user' | 'assistant' | 'system'
 
@@ -38,6 +87,7 @@ export interface ChatMessage {
   error?: boolean
   quotedText?: string
   quotedPage?: number
+  attachments?: InboxAttachment[]
 }
 
 export interface ChatSession {
@@ -78,7 +128,185 @@ export interface RenderRequest {
 export interface Collection {
   id: string
   name: string
+  parentId?: string
+  includeChildren?: boolean
   createdAt: number
+}
+
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple'
+
+export interface HighlightRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface Highlight {
+  id: string
+  docId: string
+  page: number
+  color: HighlightColor
+  text: string
+  note: string
+  rects: HighlightRect[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface Excerpt {
+  id: string
+  docId: string | null
+  docTitle: string
+  page?: number
+  source: string
+  question: string
+  answer: string
+  attachments?: InboxAttachment[]
+  createdAt: number
+  updatedAt: number
+  docMissing?: boolean
+}
+
+export type CanvasNodeKind = 'document' | 'excerpt' | 'chat' | 'section'
+
+export interface CanvasNode {
+  id: string
+  kind: CanvasNodeKind
+  x: number
+  y: number
+  width: number
+  height: number
+  title: string
+  text?: string
+  docId?: string
+  excerptId?: string
+  chatId?: string
+  messageId?: string
+  color?: string
+  createdAt: number
+}
+
+export interface CanvasEdge {
+  id: string
+  from: string
+  to: string
+  label?: string
+}
+
+export interface CanvasBoard {
+  id: string
+  name: string
+  nodes: CanvasNode[]
+  edges: CanvasEdge[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface BackupInfo {
+  name: string
+  createdAt: number
+  size: number
+}
+
+export interface ImportSummary {
+  kind: 'bibtex' | 'readwise'
+  documentsAdded: number
+  documentsMerged: number
+  excerptsAdded: number
+  skipped: number
+}
+
+export interface ImportResult {
+  canceled: boolean
+  summary?: ImportSummary
+}
+
+export interface ReadingPlanItem {
+  docId: string
+  order: number
+  focus: string
+  questions: string[]
+}
+
+export interface ReadingPlan {
+  id: string
+  goal: string
+  items: ReadingPlanItem[]
+  model?: string
+  createdAt: number
+}
+
+export type InboxKind = 'text' | 'link' | 'excerpt' | 'todo'
+
+export interface InboxAttachment {
+  id: string
+  name: string
+  file: string
+  kind: 'image' | 'file'
+  size: number
+  createdAt: number
+}
+
+export interface InboxItem {
+  id: string
+  kind: InboxKind
+  content: string
+  title: string
+  url: string
+  docId?: string
+  page?: number
+  tags?: string[]
+  attachments?: InboxAttachment[]
+  archived: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+export interface TaskItem {
+  id: string
+  title: string
+  due?: string
+  done: boolean
+  docId?: string
+  excerptId?: string
+  inboxId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ResearchTopic {
+  id: string
+  name: string
+  docIds: string[]
+  questions: string[]
+  chatId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export type InboxSuggestionType = 'tag' | 'collection' | 'excerpt' | 'task'
+
+export interface InboxSuggestion {
+  inboxId: string
+  type: InboxSuggestionType
+  value: string
+  reason?: string
+}
+
+export type SearchResultType = 'document' | 'note' | 'chat' | 'message' | 'excerpt' | 'collection'
+
+export interface SearchResult {
+  id: string
+  type: SearchResultType
+  title: string
+  snippet: string
+  docId?: string
+  chatId?: string
+  collectionId?: string
+  page?: number
+  docMissing?: boolean
+  updatedAt?: number
 }
 
 export interface LibraryData {
@@ -87,6 +315,15 @@ export interface LibraryData {
   collections: Collection[]
   chats: ChatSession[]
   translations: TranslationRecord[]
+  highlights: Highlight[]
+  excerpts: Excerpt[]
+  inbox: InboxItem[]
+  tasks: TaskItem[]
+  researchTopics: ResearchTopic[]
+  canvases: CanvasBoard[]
+  tags: Tag[]
+  properties: Property[]
+  savedViews: SavedView[]
   settings: AppSettings
 }
 
@@ -103,14 +340,33 @@ export interface ExtractedPdf {
   author?: string
   subject?: string
   keywords?: string
+  journal?: string
+  year?: string
+  doi?: string
+  abstract?: string
+}
+
+export interface ChatContext {
+  contextMode: 'auto' | 'none' | 'page' | 'selection'
+  page?: number
+  selection?: string
+  includeNotes?: boolean
 }
 
 export interface ChatRequest {
   requestId: string
   chatId: string
   docIds: string[]
-  messages: { role: 'user' | 'assistant'; content: string }[]
-  contextMode?: 'auto' | 'none'
+  messages: { role: 'user' | 'assistant'; content: string; attachments?: InboxAttachment[] }[]
+  context?: ChatContext
+}
+
+export type AiActionId = 'translate' | 'summarize' | 'explain-formula' | 'compare'
+
+export interface AiActionOutput {
+  action: AiActionId
+  content: string
+  model: string
 }
 
 export interface GenerateDocRequest {
