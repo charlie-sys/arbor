@@ -4,6 +4,7 @@ release/
 release-*/
 release[0-9]*/
 scripts/demo/.generated/
+scripts/acceptance/.generated/
 *.log
 docs/progress.lock
 .DS_Store

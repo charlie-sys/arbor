@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Link2, Maximize2, Minus, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, Download, Link2, Maximize2, Minus, Plus, Trash2 } from 'lucide-react'
 import type { CanvasEdge, CanvasNode, CanvasNodeKind, LibraryData } from '@shared/types'
 import { cx } from '../ui'
+import CanvasNameDialog from './CanvasNameDialog'
+
+type CanvasDialog = { kind: 'create' | 'rename' | 'section'; value: string }
 
 interface Props {
   data: LibraryData
@@ -26,6 +29,19 @@ const CARD_COLOR: Record<CanvasNodeKind, { bg: string; border: string; text: str
   section: { bg: '#edf0e6', border: '#c9d3b8', text: '#4a5a3d' }
 }
 
+const MIN_SIZE: Record<CanvasNodeKind, { width: number; height: number }> = {
+  document: { width: 160, height: 90 },
+  excerpt: { width: 160, height: 90 },
+  chat: { width: 160, height: 90 },
+  section: { width: 240, height: 160 }
+}
+
+const containsNode = (section: CanvasNode, node: CanvasNode): boolean => {
+  const cx = node.x + node.width / 2
+  const cy = node.y + node.height / 2
+  return cx >= section.x && cx <= section.x + section.width && cy >= section.y && cy <= section.y + section.height
+}
+
 const newId = (): string => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2))
 
 export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, onChanged, notify }: Props): React.JSX.Element {
@@ -37,11 +53,20 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
   const [connectFrom, setConnectFrom] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const surface = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ id: string; dx: number; dy: number } | null>(null)
+  const drag = useRef<{
+    id: string
+    dx: number
+    dy: number
+    group: { id: string; x: number; y: number }[]
+  } | null>(null)
+  const resize = useRef<{ id: string; startX: number; startY: number; width: number; height: number } | null>(null)
   const pan = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null)
   const nodesRef = useRef<CanvasNode[]>([])
   const edgesRef = useRef<CanvasEdge[]>([])
   const [panning, setPanning] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [docsOpen, setDocsOpen] = useState(false)
+  const [dialog, setDialog] = useState<CanvasDialog | null>(null)
 
   useEffect(() => {
     setNodes(board?.nodes ?? [])
@@ -85,23 +110,34 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
     }
   }
 
-  const createBoard = async (): Promise<void> => {
-    const name = window.prompt('画布名称', '研究画布')
-    if (name === null) return
-    try {
-      const created = await window.api.canvases.add(name)
-      await onChanged()
-      onSelectCanvas(created.id)
-    } catch (err) {
-      notify(`新建画布失败：${(err as Error).message}`, 'error')
-    }
+  const createBoard = (): void => {
+    setDialog({ kind: 'create', value: '研究画布' })
   }
 
-  const renameBoard = async (): Promise<void> => {
+  const renameBoard = (): void => {
     if (!board) return
-    const name = window.prompt('画布名称', board.name)
-    if (!name || !name.trim()) return
-    await persist(nodes, edges, name.trim())
+    setDialog({ kind: 'rename', value: board.name })
+  }
+
+  const confirmDialog = async (name: string): Promise<void> => {
+    const current = dialog
+    if (!current) return
+    setDialog(null)
+    if (current.kind === 'create') {
+      try {
+        const created = await window.api.canvases.add(name)
+        await onChanged()
+        onSelectCanvas(created.id)
+      } catch (err) {
+        notify(`新建画布失败：${(err as Error).message}`, 'error')
+      }
+      return
+    }
+    if (current.kind === 'rename') {
+      await persist(nodesRef.current, edgesRef.current, name)
+      return
+    }
+    await addNode({ kind: 'section', title: name, color: '#edf0e6' })
   }
 
   const removeBoard = async (): Promise<void> => {
@@ -116,33 +152,42 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
     }
   }
 
-  const addNode = async (partial: Omit<CanvasNode, 'id' | 'x' | 'y' | 'width' | 'height' | 'createdAt'>): Promise<void> => {
+  const addNode = async (
+    partial: Omit<CanvasNode, 'id' | 'x' | 'y' | 'width' | 'height' | 'createdAt'>,
+    at?: { x: number; y: number }
+  ): Promise<void> => {
     const rect = surface.current?.getBoundingClientRect()
     const size = CARD_SIZE[partial.kind]
-    const offset = (nodes.length % 6) * 26
-    const x = ((rect ? rect.width / 2 : 400) - vp.x) / vp.scale - size.width / 2 + offset
-    const y = ((rect ? rect.height / 2 : 260) - vp.y) / vp.scale - size.height / 2 + offset
-    const next = [...nodes, { ...partial, ...size, id: newId(), x, y, createdAt: Date.now() }]
+    const offset = (nodesRef.current.length % 6) * 26
+    const x = at ? at.x - size.width / 2 : ((rect ? rect.width / 2 : 400) - vp.x) / vp.scale - size.width / 2 + offset
+    const y = at ? at.y - size.height / 2 : ((rect ? rect.height / 2 : 260) - vp.y) / vp.scale - size.height / 2 + offset
+    const next = [...nodesRef.current, { ...partial, ...size, id: newId(), x, y, createdAt: Date.now() }]
+    nodesRef.current = next
     setNodes(next)
-    await persist(next, edges)
+    await persist(next, edgesRef.current)
   }
+
+  const addDocumentCard = (doc: LibraryData['documents'][number], at?: { x: number; y: number }): Promise<void> =>
+    addNode(
+      {
+        kind: 'document',
+        title: doc.title,
+        text: [doc.authors, doc.year, doc.journal].filter(Boolean).join(' · '),
+        docId: doc.id
+      },
+      at
+    )
 
   const handleAdd = (value: string): void => {
     if (!value || !board) return
     if (value === '__section') {
-      const title = window.prompt('分区名称', '新分区')
-      if (title && title.trim()) void addNode({ kind: 'section', title: title.trim(), color: '#edf0e6' })
+      setDialog({ kind: 'section', value: '新分区' })
       return
     }
     if (value.startsWith('doc:')) {
       const doc = data.documents.find((item) => item.id === value.slice(4))
       if (!doc) return
-      void addNode({
-        kind: 'document',
-        title: doc.title,
-        text: [doc.authors, doc.year, doc.journal].filter(Boolean).join(' · '),
-        docId: doc.id
-      })
+      void addDocumentCard(doc)
       return
     }
     if (value.startsWith('excerpt:')) {
@@ -213,27 +258,99 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
     const rect = surface.current?.getBoundingClientRect()
     const px = event.clientX - (rect?.left ?? 0)
     const py = event.clientY - (rect?.top ?? 0)
-    drag.current = { id: node.id, dx: (px - vp.x) / vp.scale - node.x, dy: (py - vp.y) / vp.scale - node.y }
+    const group =
+      node.kind === 'section'
+        ? nodes.filter((item) => item.id === node.id || (item.kind !== 'section' && containsNode(node, item)))
+        : [node]
+    drag.current = {
+      id: node.id,
+      dx: (px - vp.x) / vp.scale - node.x,
+      dy: (py - vp.y) / vp.scale - node.y,
+      group: group.map((item) => ({ id: item.id, x: item.x, y: item.y }))
+    }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const moveDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (!drag.current) return
+    const state = drag.current
+    if (!state) return
     const rect = surface.current?.getBoundingClientRect()
     const px = event.clientX - (rect?.left ?? 0)
     const py = event.clientY - (rect?.top ?? 0)
-    const { id, dx, dy } = drag.current
-    setNodes((prev) =>
-      prev.map((node) =>
-        node.id === id ? { ...node, x: (px - vp.x) / vp.scale - dx, y: (py - vp.y) / vp.scale - dy } : node
-      )
-    )
+    const base = state.group.find((item) => item.id === state.id)
+    if (!base) return
+    const deltaX = (px - vp.x) / vp.scale - state.dx - base.x
+    const deltaY = (py - vp.y) / vp.scale - state.dy - base.y
+    setNodes((prev) => {
+      const next = prev.map((node) => {
+        const member = state.group.find((item) => item.id === node.id)
+        return member ? { ...node, x: member.x + deltaX, y: member.y + deltaY } : node
+      })
+      nodesRef.current = next
+      return next
+    })
   }
 
   const endDrag = (): void => {
     if (!drag.current) return
     drag.current = null
     void persist(nodesRef.current, edgesRef.current)
+  }
+
+  const beginResize = (event: React.PointerEvent<HTMLDivElement>, node: CanvasNode): void => {
+    event.stopPropagation()
+    resize.current = {
+      id: node.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      width: node.width,
+      height: node.height
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const moveResize = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const state = resize.current
+    if (!state) return
+    const node = nodesRef.current.find((item) => item.id === state.id)
+    if (!node) return
+    const min = MIN_SIZE[node.kind]
+    const width = Math.max(min.width, state.width + (event.clientX - state.startX) / vp.scale)
+    const height = Math.max(min.height, state.height + (event.clientY - state.startY) / vp.scale)
+    setNodes((prev) => {
+      const next = prev.map((item) => (item.id === state.id ? { ...item, width, height } : item))
+      nodesRef.current = next
+      return next
+    })
+  }
+
+  const endResize = (): void => {
+    if (!resize.current) return
+    resize.current = null
+    void persist(nodesRef.current, edgesRef.current)
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!Array.from(event.dataTransfer.types).includes('application/x-arbor-doc')) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (event.target === event.currentTarget) setDragOver(false)
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>): void => {
+    event.preventDefault()
+    setDragOver(false)
+    const docId = event.dataTransfer.getData('application/x-arbor-doc') || event.dataTransfer.getData('text/plain')
+    const doc = data.documents.find((item) => item.id === docId)
+    if (!doc) return
+    const rect = surface.current?.getBoundingClientRect()
+    const x = (event.clientX - (rect?.left ?? 0) - vp.x) / vp.scale
+    const y = (event.clientY - (rect?.top ?? 0) - vp.y) / vp.scale
+    void addDocumentCard(doc, { x, y })
   }
 
   const beginPan = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -330,7 +447,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
       <header className="view-head">
         <div>
           <h1>主题画布</h1>
-          <p className="muted">文献、摘录与问答卡片，支持分区、连线、缩放与 PNG 导出</p>
+          <p className="muted">文献、摘录与问答卡片，支持分区、连线、缩放、拖入文献与 PNG 导出</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <select className="select" value={board?.id ?? ''} onChange={(event) => onSelectCanvas(event.target.value || undefined)}>
@@ -341,7 +458,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
               </option>
             ))}
           </select>
-          <button className="btn" onClick={() => void createBoard()}>
+          <button className="btn" data-canvas-new onClick={() => void createBoard()}>
             <Plus size={14} /> 新建画布
           </button>
           {board && (
@@ -363,7 +480,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
             <Link2 size={28} />
           </div>
           <h2>还没有画布</h2>
-          <p className="muted">创建画布后，可把文献、摘录与问答卡片放到同一张无限画布上，并建立连线。</p>
+          <p className="muted">创建画布后，可把文献、摘录与问答卡片放到同一张无限画布上；打开“文献”面板还能把文献直接拖到画布。</p>
           <button className="btn primary" onClick={() => void createBoard()}>
             <Plus size={16} /> 新建画布
           </button>
@@ -371,7 +488,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
       ) : (
         <>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <select className="select" value="" onChange={(event) => handleAdd(event.target.value)}>
+            <select className="select" data-canvas-add value="" onChange={(event) => handleAdd(event.target.value)}>
               <option value="">＋ 添加卡片</option>
               <option value="__section">新建分区</option>
               <optgroup label="文献">
@@ -401,7 +518,15 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
               </optgroup>
             </select>
             <button
+              className={cx('btn ghost', docsOpen && 'active')}
+              data-canvas-docs
+              onClick={() => setDocsOpen((value) => !value)}
+            >
+              <BookOpen size={14} /> 文献
+            </button>
+            <button
               className={cx('btn ghost', mode === 'connect' && 'active')}
+              data-canvas-connect
               onClick={() => {
                 setMode(mode === 'connect' ? 'select' : 'connect')
                 setConnectFrom(null)
@@ -409,42 +534,108 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
             >
               <Link2 size={14} /> {mode === 'connect' ? '点选两张卡片连线' : '连线'}
             </button>
-            <button className="btn ghost" title="缩小" onClick={() => setVp((prev) => ({ ...prev, scale: Math.max(0.3, prev.scale / 1.2) }))}>
+            <button className="btn ghost" title="缩小" data-canvas-zoom-out onClick={() => setVp((prev) => ({ ...prev, scale: Math.max(0.3, prev.scale / 1.2) }))}>
               <Minus size={14} />
             </button>
-            <span className="muted small" style={{ minWidth: 46, textAlign: 'center' }}>
+            <span className="muted small" data-canvas-zoom style={{ minWidth: 46, textAlign: 'center' }}>
               {Math.round(vp.scale * 100)}%
             </span>
-            <button className="btn ghost" title="放大" onClick={() => setVp((prev) => ({ ...prev, scale: Math.min(2, prev.scale * 1.2) }))}>
+            <button className="btn ghost" title="放大" data-canvas-zoom-in onClick={() => setVp((prev) => ({ ...prev, scale: Math.min(2, prev.scale * 1.2) }))}>
               <Plus size={14} />
             </button>
-            <button className="btn ghost" title="重置视图" onClick={() => setVp({ x: 60, y: 60, scale: 1 })}>
+            <button className="btn ghost" title="重置视图" data-canvas-zoom-reset onClick={() => setVp({ x: 60, y: 60, scale: 1 })}>
               <Maximize2 size={14} />
             </button>
-            <button className="btn" onClick={exportPng}>
+            <button className="btn" data-canvas-export onClick={exportPng}>
               <Download size={14} /> 导出 PNG
             </button>
           </div>
 
+          <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 520, minWidth: 0 }}>
+            {docsOpen && (
+              <aside
+                data-canvas-doc-panel
+                style={{
+                  width: 230,
+                  flexShrink: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  padding: 10,
+                  border: '1px solid #e3d9cc',
+                  borderRadius: 'var(--radius)',
+                  background: '#fffdf9',
+                  overflowY: 'auto'
+                }}
+              >
+                <div className="muted small" style={{ padding: '0 2px 4px' }}>
+                  拖拽文献到画布，或点击 + 添加
+                </div>
+                {data.documents.length === 0 && <div className="muted small">文献库为空</div>}
+                {data.documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    draggable
+                    data-canvas-doc-source={doc.id}
+                    title="拖到画布"
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('application/x-arbor-doc', doc.id)
+                      event.dataTransfer.setData('text/plain', doc.id)
+                      event.dataTransfer.effectAllowed = 'copy'
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '6px 8px',
+                      border: '1px solid #efe4d6',
+                      borderRadius: 10,
+                      background: '#fffdf9',
+                      cursor: 'grab'
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doc.title}
+                      </div>
+                      <div className="muted small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {[doc.authors, doc.year, doc.journal].filter(Boolean).join(' · ') || '—'}
+                      </div>
+                    </div>
+                    <button className="icon-btn tiny" title="添加到画布" onClick={() => void addDocumentCard(doc)}>
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                ))}
+              </aside>
+            )}
           <div
             ref={surface}
+            data-canvas-surface
             onPointerDown={beginPan}
             onPointerMove={movePan}
             onPointerUp={endPan}
             onPointerCancel={endPan}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             style={{
               position: 'relative',
               flex: 1,
               minHeight: 520,
+              minWidth: 0,
               overflow: 'hidden',
               borderRadius: 'var(--radius)',
               border: '1px solid #e3d9cc',
               background: 'radial-gradient(circle, #e3d9cc 1px, transparent 1px) 0 0 / 24px 24px, #f8f2e9',
               cursor: panning ? 'grabbing' : 'grab',
-              touchAction: 'none'
+              touchAction: 'none',
+              outline: dragOver ? '2px dashed #5f7150' : 'none',
+              outlineOffset: -4
             }}
           >
             <div
+              data-canvas-world
               style={{
                 position: 'absolute',
                 left: 0,
@@ -465,7 +656,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                   const x2 = to.x + to.width / 2
                   const y2 = to.y + to.height / 2
                   return (
-                    <g key={edge.id}>
+                    <g key={edge.id} data-canvas-edge={edge.id}>
                       <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#8b7f70" strokeWidth={1.5} />
                       <line
                         x1={x1}
@@ -488,6 +679,8 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                   return (
                     <div
                       key={node.id}
+                      data-canvas-node={node.id}
+                      data-node-kind={node.kind}
                       onPointerDown={(event) => beginDrag(event, node)}
                       onPointerMove={moveDrag}
                       onPointerUp={endDrag}
@@ -546,12 +739,48 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                           打开原文
                         </button>
                       )}
+                      <div
+                        data-canvas-resize
+                        title="拖动调整大小"
+                        onPointerDown={(event) => beginResize(event, node)}
+                        onPointerMove={moveResize}
+                        onPointerUp={endResize}
+                        onPointerCancel={endResize}
+                        style={{
+                          position: 'absolute',
+                          right: 6,
+                          bottom: 6,
+                          width: 16,
+                          height: 16,
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          justifyContent: 'flex-end',
+                          cursor: 'nwse-resize',
+                          opacity: 0.45,
+                          touchAction: 'none'
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                          <path d="M11 1 1 11M11 6 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                      </div>
                     </div>
                   )
                 })}
             </div>
           </div>
+          </div>
         </>
+      )}
+      {dialog && (
+        <CanvasNameDialog
+          title={dialog.kind === 'create' ? '新建画布' : dialog.kind === 'rename' ? '重命名画布' : '新建分区'}
+          initialValue={dialog.value}
+          placeholder={dialog.kind === 'section' ? '分区名称' : '画布名称'}
+          confirmLabel={dialog.kind === 'rename' ? '保存' : '创建'}
+          onCancel={() => setDialog(null)}
+          onConfirm={(name) => void confirmDialog(name)}
+        />
       )}
     </div>
   )

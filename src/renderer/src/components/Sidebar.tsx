@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, Inbox, Layers, MessagesSquare, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter } from 'lucide-react'
+import { BookOpen, Inbox, Layers, MessagesSquare, PenTool, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter } from 'lucide-react'
 import type { LibraryData } from '@shared/types'
 import type { View } from '../nav'
 import { cx } from '../ui'
@@ -76,6 +76,11 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
           <Layers size={17} />
           <span>研究主题</span>
           <span className="nav-count">{data.researchTopics.length}</span>
+        </button>
+        <button className={cx('nav-item', view.name === 'canvas' && 'active')} onClick={() => onNavigate({ name: 'canvas' })}>
+          <PenTool size={17} />
+          <span>主题画布</span>
+          <span className="nav-count">{data.canvases.length}</span>
         </button>
         <button className={cx('nav-item', view.name === 'inbox' && 'active')} onClick={() => onNavigate({ name: 'inbox' })}>
           <Inbox size={17} />
