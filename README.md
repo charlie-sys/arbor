@@ -31,7 +31,7 @@ Arbor 是一款本地优先的桌面文献研究工具。它把 PDF 阅读、可
 
 ### 使用安装包
 
-1. 从 Releases 下载 `Arbor Setup x.y.z.exe` 并安装。
+1. 从 Releases 下载 `Arbor-Setup-x.y.z.exe` 并安装。
 2. 打开 Arbor，在「设置」中填写 OpenAI 兼容接口的 Base URL、API Key 与模型名。
 3. 点击「测试连接」，保存后导入 PDF 即可开始阅读与提问。
 
