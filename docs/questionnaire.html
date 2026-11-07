@@ -39,7 +39,7 @@
           <div class="survey-meta">
             <span>10 题 · 约 2 分钟</span>
             <span>9 道选择题 + 1 道填空题</span>
-            <span>匿名 · 仅保存在浏览器</span>
+            <span>匿名 · 提交给 Arbor 团队</span>
           </div>
         </div>
 
@@ -180,13 +180,14 @@
 
           <div class="submit-row">
             <button class="btn primary" type="submit">提交问卷</button>
-            <div class="note">提交后答案只会在当前浏览器中生成摘要，不会发送到任何服务器。</div>
+            <div class="note">提交后答案会发送给 Arbor 团队，仅用于改进产品；不会上传你的文献或任何本地数据。</div>
           </div>
         </form>
 
         <section class="success" id="success" aria-live="polite">
           <h2>谢谢你的反馈</h2>
-          <p>你的回答已在浏览器中整理完成。可以复制或下载 JSON，发送给 Arbor 团队；也可以直接截图分享。</p>
+          <p class="submit-status" id="submitStatus"></p>
+          <p>下面是本次答案的摘要，可复制或下载 JSON 作为备份；也可以直接截图分享。</p>
           <pre class="summary" id="summary"></pre>
           <div class="success-actions">
             <button class="btn primary" id="copyResult" type="button">复制答案</button>

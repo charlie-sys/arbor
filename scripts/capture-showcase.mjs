@@ -99,14 +99,30 @@ await capture('sidebar')
 await leaveSidebar()
 
 await clickNav('AI 对话')
+await evaluate(`
+  document.querySelectorAll('.notice').forEach((node) => node.remove())
+  return 'ok'
+`)
 await capture('chat')
 
 await clickNav('研究主题')
 await capture('topics')
+await evaluate(`document.querySelector('.doc-card')?.click(); return 'ok'`)
+await sleep(800)
+await evaluate(`
+  document.querySelectorAll('.notice').forEach((node) => node.remove())
+  return 'ok'
+`)
+await capture('topic-detail')
+await evaluate(`
+  Array.from(document.querySelectorAll('button')).find((b) => b.innerText.includes('全部主题'))?.click()
+  return 'ok'
+`)
+await sleep(500)
 
 await clickNav('灵感收集')
 await evaluate(`
-  Array.from(document.querySelectorAll('.chip-button')).find((b) => b.innerText.includes('已归档'))?.click()
+  Array.from(document.querySelectorAll('.chip-button')).find((b) => b.innerText.includes('待处理'))?.click()
   return 'ok'
 `)
 await sleep(500)
@@ -116,16 +132,27 @@ await clickNav('截图翻译')
 await capture('translations')
 
 await clickNav('设置')
+await evaluate(`
+  document.querySelectorAll('.kv code').forEach((node) => {
+    if (node.textContent.includes('agent-zotero') || node.textContent.includes('\\\\')) {
+      node.textContent = 'C:\\\\Users\\\\you\\\\AppData\\\\Roaming\\\\Arbor\\\\data'
+    }
+  })
+  return 'ok'
+`)
 await capture('settings')
+await evaluate(`document.querySelector('.settings-view')?.scrollTo(0, 99999); return 'ok'`)
+await sleep(600)
+await capture('backups')
 
 await clickNav('文献库')
 await evaluate(`document.querySelector('.doc-row .cell-title-text')?.click(); return 'ok'`)
-await sleep(4000)
+await sleep(4500)
 await evaluate(`
-  Array.from(document.querySelectorAll('button')).find((b) => b.innerText.includes('从头开始'))?.click()
+  Array.from(document.querySelectorAll('button')).find((b) => b.innerText.includes('继续阅读'))?.click()
   return 'ok'
 `)
-await sleep(1200)
+await sleep(2200)
 await capture('reader')
 
 await evaluate(`

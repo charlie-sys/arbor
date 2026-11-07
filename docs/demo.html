@@ -7,6 +7,7 @@
     <title>Arbor 在线交互 Demo（模拟数据）</title>
     <link rel="icon" type="image/svg+xml" href="./assets/arbor-logo.svg" />
     <link rel="stylesheet" href="./demo.css" />
+    <link rel="stylesheet" href="./demo-extra.css" />
   </head>
   <body>
     <div class="demo-bar">
@@ -46,13 +47,21 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
             研究主题 <span class="count">2</span>
           </button>
+          <button data-view="canvas" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8"/><path d="M8 12h5"/><path d="M8 16h7"/></svg>
+            主题画布
+          </button>
+          <button data-view="reading-plan" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="m9 15 2 2 4-4"/></svg>
+            主题阅读计划
+          </button>
           <button data-view="inspiration" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg>
             灵感收集 <span class="count">3</span>
           </button>
           <button data-view="translations" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/></svg>
-            截图翻译 <span class="count">4</span>
+            截图翻译 <span class="count">3</span>
           </button>
           <button data-view="settings" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -94,40 +103,58 @@
               </select>
             </div>
             <div class="list-panel">
-              <table class="doc-list">
+              <table class="doc-list wide">
                 <thead>
                   <tr>
-                    <th style="width: 40%">标题</th>
-                    <th style="width: 17%">作者</th>
-                    <th style="width: 10%">年份</th>
-                    <th style="width: 17%">期刊</th>
-                    <th style="width: 16%">状态</th>
+                    <th style="width: 26%">标题</th>
+                    <th style="width: 15%">作者</th>
+                    <th style="width: 6%">年份</th>
+                    <th style="width: 13%">期刊</th>
+                    <th style="width: 9%">分类</th>
+                    <th style="width: 13%">标签</th>
+                    <th style="width: 5%">页数</th>
+                    <th style="width: 8%">阅读状态</th>
+                    <th style="width: 6%">添加时间</th>
+                    <th style="width: 9%">方法类型</th>
+                    <th style="width: 8%">复现状态</th>
                   </tr>
                 </thead>
                 <tbody id="libraryBody">
                   <tr data-doc="1" data-title="Generalized State of Health Estimation Approach based on Neural Networks">
-                    <td><span class="doc-title"><span class="star">★</span>Generalized State of Health Estimation Approach…</span></td>
-                    <td>—</td><td>2024</td><td>e-Energy</td><td><span class="pill reading">阅读中</span></td>
+                    <td><span class="doc-title"><span class="star">★</span>Generalized State-of-Health Estimation from Partial Charging Curves with Transfer Learning</span></td>
+                    <td>Lina Chen, Ming Zhao</td><td>2024</td><td>Journal of Energy Storage</td><td>部分充电曲线</td>
+                    <td><span class="tag-mini">SOH</span><span class="tag-mini">迁移学习</span><span class="tag-mini">贝叶斯优化</span></td>
+                    <td>5</td><td><span class="status-select">阅读中 ▾</span></td><td>18:50</td><td>数据驱动</td><td>进行中</td>
                   </tr>
                   <tr data-doc="2" data-title="MambaLithium Selective state space model for battery health">
-                    <td><span class="doc-title">MambaLithium Selective state space model…</span></td>
-                    <td>—</td><td>2024</td><td>—</td><td><span class="pill reading">阅读中</span></td>
+                    <td><span class="doc-title">MambaLithium: Selective State Space Model for Battery Health</span></td>
+                    <td>Wen Li, Hao Sun</td><td>2024</td><td>e-Transportation</td><td>状态空间模型</td>
+                    <td><span class="tag-mini">SOH</span><span class="tag-mini">时序建模</span></td>
+                    <td>6</td><td><span class="status-select">未读 ▾</span></td><td>17:20</td><td>数据驱动</td><td>未开始</td>
                   </tr>
                   <tr data-doc="3" data-title="State-of-Health Estimation of Li-Ion Batteries Using Transfer Learning">
-                    <td><span class="doc-title">State-of-Health Estimation of Li-Ion Batteries…</span></td>
-                    <td>Yunwei Zhang</td><td>2023</td><td>—</td><td><span class="pill reading">阅读中</span></td>
+                    <td><span class="doc-title">State-of-Health Estimation of Li-Ion Batteries Using Transfer Learning</span></td>
+                    <td>Yunwei Zhang</td><td>2023</td><td>Applied Energy</td><td>迁移学习</td>
+                    <td><span class="tag-mini">迁移学习</span><span class="tag-mini">锂离子</span></td>
+                    <td>8</td><td><span class="status-select">阅读中 ▾</span></td><td>昨天</td><td>数据驱动</td><td>部分完成</td>
                   </tr>
                   <tr data-doc="4" data-title="Physics-informed neural network for lithium-ion battery health">
-                    <td><span class="doc-title">Physics-informed neural network for lithium-ion…</span></td>
-                    <td>Fujin Wang</td><td>2023</td><td>Applied Energy</td><td><span class="pill unread">未读</span></td>
+                    <td><span class="doc-title">Physics-Informed Neural Network for Lithium-Ion Battery Health</span></td>
+                    <td>Fujin Wang</td><td>2023</td><td>Applied Energy</td><td>物理约束</td>
+                    <td><span class="tag-mini">PINN</span><span class="tag-mini">物理信息</span></td>
+                    <td>10</td><td><span class="status-select">未读 ▾</span></td><td>11月5日</td><td>混合模型</td><td>未开始</td>
                   </tr>
                   <tr data-doc="5" data-title="Deep learning to estimate lithium-ion battery state of charge">
-                    <td><span class="doc-title">Deep learning to estimate lithium-ion battery…</span></td>
-                    <td>Jiahuan Lu</td><td>2022</td><td>—</td><td><span class="pill reading">阅读中</span></td>
+                    <td><span class="doc-title">Deep Learning to Estimate Lithium-Ion Battery State of Charge</span></td>
+                    <td>Jiahuan Lu</td><td>2022</td><td>IEEE TTE</td><td>荷电状态</td>
+                    <td><span class="tag-mini">SOC</span><span class="tag-mini">深度学习</span></td>
+                    <td>12</td><td><span class="status-select">已读 ▾</span></td><td>11月4日</td><td>数据驱动</td><td>已复现</td>
                   </tr>
                   <tr data-doc="6" data-title="A hybrid machine learning framework for joint SOC estimation">
-                    <td><span class="doc-title">A hybrid machine learning framework for joint SOC…</span></td>
-                    <td>Yihuan Li</td><td>2022</td><td>—</td><td><span class="pill unread">未读</span></td>
+                    <td><span class="doc-title">A Hybrid Machine Learning Framework for Joint SOC Estimation</span></td>
+                    <td>Yihuan Li</td><td>2022</td><td>Energy</td><td>荷电状态</td>
+                    <td><span class="tag-mini">SOC</span><span class="tag-mini">混合模型</span></td>
+                    <td>9</td><td><span class="status-select">已读 ▾</span></td><td>11月3日</td><td>混合模型</td><td>部分完成</td>
                   </tr>
                 </tbody>
               </table>
@@ -141,13 +168,22 @@
             <div class="reader-main">
               <div class="reader-toolbar">
                 <button class="icon-btn" id="backToLibrary" type="button" aria-label="返回文献库">←</button>
-                <span class="reader-title" id="readerTitle">Generalized State of Health Estimation Approach based on Neural Networks</span>
+                <span class="reader-title" id="readerTitle">Generalized State-of-Health Estimation from Partial Charging Curves</span>
+                <div class="page-control">
+                  <button class="icon-btn tiny" type="button" data-toast="上一页">‹</button>
+                  <span>3 / 5</span>
+                  <button class="icon-btn tiny" type="button" data-toast="下一页">›</button>
+                </div>
+                <button class="icon-btn tiny" type="button" data-toast="缩小">−</button>
+                <span class="zoom-label">100%</span>
+                <button class="icon-btn tiny" type="button" data-toast="放大">+</button>
+                <button class="btn small" type="button" data-toast="桌面版使用 Ctrl+Shift+T 框选翻译。">截图翻译</button>
                 <span class="pill reading">阅读中</span>
               </div>
               <div class="pdf-scroll">
                 <article class="pdf-sheet">
-                  <h2 id="pdfTitle">Generalized State of Health Estimation Approach based on Neural Networks for Various Lithium-Ion Battery Chemistries</h2>
-                  <div class="pdf-authors">Steffen Bockrath and Marco Pruckner · e-Energy '23 · 2023</div>
+                  <h2 id="pdfTitle">Generalized State-of-Health Estimation from Partial Charging Curves with Transfer Learning across Battery Chemistries</h2>
+                  <div class="pdf-authors">Lina Chen, Ming Zhao, Yuki Sato · Journal of Energy Storage · 2024</div>
                   <p>
                     Accurate state-of-health (SOH) estimation is essential for safe and reliable operation of lithium-ion
                     batteries. This work introduces a generalized data-driven approach that estimates SOH from partial
@@ -163,7 +199,14 @@
                   </p>
                   <div class="pdf-line"></div>
                   <div class="pdf-line short"></div>
-                  <div class="pdf-figure" aria-label="模拟图表"><i></i><i></i><i></i><i></i><i></i></div>
+                  <svg class="pdf-chart" viewBox="0 0 320 150" role="img" aria-label="模拟误差对比图">
+                    <line x1="26" y1="124" x2="312" y2="124" stroke="#d8cdbf" stroke-width="1"/>
+                    <line x1="26" y1="124" x2="26" y2="10" stroke="#d8cdbf" stroke-width="1"/>
+                    <polyline points="26,80 70,62 116,50 162,34 210,22 262,16 312,12" fill="none" stroke="#8b9d77" stroke-width="2"/>
+                    <polyline points="26,96 70,88 116,74 162,58 210,48 262,42 312,36" fill="none" stroke="#d4a373" stroke-width="1.5" stroke-dasharray="4 3"/>
+                  </svg>
+                  <div class="pdf-caption">图 2 · 不同充电窗口长度下的 MAPE（本图为模拟绘制）</div>
+                  <div class="pdf-line"></div>
                   <h3>4. Results</h3>
                   <p>
                     The proposed model achieves a mean absolute percentage error of 1.43% across the evaluated chemistries,
@@ -178,38 +221,107 @@
             <aside class="panel">
               <div class="panel-tabs" role="tablist">
                 <button class="tab active" data-panel="assistant" type="button">AI 助手</button>
+                <button class="tab" data-panel="outline" type="button">大纲</button>
                 <button class="tab" data-panel="highlights" type="button">高亮 4</button>
+                <button class="tab" data-panel="excerpts" type="button">摘录 4</button>
+                <button class="tab" data-panel="info" type="button">文献信息</button>
                 <button class="tab" data-panel="notes" type="button">笔记</button>
+                <button class="tab" data-panel="tasks" type="button">任务 4</button>
               </div>
-              <div class="panel-body" data-panel-body="assistant">
-                <div class="chat-msg user">这篇论文的核心贡献和局限性分别是什么？</div>
-                <div class="chat-msg assistant">
-                  核心贡献是从部分充电曲线估计 SOH，并用迁移学习覆盖多种化学体系，报告 MAPE 约为 1.43%
-                  <span class="cite">[第 1 页]</span>。局限性在于：实验仅覆盖三种化学体系，且对充电片段长度与数据质量较敏感
-                  <span class="cite">[第 8 页]</span>。
-                  <ul>
-                    <li>贡献：无需完整循环，适合在线估计</li>
-                    <li>方法：贝叶斯调参 + 迁移学习</li>
-                    <li>风险：跨体系泛化仍需更多验证</li>
-                  </ul>
+              <div class="panel-body agent-panel" data-panel-body="assistant">
+                <div class="session-pills">
+                  <button class="chat-pill active" type="button">LFP 失败案例分析</button>
+                  <button class="chat-pill" type="button">迁移学习与不确定性</button>
+                  <button class="chat-pill" type="button">这篇论文讲了什么</button>
+                  <button class="chat-pill add" type="button" data-toast="新建会话（演示）">＋</button>
+                </div>
+                <div class="agent-thread">
+                  <div class="chat-msg user">这篇论文的核心贡献和局限性分别是什么？</div>
+                  <div class="chat-msg assistant">
+                    核心贡献是从部分充电曲线估计 SOH，并用迁移学习覆盖多种化学体系，报告 MAPE 约为 1.43%
+                    <span class="cite">[第 1 页]</span>。局限性在于：实验仅覆盖三种化学体系，且对充电片段长度与数据质量较敏感
+                    <span class="cite">[第 8 页]</span>。
+                    <ul>
+                      <li>贡献：无需完整循环，适合在线估计</li>
+                      <li>方法：贝叶斯调参 + 迁移学习</li>
+                      <li>风险：跨体系泛化仍需更多验证</li>
+                    </ul>
+                  </div>
                 </div>
                 <div class="composer">
+                  <div class="context-bar">
+                    <span class="context-label">上下文</span>
+                    <button class="context-chip active" type="button">整篇文献</button>
+                    <button class="context-chip" type="button">当前页</button>
+                    <button class="context-chip" type="button">选中段落</button>
+                    <button class="context-chip" type="button">不引用</button>
+                    <button class="context-chip" type="button">笔记</button>
+                  </div>
                   <textarea id="readerInput" placeholder="针对当前文献提问，Ctrl+Enter 发送…"></textarea>
                   <div class="composer-row">
+                    <button class="btn small" type="button" data-toast="附件仅桌面版支持。">附件</button>
+                    <button class="btn small" type="button" data-toast="已整理为 Markdown（演示）。">整理文档</button>
                     <button class="btn small" type="button" data-toast="已复制引用格式。">复制引用</button>
                     <button class="btn primary small" id="readerSend" type="button">发送</button>
                   </div>
                 </div>
               </div>
-              <div class="panel-body" data-panel-body="highlights" hidden>
-                <div class="highlight-item"><strong>第 3 页 · 鼠尾草</strong>We train a Bayesian hyperparameter-tuned neural network on 16 features extracted from partial charging segments.</div>
-                <div class="highlight-item"><strong>第 4 页 · 暖沙</strong>The proposed model achieves a mean absolute percentage error of 1.43% across the evaluated chemistries.</div>
-                <div class="highlight-item"><strong>第 8 页 · 陶土</strong>Generalization to unseen chemistries remains sensitive to the length of the partial charging window.</div>
+              <div class="panel-body" data-panel-body="outline" hidden>
+                <div class="outline-meta">Lina Chen et al. · Journal of Energy Storage · 2024 · 5 页</div>
+                <div class="outline-list">
+                  <div class="outline-item"><span>摘要</span><span class="outline-page">p.1</span></div>
+                  <div class="outline-item"><span>1 Introduction</span><span class="outline-page">p.1</span></div>
+                  <div class="outline-item"><span>2 Related Work</span><span class="outline-page">p.2</span></div>
+                  <div class="outline-item active"><span>3 Methodology</span><span class="outline-page">p.2</span></div>
+                  <div class="outline-item"><span>4 Experiments</span><span class="outline-page">p.3</span></div>
+                  <div class="outline-item"><span>5 Results &amp; Discussion</span><span class="outline-page">p.4</span></div>
+                  <div class="outline-item"><span>References</span><span class="outline-page">p.5</span></div>
+                </div>
               </div>
-              <div class="panel-body" data-panel-body="notes" hidden>
-                <div class="field">
-                  <span>阅读笔记</span>
-                  <textarea style="height: 280px; resize: vertical; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fbf7f0; padding: 12px; font-size: 12.5px; outline: none">## 方法
+              <div class="panel-body" data-panel-body="highlights" hidden>
+                <div class="highlight-item"><span class="highlight-dot sage"></span><strong>第 3 页 · 鼠尾草</strong>We train a Bayesian hyperparameter-tuned neural network on 16 features extracted from partial charging segments.</div>
+                <div class="highlight-item"><span class="highlight-dot tan"></span><strong>第 4 页 · 暖沙</strong>The proposed model achieves a mean absolute percentage error of 1.43% across the evaluated chemistries.</div>
+                <div class="highlight-item"><span class="highlight-dot clay"></span><strong>第 8 页 · 陶土</strong>Generalization to unseen chemistries remains sensitive to the length of the partial charging window.</div>
+                <div class="highlight-item"><span class="highlight-dot sage"></span><strong>第 2 页 · 鼠尾草</strong>Partial charging segments reduce the need for complete charge-discharge cycles.</div>
+              </div>
+              <div class="panel-body" data-panel-body="excerpts" hidden>
+                <article class="excerpt-card">
+                  <div class="excerpt-head"><strong>为什么 LFP 是最困难的目标体系？</strong><span class="excerpt-page">p.3</span></div>
+                  <div class="excerpt-source">部分充电曲线在 LFP 上的电压平台较平缓，容量信息更难从原始特征中恢复。</div>
+                  <div class="excerpt-answer">LFP 的电压曲线存在长平台，同一电压区间对应多个 SOH 值，导致基于电压的特征区分度下降。作者通过补充部分充电窗口的斜率与面积特征缓解了这一问题。</div>
+                </article>
+                <article class="excerpt-card">
+                  <div class="excerpt-head"><strong>核心贡献与局限</strong><span class="excerpt-page">p.1</span></div>
+                  <div class="excerpt-answer">贡献是从部分充电曲线估计 SOH；局限是跨体系泛化与窗口长度敏感性。</div>
+                </article>
+                <article class="excerpt-card">
+                  <div class="excerpt-head"><strong>复现要点</strong><span class="excerpt-page">p.4</span></div>
+                  <div class="excerpt-answer">按电池单体划分训练集与测试集，避免时间片段泄漏。</div>
+                </article>
+                <article class="excerpt-card">
+                  <div class="excerpt-head"><strong>阈值与建议</strong><span class="excerpt-page">p.8</span></div>
+                  <div class="excerpt-answer">窗口短于 10 分钟时误差明显上升，建议至少保留 20 分钟片段。</div>
+                </article>
+              </div>
+              <div class="panel-body" data-panel-body="info" hidden>
+                <div class="field"><span>标题</span><input value="Generalized State-of-Health Estimation from Partial Charging Curves with Transfer Learning" /></div>
+                <div class="field"><span>作者</span><input value="Lina Chen; Ming Zhao; Yuki Sato" /></div>
+                <div class="field-row">
+                  <div class="field"><span>年份</span><input value="2024" /></div>
+                  <div class="field"><span>期刊</span><input value="Journal of Energy Storage" /></div>
+                </div>
+                <div class="field"><span>DOI</span><input value="10.1016/j.est.2024.114512" /></div>
+                <div class="field"><span>标签</span><input value="SOH, 迁移学习, 贝叶斯优化" /></div>
+                <div class="field"><span>阅读状态</span><select class="select"><option>未读</option><option selected>阅读中</option><option>已读</option></select></div>
+                <div class="field"><span>摘要</span><textarea rows="4">提出从部分充电曲线估计 SOH 的广义方法，结合贝叶斯调参与跨化学体系迁移学习。</textarea></div>
+                <button class="btn primary small full" type="button" data-toast="文献信息已保存（演示）。">保存文献信息</button>
+              </div>
+              <div class="panel-body notes-panel" data-panel-body="notes" hidden>
+                <div class="notes-head">
+                  <div><div class="notes-title">阅读笔记</div><div class="muted small">已保存</div></div>
+                  <button class="btn ghost small" type="button" data-toast="切换预览（演示）。">预览</button>
+                </div>
+                <textarea class="notes-editor">## 方法
 - 16 个部分充电曲线特征
 - 贝叶斯超参数优化
 - 跨化学体系迁移学习
@@ -217,8 +329,24 @@
 ## 待核对
 - 训练集与测试集的划分方式
 - 不同充电窗口长度下的误差</textarea>
-                </div>
                 <button class="btn primary small" type="button" data-toast="笔记已保存（演示）。">保存笔记</button>
+              </div>
+              <div class="panel-body" data-panel-body="tasks" hidden>
+                <div class="task-add-row">
+                  <input class="task-input" type="text" placeholder="添加任务，回车确认" />
+                  <button class="btn primary small" type="button" data-toast="任务已添加（演示）。">添加</button>
+                </div>
+                <div class="task-group"><div class="task-group-head">今日到期</div>
+                  <label class="task-row"><input type="checkbox" />核对特征提取窗口</label>
+                  <label class="task-row"><input type="checkbox" />整理复现清单</label>
+                </div>
+                <div class="task-group"><div class="task-group-head">未完成</div>
+                  <label class="task-row"><input type="checkbox" />阅读第 4 节实验结果</label>
+                  <label class="task-row"><input type="checkbox" />对比 LFP 与 NCM 误差</label>
+                </div>
+                <div class="task-group"><div class="task-group-head">已完成 1</div>
+                  <label class="task-row"><input type="checkbox" checked />导入并提取全文</label>
+                </div>
               </div>
             </aside>
           </div>
@@ -227,37 +355,43 @@
         <section class="view" data-page="chat">
           <div class="chat-layout">
             <div class="sessions">
-              <div class="session active"><strong>这篇论文讲了什么</strong><span>1 篇文献 · 18:27</span></div>
-              <div class="session"><strong>总结核心结论与贡献</strong><span>1 篇文献 · 15:55</span></div>
-              <div class="session"><strong>三篇文献的异同</strong><span>3 篇文献 · 14:12</span></div>
-              <div class="session"><strong>方法部分有哪些假设</strong><span>2 篇文献 · 11:51</span></div>
+              <div class="session active"><strong>LFP 失败案例分析</strong><span>1 篇文献 · 18:27</span></div>
+              <div class="session"><strong>迁移学习与不确定性</strong><span>1 篇文献 · 15:55</span></div>
+              <div class="session"><strong>这篇论文讲了什么</strong><span>1 篇文献 · 14:12</span></div>
             </div>
             <div class="chat-main">
               <div class="chat-head">
-                <h2>这篇论文讲了什么</h2>
-                <p>上下文：Generalized State of Health Estimation Approach… · 整篇文献</p>
+                <h2>LFP 失败案例分析</h2>
+                <p>上下文：Generalized State-of-Health Estimation from Partial Charging Curves · 整篇文献</p>
+                <div class="chat-context">
+                  <span class="muted-label">引用文献</span>
+                  <span class="doc-chip">Generalized State-of-Health Estimation…</span>
+                </div>
               </div>
               <div class="chat-thread" id="chatThread">
-                <div class="chat-msg user">用三点总结这篇论文，并说明它能解决什么实际问题。</div>
+                <div class="chat-msg user">为什么 LFP 是最困难的目标化学体系？</div>
                 <div class="chat-msg assistant">
-                  1. 提出从部分充电曲线估计 SOH 的广义方法，避免等待完整充放电循环
-                  <span class="cite">[第 1 页]</span>。<br />
-                  2. 使用贝叶斯超参数调优的神经网络，并结合迁移学习覆盖多种电池化学体系
-                  <span class="cite">[第 3 页]</span>。<br />
-                  3. 在三种化学体系上取得约 1.43% 的 MAPE，说明跨体系迁移具有可行性
-                  <span class="cite">[第 4 页]</span>。<br /><br />
-                  它可用于在线电池健康监测、二手电池评估和实验数据不足时的快速建模。
-                </div>
-                <div class="chat-msg user">如果我要复现，最需要注意什么？</div>
-                <div class="chat-msg assistant">
-                  优先核对特征提取窗口与数据清洗流程；论文中 16 个特征依赖部分充电片段的完整性
-                  <span class="cite">[第 5 页]</span>。其次注意不同化学体系的数据划分，避免训练集与测试集泄漏
-                  <span class="cite">[第 7 页]</span>。
+                  LFP 的电压曲线存在长而平坦的平台，同一电压区间对应多个 SOH 值，导致基于电压的特征区分度下降
+                  <span class="cite">[第 3 页]</span>。作者因此补充了部分充电窗口的斜率与面积特征，并在 LFP 上单独评估了窗口长度的影响
+                  <span class="cite">[第 5 页]</span>。
+                  <div class="reference-block">
+                    <div class="reference-row"><span>第 3 页</span><span>部分充电曲线在 LFP 上的电压平台较平缓</span></div>
+                    <div class="reference-row"><span>第 5 页</span><span>窗口长度对 LFP 估计误差的影响更显著</span></div>
+                  </div>
                 </div>
               </div>
               <div class="composer">
+                <div class="context-bar">
+                  <span class="context-label">上下文</span>
+                  <button class="context-chip active" type="button">整篇文献</button>
+                  <button class="context-chip" type="button">当前页</button>
+                  <button class="context-chip" type="button">选中段落</button>
+                  <button class="context-chip" type="button">不引用</button>
+                  <button class="context-chip" type="button">笔记</button>
+                </div>
                 <textarea id="chatInput" placeholder="继续提问，Enter 发送，Shift+Enter 换行…"></textarea>
                 <div class="composer-row">
+                  <button class="btn small" type="button" data-toast="附件仅桌面版支持。">附件</button>
                   <button class="btn small" type="button" data-toast="已整理为 Markdown 文档（演示）。">整理为文档</button>
                   <button class="btn primary small" id="chatSend" type="button">发送</button>
                 </div>
@@ -276,7 +410,7 @@
               <button class="btn primary" type="button" data-toast="桌面版可根据选中文献生成主题与建议问题。">新建研究主题</button>
             </div>
             <div class="cards-grid">
-              <article class="topic-card">
+              <article class="topic-card" data-topic="1" role="button" tabindex="0">
                 <h3>锂电池健康状态估计</h3>
                 <p>6 篇文献 · 8 个建议问题 · 更新于今天</p>
                 <div class="chips">
@@ -285,7 +419,7 @@
                   <span class="pill sage">SOH</span>
                 </div>
               </article>
-              <article class="topic-card">
+              <article class="topic-card" data-topic="2" role="button" tabindex="0">
                 <h3>跨化学体系泛化</h3>
                 <p>3 篇文献 · 5 个建议问题 · 更新于昨天</p>
                 <div class="chips">
@@ -295,6 +429,170 @@
                 </div>
               </article>
             </div>
+            <p class="panel-note" style="margin-top: 16px">提示：点击主题卡片进入详情；详情中可查看成员文献、建议问题与主题摘录。</p>
+          </div>
+        </section>
+
+        <section class="view" data-page="topic-detail">
+          <div class="scroll-view">
+            <div class="view-head">
+              <div>
+                <button class="btn ghost small" id="backToTopics" type="button">← 全部主题</button>
+                <h1 style="margin-top: 10px">锂电池健康状态估计</h1>
+                <p>6 篇成员文献 · 8 个建议问题 · 更新于今天</p>
+              </div>
+              <button class="btn primary" type="button" data-toast="桌面版可根据选中文献生成主题。">新建研究主题</button>
+            </div>
+            <div class="topic-detail-grid">
+              <section class="panel-card">
+                <div class="panel-card-head"><h2>成员文献</h2><span class="muted small">1 篇</span></div>
+                <div class="doc-row">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                  <span>Generalized State-of-Health Estimation from Partial Charging Curves…</span>
+                  <span class="muted small">2024</span>
+                </div>
+                <div class="panel-card-head" style="margin-top: 18px"><h2>建议问题</h2><span class="muted small">4 个</span></div>
+                <button class="question-btn" type="button">为什么 LFP 是最困难的目标化学体系？</button>
+                <button class="question-btn" type="button">迁移学习在哪些化学体系间收益最大？</button>
+                <button class="question-btn" type="button">部分充电窗口的长度如何影响估计误差？</button>
+                <button class="question-btn" type="button">如果只有少量训练数据，该方法是否仍然可用？</button>
+              </section>
+              <section class="panel-card">
+                <div class="panel-card-head"><h2>主题对话</h2></div>
+                <p class="muted small">对话会自动携带全部 6 篇成员文献作为上下文。</p>
+                <div class="chips" style="margin: 0 0 4px">
+                  <button class="btn primary small" type="button" data-toast="打开主题对话（演示）。">打开主题对话</button>
+                  <button class="btn ghost small" type="button" data-toast="生成研究综述（演示）。">生成综述</button>
+                </div>
+              </section>
+              <section class="panel-card span-2">
+                <div class="panel-card-head"><h2>主题摘录</h2><span class="muted small">4 条</span></div>
+                <div class="excerpt-list">
+                  <article class="excerpt-card">
+                    <div class="excerpt-head"><strong>为什么 LFP 是最困难的目标体系？</strong><span class="excerpt-page">p.3</span></div>
+                    <div class="excerpt-answer">LFP 电压平台平坦，同一电压区间对应多个 SOH 值，基于电压的特征区分度下降。</div>
+                  </article>
+                  <article class="excerpt-card">
+                    <div class="excerpt-head"><strong>不同化学体系的迁移收益</strong><span class="excerpt-page">p.6</span></div>
+                    <table class="excerpt-table">
+                      <thead><tr><th>目标体系</th><th>MAPE（迁移前）</th><th>MAPE（迁移后）</th></tr></thead>
+                      <tbody>
+                        <tr><td>NCM</td><td>2.41%</td><td>1.43%</td></tr>
+                        <tr><td>LFP</td><td>3.12%</td><td>2.05%</td></tr>
+                        <tr><td>NCA</td><td>2.78%</td><td>1.87%</td></tr>
+                      </tbody>
+                    </table>
+                    <div class="excerpt-answer" style="margin-top: 8px">迁移学习对数据量较少的体系收益更明显。</div>
+                  </article>
+                  <article class="excerpt-card">
+                    <div class="excerpt-head"><strong>复现要点</strong><span class="excerpt-page">p.4</span></div>
+                    <div class="excerpt-answer">按电池单体划分训练集与测试集，避免时间片段泄漏。</div>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-page="canvas">
+          <div class="canvas-shell">
+            <div class="canvas-toolbar">
+              <div class="canvas-toolbar-left">
+                <select class="select"><option>锂电池健康状态估计 · 画布</option><option>跨化学体系泛化 · 画布</option></select>
+                <button class="btn small" type="button" data-toast="新建画布（演示）。">新建</button>
+                <button class="btn small" type="button" data-toast="重命名画布（演示）。">重命名</button>
+              </div>
+              <div class="canvas-toolbar-right">
+                <button class="btn small" type="button" data-toast="添加卡片（演示）。">添加卡片</button>
+                <button class="btn small" type="button" data-toast="添加连线（演示）。">连线</button>
+                <span class="toolbar-sep"></span>
+                <button class="icon-btn tiny" id="canvasZoomOut" type="button" aria-label="缩小">−</button>
+                <span class="zoom-label" id="canvasZoomLabel">100%</span>
+                <button class="icon-btn tiny" id="canvasZoomIn" type="button" aria-label="放大">+</button>
+                <button class="icon-btn tiny" type="button" data-toast="缩放以适配（演示）。">⤢</button>
+                <button class="btn small" type="button" data-toast="导出 PNG（演示）。">导出 PNG</button>
+              </div>
+            </div>
+            <div class="canvas-body">
+              <div class="canvas-stage" id="canvasStage">
+                <svg class="canvas-links" viewBox="0 0 1120 620" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M280 190 C295 190 300 160 315 150" />
+                  <path d="M280 300 C295 300 300 330 315 335" />
+                  <path d="M530 170 C600 170 700 180 845 180" />
+                  <path d="M530 350 C600 350 700 265 845 265" />
+                  <path d="M415 250 L415 278" />
+                  <path d="M415 460 L415 488" />
+                </svg>
+                <div class="canvas-group" style="left: 28px; top: 40px; width: 250px">
+                  <div class="canvas-group-title">问题定义</div>
+                  <div class="canvas-card" style="min-height: 96px"><strong>文献</strong><span>Generalized State-of-Health Estimation from Partial Charging Curves</span></div>
+                  <div class="canvas-card" style="min-height: 96px"><strong>摘录</strong><span>核心贡献：从部分充电曲线估计 SOH，无需完整循环。</span></div>
+                  <div class="canvas-card" style="min-height: 82px"><strong>待办</strong><span>核对 LFP 短窗口下的特征有效性。</span></div>
+                </div>
+                <div class="canvas-card" style="left: 315px; top: 120px; width: 220px"><strong>摘录 · 短窗口不确定性</strong><span>窗口短于 10 分钟时误差明显上升。</span></div>
+                <div class="canvas-card" style="left: 315px; top: 290px; width: 220px"><strong>问答 · 这篇论文讲了什么</strong><span>用部分充电曲线估计 SOH，并用迁移学习覆盖多种体系。</span></div>
+                <div class="canvas-card" style="left: 315px; top: 490px; width: 220px"><strong>问答 · 迁移与不确定性</strong><span>跨体系迁移的收益与风险并存。</span></div>
+                <div class="canvas-group" style="left: 845px; top: 40px; width: 250px">
+                  <div class="canvas-group-title">迁移与不确定性</div>
+                  <div class="canvas-card" style="min-height: 88px"><strong>摘录</strong><span>NCM 迁移后 MAPE 降至 1.43%。</span></div>
+                  <div class="canvas-card" style="min-height: 88px"><strong>摘录</strong><span>LFP 对窗口长度最敏感，需更长片段。</span></div>
+                  <div class="canvas-card" style="min-height: 78px"><strong>问题</strong><span>如何量化跨体系的不确定性？</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-page="reading-plan">
+          <div class="scroll-view">
+            <div class="view-head">
+              <div>
+                <h1>主题阅读计划</h1>
+                <p>输入学习目标，基于库内文献生成阅读顺序、关注点与问题清单</p>
+              </div>
+            </div>
+            <div class="plan-compose">
+              <textarea id="planGoal" rows="3" placeholder="例如：系统掌握锂离子电池健康状态估计的主流方法，重点关注迁移学习与不确定性量化"></textarea>
+              <button class="btn primary" id="planGenerate" type="button">生成阅读计划</button>
+            </div>
+            <section class="plan-card">
+              <div class="plan-card-head">
+                <div>
+                  <h2>系统掌握电池健康状态估计的主流方法</h2>
+                  <p class="muted small" id="planMeta">2026/11/7 20:41 · deepseek-chat · 3 篇文献</p>
+                </div>
+                <button class="icon-btn tiny" type="button" data-toast="删除计划（演示）。">×</button>
+              </div>
+              <ol class="plan-list">
+                <li class="plan-item">
+                  <div class="plan-item-title">
+                    <strong>1. Generalized State-of-Health Estimation from Partial Charging Curves with Transfer Learning</strong>
+                    <span class="muted small">Lina Chen et al. · 2024</span>
+                    <button class="btn ghost tiny" type="button" data-toast="打开文献（演示）。">开始阅读</button>
+                  </div>
+                  <p>重点看部分充电曲线的特征构造，以及贝叶斯超参数调优如何选择网络结构。</p>
+                  <ul class="plan-questions"><li>为什么选择部分充电曲线而不是完整循环？</li><li>16 个特征分别代表什么物理含义？</li></ul>
+                </li>
+                <li class="plan-item">
+                  <div class="plan-item-title">
+                    <strong>2. State-of-Health Estimation of Li-Ion Batteries Using Transfer Learning</strong>
+                    <span class="muted small">Yunwei Zhang · 2023</span>
+                    <button class="btn ghost tiny" type="button" data-toast="打开文献（演示）。">开始阅读</button>
+                  </div>
+                  <p>关注迁移学习在跨体系数据上的实现方式与基线对比。</p>
+                  <ul class="plan-questions"><li>源域与目标域是如何划分的？</li></ul>
+                </li>
+                <li class="plan-item">
+                  <div class="plan-item-title">
+                    <strong>3. Physics-Informed Neural Network for Lithium-Ion Battery Health</strong>
+                    <span class="muted small">Fujin Wang · 2023</span>
+                    <button class="btn ghost tiny" type="button" data-toast="打开文献（演示）。">开始阅读</button>
+                  </div>
+                  <p>对比纯数据驱动与物理信息约束在网络泛化能力上的差异。</p>
+                  <ul class="plan-questions"><li>物理约束以何种形式注入损失函数？</li></ul>
+                </li>
+              </ol>
+            </section>
           </div>
         </section>
 
@@ -311,21 +609,51 @@
               <input id="captureInput" type="text" placeholder="写下一条灵感，回车保存（演示）…" />
               <button class="btn primary" id="captureSave" type="button">保存</button>
             </div>
+            <div class="filter-chips">
+              <button class="chip-button active" type="button">待处理</button>
+              <button class="chip-button" type="button">链接</button>
+              <button class="chip-button" type="button">摘录</button>
+              <button class="chip-button" type="button">待办</button>
+              <button class="chip-button" type="button">文本</button>
+              <button class="chip-button" type="button">已归档</button>
+            </div>
             <div id="inspirationList">
               <article class="inbox-card">
                 <div class="inbox-head"><span class="pill sage">链接</span><span>今天 14:20</span></div>
                 <h3>DeepSeek 文档 · 快速开始</h3>
-                <p>https://api-docs.deepseek.com/zh-cn/quick_start/pricing 下面是它的 Logo，你觉得好看吗？</p>
+                <p>https://api-docs.deepseek.com/zh-cn/quick_start/pricing</p>
+                <div class="inbox-actions">
+                  <button class="link-btn" type="button" data-toast="已归档（演示）。">归档</button>
+                  <button class="link-btn" type="button" data-toast="已转为任务（演示）。">转任务</button>
+                  <button class="link-btn" type="button" data-toast="AI 归类建议：外部工具（演示）。">AI 归类</button>
+                </div>
               </article>
               <article class="inbox-card">
                 <div class="inbox-head"><span class="pill reading">待办</span><span>今天 11:02</span></div>
                 <h3>核对迁移学习的训练集划分</h3>
                 <p>重点确认是否按电池单体划分，而不是按时间片段随机划分。</p>
+                <div class="inbox-actions">
+                  <button class="link-btn" type="button" data-toast="已归档（演示）。">归档</button>
+                  <button class="link-btn" type="button" data-toast="已转为任务（演示）。">转任务</button>
+                </div>
               </article>
               <article class="inbox-card">
                 <div class="inbox-head"><span class="pill unread">摘录</span><span>昨天 16:40</span></div>
                 <h3>部分充电窗口长度敏感性</h3>
                 <p>当窗口短于 10 分钟时，SOH 估计误差明显上升，需要更多上下文特征。</p>
+                <div class="inbox-actions">
+                  <button class="link-btn" type="button" data-toast="已归档（演示）。">归档</button>
+                  <button class="link-btn" type="button" data-toast="已转为任务（演示）。">转任务</button>
+                </div>
+              </article>
+              <article class="inbox-card">
+                <div class="inbox-head"><span class="pill sage">文本</span><span>昨天 10:05</span></div>
+                <h3>画布上试试“问题定义”分区</h3>
+                <p>把核心问题、证据与方法分开摆放，连线后更容易看出论证缺口。</p>
+                <div class="inbox-actions">
+                  <button class="link-btn" type="button" data-toast="已归档（演示）。">归档</button>
+                  <button class="link-btn" type="button" data-toast="AI 归类建议：研究主题（演示）。">AI 归类</button>
+                </div>
               </article>
             </div>
           </div>
@@ -342,20 +670,53 @@
             </div>
             <div class="translate-layout">
               <div class="translate-list" id="translateList">
-                <button class="translate-item active" type="button" data-translate="1"><strong>2026/11/07 16:43</strong><span>deepseek-flash · 结构化译文</span></button>
-                <button class="translate-item" type="button" data-translate="2"><strong>2026/11/07 15:08</strong><span>qwen-vl-plus · 图表翻译</span></button>
-                <button class="translate-item" type="button" data-translate="3"><strong>2026/11/06 21:12</strong><span>deepseek-flash · 扫描页</span></button>
+                <button class="translate-item active" type="button" data-translate="1">
+                  <img src="./assets/demo/translation-translated-1.png" alt="译文缩略图" />
+                  <span class="translate-item-meta"><strong>2026/11/07 16:43</strong><span>deepseek-flash · 结构化译文</span></span>
+                </button>
+                <button class="translate-item" type="button" data-translate="2">
+                  <img src="./assets/demo/translation-translated-2.png" alt="译文缩略图" />
+                  <span class="translate-item-meta"><strong>2026/11/07 15:08</strong><span>qwen-vl-plus · 图表翻译</span></span>
+                </button>
+                <button class="translate-item" type="button" data-translate="3">
+                  <img src="./assets/demo/translation-translated-3.png" alt="译文缩略图" />
+                  <span class="translate-item-meta"><strong>2026/11/06 21:12</strong><span>deepseek-flash · 扫描页</span></span>
+                </button>
               </div>
               <article class="translate-detail" id="translateDetail">
-                <h3>译文</h3>
-                <p>本工作的目标是弥合上述研究空白，并提供一种广义的数据驱动老化估计方法。该方法仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。</p>
-                <div class="translate-image">模拟截图区域 · 保留原图</div>
-                <p>开发了一种使用贝叶斯超参数调优的神经网络，该网络能够在无需执行进一步预处理或特征工程的情况下估计 SOH。神经网络仅接收描述部分充电曲线的 16 个参数作为输入数据。</p>
-                <div class="chips">
-                  <span class="pill sage">结构化译文</span>
-                  <span class="pill sage">纯文本可复制</span>
-                  <span class="pill sage">原文可追溯</span>
+                <div class="translate-detail-head">
+                  <div>
+                    <h3 id="translateTitle">2026/11/07 16:43 · deepseek-flash</h3>
+                    <p class="muted small" id="translateSub">结构化译文 · 保留原图</p>
+                  </div>
+                  <div class="translate-detail-actions">
+                    <button class="btn ghost small" type="button" data-toast="导出译文图（演示）。">导出译文图</button>
+                    <button class="btn ghost small" type="button" data-toast="导出 Markdown（演示）。">导出 Markdown</button>
+                    <button class="icon-btn tiny" type="button" data-toast="删除记录（演示）。">×</button>
+                  </div>
                 </div>
+                <div class="seg">
+                  <button class="seg-btn active" data-image-mode="translated" type="button">译文图</button>
+                  <button class="seg-btn" data-image-mode="original" type="button">原图</button>
+                </div>
+                <div class="translate-image-wrap">
+                  <img id="translateImage" src="./assets/demo/translation-translated-1.png" alt="译文图" />
+                </div>
+                <div class="translate-text-tabs">
+                  <button class="tab active" data-translate-text="structured" type="button">保留结构译文</button>
+                  <button class="tab" data-translate-text="plain" type="button">纯文本译文</button>
+                </div>
+                <div class="translate-structured" id="translateStructured">
+                  <h4>摘要</h4>
+                  <p>本工作提出一种广义的数据驱动老化估计方法，仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。</p>
+                  <h4>方法</h4>
+                  <p>开发了一种使用贝叶斯超参数调优的神经网络，能够在无需进一步预处理或特征工程的情况下估计 SOH。神经网络仅接收描述部分充电曲线的 16 个参数作为输入数据。</p>
+                </div>
+                <pre class="translate-plain" id="translatePlain" hidden>摘要
+本工作提出一种广义的数据驱动老化估计方法，仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。
+
+方法
+开发了一种使用贝叶斯超参数调优的神经网络，能够在无需进一步预处理或特征工程的情况下估计 SOH。神经网络仅接收描述部分充电曲线的 16 个参数作为输入数据。</pre>
               </article>
             </div>
           </div>
@@ -392,16 +753,43 @@
                   <label class="field"><span>对话模型</span><input value="deepseek-chat" readonly /></label>
                   <label class="field"><span>视觉模型</span><input value="deepseek-vl" readonly /></label>
                 </div>
+                <div class="field-row">
+                  <label class="field"><span>温度</span><input value="0.3" readonly /></label>
+                  <label class="field"><span>上下文长度</span><input value="32k" readonly /></label>
+                </div>
                 <button class="btn" type="button" data-toast="演示环境不会发起真实网络请求。">测试连接</button>
               </section>
               <section class="settings-card">
-                <h3>数据与备份</h3>
-                <div class="field"><span>数据目录</span><input value="C:\Users\you\AppData\Roaming\Arbor\data" readonly /></div>
-                <div class="field-row">
-                  <label class="field"><span>自动备份</span><input value="保留最近 7 份" readonly /></label>
-                  <label class="field"><span>快捷键</span><input value="Ctrl + Shift + T" readonly /></label>
+                <h3>Agent 行为</h3>
+                <label class="field">
+                  <span>系统提示词</span>
+                  <textarea class="settings-textarea">你是一名严谨的文献研究助手。基于检索到的文献原文片段回答，标注来源页码；不编造文献中不存在的内容；不确定时明确说明。</textarea>
+                  <small>Agent 会自动附加检索到的文献原文片段（含页码），要求基于原文回答并标注引用。</small>
+                </label>
+                <label class="field">
+                  <span>回答引用模式</span>
+                  <select class="select"><option>按问题检索整篇文献</option><option>仅使用选中段落</option><option>不引用文献</option></select>
+                </label>
+              </section>
+              <section class="settings-card">
+                <h3>数据与快捷键</h3>
+                <div class="kv-list">
+                  <div class="kv"><span>数据目录</span><code>C:\Users\you\AppData\Roaming\Arbor\data</code></div>
+                  <div class="kv"><span>版本</span><span>0.1.0</span></div>
+                  <div class="kv"><span>截图翻译快捷键</span><kbd>Ctrl + Shift + T</kbd></div>
                 </div>
-                <p class="panel-note">文献、笔记、对话、翻译与截图均保存在本机。迁移或备份时复制整个数据目录即可。</p>
+                <button class="btn ghost" type="button" data-toast="打开数据目录（演示）。">打开数据目录</button>
+                <p class="panel-note" style="margin-top: 10px">数据目录包含文献 PDF、全文缓存、对话记录与翻译截图。迁移或备份时复制整个目录即可；API Key 受系统加密保护，迁移后需重新填写。</p>
+              </section>
+              <section class="settings-card">
+                <h3>自动备份</h3>
+                <p class="panel-note" style="margin: 0 0 12px">每天首次启动时自动快照数据目录，保留最近 7 份；恢复前会为当前数据保留一份安全副本。</p>
+                <button class="btn ghost" type="button" data-toast="立即备份（演示）。">立即备份</button>
+                <div class="kv-list" style="margin-top: 12px">
+                  <div class="kv"><span>2026/11/07 09:02 · 12.4 MB</span><button class="btn ghost small" type="button" data-toast="已恢复到该备份（演示）。">恢复</button></div>
+                  <div class="kv"><span>2026/11/06 09:00 · 12.1 MB</span><button class="btn ghost small" type="button" data-toast="已恢复到该备份（演示）。">恢复</button></div>
+                  <div class="kv"><span>2026/11/05 09:00 · 11.8 MB</span><button class="btn ghost small" type="button" data-toast="已恢复到该备份（演示）。">恢复</button></div>
+                </div>
               </section>
             </div>
           </div>

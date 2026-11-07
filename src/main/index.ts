@@ -11,20 +11,25 @@ import { startBackupScheduler } from './backup'
 const APP_NAME = 'Arbor'
 app.setName(APP_NAME)
 
-const appDataDir = app.getPath('appData')
-const legacyUserData = path.join(appDataDir, 'ZotAgent')
-const targetUserData = path.join(appDataDir, APP_NAME)
-if (!fs.existsSync(targetUserData) && fs.existsSync(legacyUserData)) {
-  try {
-    fs.renameSync(legacyUserData, targetUserData)
-  } catch {
-    /* fall back to the legacy folder when another instance holds a file lock */
+const userDataOverride = process.env.ARBOR_USER_DATA_DIR?.trim()
+if (userDataOverride) {
+  app.setPath('userData', path.resolve(userDataOverride))
+} else {
+  const appDataDir = app.getPath('appData')
+  const legacyUserData = path.join(appDataDir, 'ZotAgent')
+  const targetUserData = path.join(appDataDir, APP_NAME)
+  if (!fs.existsSync(targetUserData) && fs.existsSync(legacyUserData)) {
+    try {
+      fs.renameSync(legacyUserData, targetUserData)
+    } catch {
+      /* fall back to the legacy folder when another instance holds a file lock */
+    }
   }
+  app.setPath(
+    'userData',
+    fs.existsSync(targetUserData) || !fs.existsSync(legacyUserData) ? targetUserData : legacyUserData
+  )
 }
-app.setPath(
-  'userData',
-  fs.existsSync(targetUserData) || !fs.existsSync(legacyUserData) ? targetUserData : legacyUserData
-)
 
 protocol.registerSchemesAsPrivileged([
   {

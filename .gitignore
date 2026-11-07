@@ -3,6 +3,7 @@ out/
 release/
 release-*/
 release[0-9]*/
+scripts/demo/.generated/
 *.log
 docs/progress.lock
 .DS_Store

@@ -267,6 +267,24 @@ html {
   color: var(--text-soft);
   max-width: 60ch;
 }
+.submit-status {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.submit-status:empty {
+  display: none;
+}
+.submit-status.ok {
+  color: #5f7a3f;
+}
+.submit-status.warn {
+  color: #8a5a1f;
+}
+.submit-status.error {
+  color: #a14d3f;
+}
 .success-actions {
   display: flex;
   gap: 10px;

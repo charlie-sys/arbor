@@ -35,7 +35,10 @@
   const showView = (name) => {
     views.forEach((view) => view.classList.toggle('active', view.dataset.page === name))
     navButtons.forEach((button) => {
-      const active = button.dataset.view === name || (name === 'reader' && button.dataset.view === 'library')
+      const active =
+        button.dataset.view === name ||
+        (name === 'reader' && button.dataset.view === 'library') ||
+        (name === 'topic-detail' && button.dataset.view === 'topics')
       button.classList.toggle('active', active)
     })
   }
@@ -48,7 +51,7 @@
   librarySearch?.addEventListener('input', () => {
     const keyword = librarySearch.value.trim().toLowerCase()
     libraryRows.forEach((row) => {
-      const match = !keyword || (row.dataset.title || '').toLowerCase().includes(keyword)
+      const match = !keyword || row.textContent.toLowerCase().includes(keyword)
       row.style.display = match ? '' : 'none'
     })
   })
@@ -66,12 +69,28 @@
   })
   document.getElementById('backToLibrary')?.addEventListener('click', () => showView('library'))
 
-  const tabs = Array.from(document.querySelectorAll('.tab'))
-  tabs.forEach((tab) => {
+  const readerTabs = Array.from(document.querySelectorAll('.panel-tabs .tab'))
+  readerTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
-      tabs.forEach((item) => item.classList.toggle('active', item === tab))
+      readerTabs.forEach((item) => item.classList.toggle('active', item === tab))
       document.querySelectorAll('[data-panel-body]').forEach((panel) => {
         panel.hidden = panel.dataset.panelBody !== tab.dataset.panel
+      })
+    })
+  })
+
+  document.querySelectorAll('.context-bar').forEach((bar) => {
+    bar.querySelectorAll('.context-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        bar.querySelectorAll('.context-chip').forEach((item) => item.classList.toggle('active', item === chip))
+      })
+    })
+  })
+
+  document.querySelectorAll('.filter-chips').forEach((bar) => {
+    bar.querySelectorAll('.chip-button').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        bar.querySelectorAll('.chip-button').forEach((item) => item.classList.toggle('active', item === chip))
       })
     })
   })
@@ -121,15 +140,14 @@
   }
 
   const readerInput = document.getElementById('readerInput')
-  const readerThread = document.querySelector('[data-panel-body="assistant"]')
-  const readerComposer = readerThread?.querySelector('.composer')
+  const readerThread = document.querySelector('[data-panel-body="assistant"] .agent-thread')
   document.getElementById('readerSend')?.addEventListener('click', () => {
-    if (readerInput && readerThread) sendInto(readerInput, readerThread, readerComposer)
+    if (readerInput && readerThread) sendInto(readerInput, readerThread, null)
   })
   readerInput?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      if (readerThread) sendInto(readerInput, readerThread, readerComposer)
+      if (readerThread) sendInto(readerInput, readerThread, null)
     }
   })
 
@@ -183,39 +201,112 @@
 
   const translations = {
     1: {
-      title: '译文',
-      body: '本工作的目标是弥合上述研究空白，并提供一种广义的数据驱动老化估计方法。该方法仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。',
-      extra: '开发了一种使用贝叶斯超参数调优的神经网络，该网络能够在无需执行进一步预处理或特征工程的情况下估计 SOH。'
+      title: '2026/11/07 16:43 · deepseek-flash',
+      sub: '结构化译文 · 保留原图',
+      translated: './assets/demo/translation-translated-1.png',
+      original: './assets/demo/translation-original-1.png',
+      structured:
+        '<h4>摘要</h4><p>本工作提出一种广义的数据驱动老化估计方法，仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。</p><h4>方法</h4><p>开发了一种使用贝叶斯超参数调优的神经网络，能够在无需进一步预处理或特征工程的情况下估计 SOH。神经网络仅接收描述部分充电曲线的 16 个参数作为输入数据。</p>',
+      plain:
+        '摘要\n本工作提出一种广义的数据驱动老化估计方法，仅使用来自部分负载曲线的原始电池传感器数据。为此，获取了描述电池电芯及相应充电曲线的高级参数。\n\n方法\n开发了一种使用贝叶斯超参数调优的神经网络，能够在无需进一步预处理或特征工程的情况下估计 SOH。神经网络仅接收描述部分充电曲线的 16 个参数作为输入数据。'
     },
     2: {
-      title: '图表翻译',
-      body: '图 8：SOH 估计验证结果。横轴为循环次数，纵轴为 SOH 与 APE。不同颜色分别对应源模型、目标模型 1、目标模型 2 与参考值。',
-      extra: '在 500 次循环后，目标模型 1 与参考值的偏差明显小于基线模型，说明迁移学习有效。'
+      title: '2026/11/07 15:08 · qwen-vl-plus',
+      sub: '图表翻译 · 保留原图',
+      translated: './assets/demo/translation-translated-2.png',
+      original: './assets/demo/translation-original-2.png',
+      structured:
+        '<h4>图 8 · SOH 估计验证结果</h4><table class="excerpt-table"><thead><tr><th>模型</th><th>MAPE</th></tr></thead><tbody><tr><td>源模型（NCM）</td><td>1.43%</td></tr><tr><td>目标模型 1（LFP）</td><td>2.05%</td></tr><tr><td>目标模型 2（NCA）</td><td>1.87%</td></tr></tbody></table><p>在 500 次循环后，目标模型与参考值的偏差明显小于基线模型，说明迁移学习有效。</p>',
+      plain:
+        '图 8 · SOH 估计验证结果\n模型 | MAPE\n源模型（NCM）| 1.43%\n目标模型 1（LFP）| 2.05%\n目标模型 2（NCA）| 1.87%\n\n在 500 次循环后，目标模型与参考值的偏差明显小于基线模型，说明迁移学习有效。'
     },
     3: {
-      title: '扫描页译文',
-      body: '实验在 25°C 下进行，分别使用 NCA、NCM 与 NCA-NCM 三种电池体系。所有充电片段均从 10% SOC 开始，并在不同截止电压下截断。',
-      extra: '为避免数据泄漏，训练集与测试集按电池单体划分，而不是按时间片段随机划分。'
+      title: '2026/11/06 21:12 · deepseek-flash',
+      sub: '扫描页 · 保留原图',
+      translated: './assets/demo/translation-translated-3.png',
+      original: './assets/demo/translation-original-3.png',
+      structured:
+        '<h4>实验设置</h4><p>实验在 25°C 下进行，分别使用 NCA、NCM 与 NCA-NCM 三种电池体系。所有充电片段均从 10% SOC 开始，并在不同截止电压下截断。</p><h4>数据划分</h4><p>为避免数据泄漏，训练集与测试集按电池单体划分，而不是按时间片段随机划分。</p>',
+      plain:
+        '实验设置\n实验在 25°C 下进行，分别使用 NCA、NCM 与 NCA-NCM 三种电池体系。所有充电片段均从 10% SOC 开始，并在不同截止电压下截断。\n\n数据划分\n为避免数据泄漏，训练集与测试集按电池单体划分，而不是按时间片段随机划分。'
     }
   }
-  const translateDetail = document.getElementById('translateDetail')
+  const translateImage = document.getElementById('translateImage')
+  const translateTitle = document.getElementById('translateTitle')
+  const translateSub = document.getElementById('translateSub')
+  const translateStructured = document.getElementById('translateStructured')
+  const translatePlain = document.getElementById('translatePlain')
+  let activeTranslate = '1'
+  const setImageMode = (mode) => {
+    const data = translations[activeTranslate]
+    if (!data) return
+    document.querySelectorAll('[data-image-mode]').forEach((btn) => btn.classList.toggle('active', btn.dataset.imageMode === mode))
+    translateImage.src = mode === 'original' ? data.original : data.translated
+    translateImage.alt = mode === 'original' ? '原图' : '译文图'
+  }
+  const setTextMode = (mode) => {
+    document.querySelectorAll('[data-translate-text]').forEach((btn) => btn.classList.toggle('active', btn.dataset.translateText === mode))
+    translateStructured.hidden = mode !== 'structured'
+    translatePlain.hidden = mode !== 'plain'
+  }
+  const applyTranslation = (id) => {
+    const data = translations[id]
+    if (!data) return
+    translateTitle.textContent = data.title
+    translateSub.textContent = data.sub
+    translateStructured.innerHTML = data.structured
+    translatePlain.textContent = data.plain
+    setImageMode('translated')
+    setTextMode('structured')
+  }
   document.querySelectorAll('.translate-item').forEach((item) => {
     item.addEventListener('click', () => {
       document.querySelectorAll('.translate-item').forEach((other) => other.classList.toggle('active', other === item))
-      const data = translations[item.dataset.translate]
-      if (!data || !translateDetail) return
-      translateDetail.innerHTML = `
-        <h3>${data.title}</h3>
-        <p>${data.body}</p>
-        <div class="translate-image">模拟截图区域 · 保留原图</div>
-        <p>${data.extra}</p>
-        <div class="chips">
-          <span class="pill sage">结构化译文</span>
-          <span class="pill sage">纯文本可复制</span>
-          <span class="pill sage">原文可追溯</span>
-        </div>
-      `
+      activeTranslate = item.dataset.translate
+      applyTranslation(activeTranslate)
     })
+  })
+  document.querySelectorAll('[data-image-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => setImageMode(btn.dataset.imageMode))
+  })
+  document.querySelectorAll('[data-translate-text]').forEach((btn) => {
+    btn.addEventListener('click', () => setTextMode(btn.dataset.translateText))
+  })
+  applyTranslation('1')
+
+  document.querySelectorAll('.topic-card').forEach((card) => {
+    card.addEventListener('click', () => showView('topic-detail'))
+  })
+  document.getElementById('backToTopics')?.addEventListener('click', () => showView('topics'))
+  document.querySelectorAll('.question-btn').forEach((btn) => {
+    btn.addEventListener('click', () => notify('已发起主题对话（演示）。'))
+  })
+
+  let canvasZoom = 1
+  const canvasStage = document.getElementById('canvasStage')
+  const canvasZoomLabel = document.getElementById('canvasZoomLabel')
+  const applyZoom = () => {
+    canvasStage.style.zoom = canvasZoom
+    canvasZoomLabel.textContent = `${Math.round(canvasZoom * 100)}%`
+  }
+  document.getElementById('canvasZoomIn')?.addEventListener('click', () => {
+    canvasZoom = Math.min(1.4, canvasZoom + 0.1)
+    applyZoom()
+  })
+  document.getElementById('canvasZoomOut')?.addEventListener('click', () => {
+    canvasZoom = Math.max(0.6, canvasZoom - 0.1)
+    applyZoom()
+  })
+
+  document.getElementById('planGenerate')?.addEventListener('click', () => {
+    const goal = document.getElementById('planGoal')?.value.trim()
+    if (!goal) {
+      notify('请先填写学习目标。')
+      return
+    }
+    const meta = document.getElementById('planMeta')
+    if (meta) meta.textContent = `${new Date().toLocaleString('zh-CN', { hour12: false })} · deepseek-chat · 3 篇文献`
+    notify('已生成 3 篇文献的阅读计划（演示）。')
   })
 
   if (chatThread) chatThread.scrollTop = chatThread.scrollHeight

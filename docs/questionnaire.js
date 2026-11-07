@@ -1,7 +1,12 @@
 (() => {
+  // 问卷结果回传地址：在 formspree.io 创建表单后，把 f/ 后面的 ID 填进来。
+  // 例如 https://formspree.io/f/abcdwxyz
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID'
+
   const form = document.getElementById('survey')
   const success = document.getElementById('success')
   const summary = document.getElementById('summary')
+  const submitStatus = document.getElementById('submitStatus')
   const progressText = document.getElementById('progressText')
   const progressBar = document.getElementById('progressBar')
   const fillInput = document.getElementById('q10')
@@ -67,6 +72,38 @@
   fillInput?.addEventListener('input', () => {
     fillCount.textContent = `${fillInput.value.length} / 200`
   })
+
+  const sendToFormspree = async (json) => {
+    const notConfigured = !FORMSPREE_ENDPOINT || FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID')
+    if (notConfigured) {
+      if (submitStatus) {
+        submitStatus.textContent = '回传地址未配置：请在 questionnaire.js 顶部填入 Formspree 端点。可先复制或下载 JSON 手动发送。'
+        submitStatus.className = 'submit-status warn'
+      }
+      return
+    }
+    if (submitStatus) {
+      submitStatus.textContent = '正在提交…'
+      submitStatus.className = 'submit-status'
+    }
+    try {
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: json
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (submitStatus) {
+        submitStatus.textContent = '已提交成功，感谢你的反馈！'
+        submitStatus.className = 'submit-status ok'
+      }
+    } catch {
+      if (submitStatus) {
+        submitStatus.textContent = '自动提交失败：请复制或下载 JSON 发送给 Arbor 团队。'
+        submitStatus.className = 'submit-status error'
+      }
+    }
+  }
 
   form.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -143,11 +180,17 @@
         document.querySelector('.progress-wrap')?.removeAttribute('hidden')
         success?.classList.remove('visible')
         fillCount.textContent = '0 / 200'
+        if (submitStatus) {
+          submitStatus.textContent = ''
+          submitStatus.className = 'submit-status'
+        }
         form.querySelectorAll('.options[data-max]').forEach(updateCount)
         updateProgress()
         window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     }
+
+    sendToFormspree(json)
   })
 
   updateProgress()
