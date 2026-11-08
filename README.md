@@ -30,7 +30,7 @@ Arbor 是一款本地优先的桌面文献研究工具。它把 PDF、Word、Mar
 - **桌面版下载**：请在仓库右侧 **Releases** 中下载最新的 Windows 安装包。
 - **在线产品页**：GitHub Pages 首页（功能、截图、使用说明、下载入口）。
 - **在线交互 Demo**：`demo.html`，使用模拟数据展示主要界面与交互，不连接真实 AI、不读取本地文件。
-- **用户体验问卷**：`questionnaire.html`，10 题、约 2 分钟、匿名且只保存在浏览器。
+- **用户体验问卷**：已迁移至 [腾讯文档收集表](https://docs.qq.com/form/page/DREh5UExreEdxTm5t)，10 题、约 2 分钟、匿名；`questionnaire.html` 保留为跳转页。
 
 ## 快速开始
 

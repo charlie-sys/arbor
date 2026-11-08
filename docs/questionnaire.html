@@ -3,12 +3,38 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Arbor 用户体验问卷：10 道题，9 道选择题 + 1 道填空题，约 2 分钟，匿名填写。" />
+    <meta name="description" content="Arbor 用户体验问卷已迁移至腾讯文档，10 题、约 2 分钟、匿名填写。" />
     <meta name="theme-color" content="#faf6f1" />
+    <meta http-equiv="refresh" content="1; url=https://docs.qq.com/form/page/DREh5UExreEdxTm5t" />
     <title>Arbor 用户体验问卷</title>
     <link rel="icon" type="image/svg+xml" href="./assets/arbor-logo.svg" />
     <link rel="stylesheet" href="./site.css" />
-    <link rel="stylesheet" href="./questionnaire.css" />
+    <style>
+      .redirect-page {
+        max-width: 620px;
+        margin: 0 auto;
+        padding: clamp(64px, 12vh, 120px) 24px;
+        text-align: center;
+      }
+      .redirect-page h1 {
+        margin: 0 0 14px;
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+      }
+      .redirect-page p {
+        margin: 0 0 26px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+      .redirect-page .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .redirect-note {
+        margin-top: 22px;
+        font-size: 0.9rem;
+      }
+    </style>
   </head>
   <body>
     <header class="site-header">
@@ -20,7 +46,7 @@
         <nav class="site-nav" aria-label="主导航">
           <a href="./index.html">产品首页</a>
           <a href="./demo.html">在线体验</a>
-          <a href="./questionnaire.html">体验问卷</a>
+          <a href="https://docs.qq.com/form/page/DREh5UExreEdxTm5t" target="_blank" rel="noreferrer">体验问卷</a>
         </nav>
         <div class="header-actions">
           <a class="btn small" data-download href="https://github.com/" target="_blank" rel="noreferrer">下载桌面版</a>
@@ -28,178 +54,15 @@
       </div>
     </header>
 
-    <main class="survey-page">
-      <div class="wrap">
-        <div class="survey-head">
-          <h1>Arbor 用户体验问卷</h1>
-          <p>
-            感谢你试用 Arbor。这份问卷用于了解真实使用场景、功能优先级与界面体验，帮助我们决定下一步把时间花在哪里。
-            问卷匿名、约 2 分钟，不会上传你的文献或任何本地数据。
-          </p>
-          <div class="survey-meta">
-            <span>10 题 · 约 2 分钟</span>
-            <span>9 道选择题 + 1 道填空题</span>
-            <span>匿名 · 提交给 Arbor 团队</span>
-          </div>
-        </div>
-
-        <div class="progress-wrap">
-          <div class="progress-info">
-            <span>必答进度</span>
-            <span id="progressText">已完成 0 / 9</span>
-          </div>
-          <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
-        </div>
-
-        <form class="survey" id="survey" novalidate>
-          <section class="question" data-question="q1">
-            <div class="q-title"><span class="q-index">01</span><h2>你目前的主要身份是？</h2></div>
-            <p class="q-hint">单选</p>
-            <div class="options">
-              <label class="option"><input type="radio" name="q1" value="本科生" /><span class="mark"></span><span class="option-text">本科生</span></label>
-              <label class="option"><input type="radio" name="q1" value="研究生（硕士/博士）" /><span class="mark"></span><span class="option-text">研究生（硕士/博士）</span></label>
-              <label class="option"><input type="radio" name="q1" value="高校教师或科研人员" /><span class="mark"></span><span class="option-text">高校教师或科研人员</span></label>
-              <label class="option"><input type="radio" name="q1" value="企业研发或行业研究者" /><span class="mark"></span><span class="option-text">企业研发或行业研究者</span></label>
-              <label class="option"><input type="radio" name="q1" value="其他" /><span class="mark"></span><span class="option-text">其他</span></label>
-            </div>
-          </section>
-
-          <section class="question" data-question="q2">
-            <div class="q-title"><span class="q-index">02</span><h2>你使用 Arbor 的主要目的是什么？</h2></div>
-            <p class="q-hint">多选，最多 3 项</p>
-            <div class="options" data-max="3">
-              <label class="option"><input type="checkbox" name="q2" value="管理与阅读文献" /><span class="mark"></span><span class="option-text">管理与阅读文献</span></label>
-              <label class="option"><input type="checkbox" name="q2" value="做笔记与摘录" /><span class="mark"></span><span class="option-text">做笔记与摘录</span></label>
-              <label class="option"><input type="checkbox" name="q2" value="AI 问答与理解" /><span class="mark"></span><span class="option-text">AI 问答与理解</span></label>
-              <label class="option"><input type="checkbox" name="q2" value="论文写作与综述" /><span class="mark"></span><span class="option-text">论文写作与综述</span></label>
-              <label class="option"><input type="checkbox" name="q2" value="截图翻译" /><span class="mark"></span><span class="option-text">截图翻译</span></label>
-              <label class="option"><input type="checkbox" name="q2" value="跟踪研究主题" /><span class="mark"></span><span class="option-text">跟踪研究主题</span></label>
-              <label class="option"><input type="checkbox" name="q2" value="其他" /><span class="mark"></span><span class="option-text">其他</span></label>
-            </div>
-            <p class="multi-count" data-count-for="q2">已选 0 / 3</p>
-          </section>
-
-          <section class="question" data-question="q3">
-            <div class="q-title"><span class="q-index">03</span><h2>你使用 Arbor 的频率大概是？</h2></div>
-            <p class="q-hint">单选</p>
-            <div class="options">
-              <label class="option"><input type="radio" name="q3" value="每天" /><span class="mark"></span><span class="option-text">每天</span></label>
-              <label class="option"><input type="radio" name="q3" value="每周 3–5 次" /><span class="mark"></span><span class="option-text">每周 3–5 次</span></label>
-              <label class="option"><input type="radio" name="q3" value="每周 1–2 次" /><span class="mark"></span><span class="option-text">每周 1–2 次</span></label>
-              <label class="option"><input type="radio" name="q3" value="每月几次" /><span class="mark"></span><span class="option-text">每月几次</span></label>
-              <label class="option"><input type="radio" name="q3" value="刚开始使用" /><span class="mark"></span><span class="option-text">刚开始使用</span></label>
-            </div>
-          </section>
-
-          <section class="question" data-question="q4">
-            <div class="q-title"><span class="q-index">04</span><h2>你最常用的功能有哪些？</h2></div>
-            <p class="q-hint">多选，最多 3 项</p>
-            <div class="options" data-max="3">
-              <label class="option"><input type="checkbox" name="q4" value="文献列表与阅读器" /><span class="mark"></span><span class="option-text">文献列表与阅读器</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="AI 对话与引用" /><span class="mark"></span><span class="option-text">AI 对话与引用</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="灵感收集" /><span class="mark"></span><span class="option-text">灵感收集</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="研究主题" /><span class="mark"></span><span class="option-text">研究主题</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="截图翻译" /><span class="mark"></span><span class="option-text">截图翻译</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="主题阅读计划" /><span class="mark"></span><span class="option-text">主题阅读计划</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="主题画布" /><span class="mark"></span><span class="option-text">主题画布</span></label>
-              <label class="option"><input type="checkbox" name="q4" value="命令面板与快捷键" /><span class="mark"></span><span class="option-text">命令面板与快捷键</span></label>
-            </div>
-            <p class="multi-count" data-count-for="q4">已选 0 / 3</p>
-          </section>
-
-          <section class="question" data-question="q5">
-            <div class="q-title"><span class="q-index">05</span><h2>文献列表支持鼠标拖动整体宽度和列宽，这对你有帮助吗？</h2></div>
-            <p class="q-hint">单选</p>
-            <div class="options one-col">
-              <label class="option"><input type="radio" name="q5" value="很有帮助，经常使用" /><span class="mark"></span><span class="option-text">很有帮助，经常使用</span></label>
-              <label class="option"><input type="radio" name="q5" value="有帮助，偶尔使用" /><span class="mark"></span><span class="option-text">有帮助，偶尔使用</span></label>
-              <label class="option"><input type="radio" name="q5" value="一般，感觉不明显" /><span class="mark"></span><span class="option-text">一般，感觉不明显</span></label>
-              <label class="option"><input type="radio" name="q5" value="没注意到这个功能" /><span class="mark"></span><span class="option-text">没注意到这个功能</span></label>
-              <label class="option"><input type="radio" name="q5" value="不需要，列表固定宽度即可" /><span class="mark"></span><span class="option-text">不需要，列表固定宽度即可</span></label>
-            </div>
-          </section>
-
-          <section class="question" data-question="q6">
-            <div class="q-title"><span class="q-index">06</span><h2>你对当前的“自然有机风”视觉界面感觉如何？</h2></div>
-            <p class="q-hint">单选</p>
-            <div class="options">
-              <label class="option"><input type="radio" name="q6" value="很喜欢" /><span class="mark"></span><span class="option-text">很喜欢</span></label>
-              <label class="option"><input type="radio" name="q6" value="喜欢" /><span class="mark"></span><span class="option-text">喜欢</span></label>
-              <label class="option"><input type="radio" name="q6" value="一般" /><span class="mark"></span><span class="option-text">一般</span></label>
-              <label class="option"><input type="radio" name="q6" value="不喜欢" /><span class="mark"></span><span class="option-text">不喜欢</span></label>
-            </div>
-          </section>
-
-          <section class="question" data-question="q7">
-            <div class="q-title"><span class="q-index">07</span><h2>你会使用深色模式吗？</h2></div>
-            <p class="q-hint">单选</p>
-            <div class="options">
-              <label class="option"><input type="radio" name="q7" value="经常使用" /><span class="mark"></span><span class="option-text">经常使用</span></label>
-              <label class="option"><input type="radio" name="q7" value="偶尔使用" /><span class="mark"></span><span class="option-text">偶尔使用</span></label>
-              <label class="option"><input type="radio" name="q7" value="不用，只使用浅色" /><span class="mark"></span><span class="option-text">不用，只使用浅色</span></label>
-              <label class="option"><input type="radio" name="q7" value="不知道有深色模式" /><span class="mark"></span><span class="option-text">不知道有深色模式</span></label>
-            </div>
-          </section>
-
-          <section class="question" data-question="q8">
-            <div class="q-title"><span class="q-index">08</span><h2>你认为最需要优先改进的方面有哪些？</h2></div>
-            <p class="q-hint">多选，最多 3 项</p>
-            <div class="options" data-max="3">
-              <label class="option"><input type="checkbox" name="q8" value="PDF 解析与导入体验" /><span class="mark"></span><span class="option-text">PDF 解析与导入体验</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="AI 回答质量与引用准确度" /><span class="mark"></span><span class="option-text">AI 回答质量与引用准确度</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="列表与阅读器性能" /><span class="mark"></span><span class="option-text">列表与阅读器性能</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="界面布局与信息密度" /><span class="mark"></span><span class="option-text">界面布局与信息密度</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="截图翻译质量" /><span class="mark"></span><span class="option-text">截图翻译质量</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="研究主题与画布" /><span class="mark"></span><span class="option-text">研究主题与画布</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="数据备份与迁移" /><span class="mark"></span><span class="option-text">数据备份与迁移</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="快捷键与命令面板" /><span class="mark"></span><span class="option-text">快捷键与命令面板</span></label>
-              <label class="option"><input type="checkbox" name="q8" value="其他" /><span class="mark"></span><span class="option-text">其他</span></label>
-            </div>
-            <p class="multi-count" data-count-for="q8">已选 0 / 3</p>
-          </section>
-
-          <section class="question" data-question="q9">
-            <div class="q-title"><span class="q-index">09</span><h2>你愿意把 Arbor 推荐给同学或同事吗？</h2></div>
-            <p class="q-hint">单选</p>
-            <div class="options">
-              <label class="option"><input type="radio" name="q9" value="一定会" /><span class="mark"></span><span class="option-text">一定会</span></label>
-              <label class="option"><input type="radio" name="q9" value="可能会" /><span class="mark"></span><span class="option-text">可能会</span></label>
-              <label class="option"><input type="radio" name="q9" value="不确定" /><span class="mark"></span><span class="option-text">不确定</span></label>
-              <label class="option"><input type="radio" name="q9" value="不会" /><span class="mark"></span><span class="option-text">不会</span></label>
-            </div>
-          </section>
-
-          <section class="question" data-question="q10">
-            <div class="q-title"><span class="q-index">10</span><h2>如果只能增加或改进一个功能，你最希望是什么？</h2></div>
-            <p class="q-hint">填空题（选填）· 最多 200 字</p>
-            <div class="fill-row">
-              <input id="q10" name="q10" type="text" maxlength="200" placeholder="例如：更准确的公式识别、批量标签、Zotero 同步…" />
-              <p class="fill-hint"><span>这一题是整份问卷唯一的填空题。</span><span id="fillCount">0 / 200</span></p>
-            </div>
-          </section>
-
-          <div class="submit-row">
-            <button class="btn primary" type="submit">提交问卷</button>
-            <div class="note">提交后答案会发送给 Arbor 团队，仅用于改进产品；不会上传你的文献或任何本地数据。</div>
-          </div>
-        </form>
-
-        <section class="success" id="success" aria-live="polite">
-          <h2>谢谢你的反馈</h2>
-          <p class="submit-status" id="submitStatus"></p>
-          <p>下面是本次答案的摘要，可复制或下载 JSON 作为备份；也可以直接截图分享。</p>
-          <pre class="summary" id="summary"></pre>
-          <div class="success-actions">
-            <button class="btn primary" id="copyResult" type="button">复制答案</button>
-            <button class="btn" id="downloadResult" type="button">下载 JSON</button>
-            <a class="btn" href="./index.html">返回产品首页</a>
-            <button class="btn ghost" id="restart" type="button">重新填写</button>
-          </div>
-        </section>
-      </div>
+    <main class="redirect-page">
+      <h1>正在前往腾讯文档问卷</h1>
+      <p>Arbor 用户体验问卷已迁移至腾讯文档，约 2 分钟、匿名填写。如果没有自动跳转，请点击下面的按钮。</p>
+      <a class="btn primary" href="https://docs.qq.com/form/page/DREh5UExreEdxTm5t" target="_blank" rel="noreferrer">
+        填写体验问卷
+      </a>
+      <p class="redirect-note">问卷不会上传你的文献或任何本地数据。</p>
     </main>
 
     <script src="./site.js"></script>
-    <script src="./questionnaire.js"></script>
   </body>
 </html>
