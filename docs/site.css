@@ -49,6 +49,10 @@ html {
   scroll-behavior: smooth;
 }
 
+[id] {
+  scroll-margin-top: 88px;
+}
+
 body {
   margin: 0;
   font-family: var(--font);
@@ -515,6 +519,79 @@ html[data-theme='dark'] .hero-visual::after {
 }
 .split-visual .window {
   box-shadow: var(--shadow);
+}
+
+.pet-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-height: 380px;
+  padding: 38px 28px 26px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(139, 157, 119, 0.18), transparent 58%),
+    var(--panel-2);
+  overflow: hidden;
+}
+.pet-stage::before,
+.pet-stage::after {
+  content: '';
+  position: absolute;
+  border-radius: 58% 42% 55% 45% / 48% 55% 45% 52%;
+  background: rgba(212, 163, 115, 0.14);
+  pointer-events: none;
+}
+.pet-stage::before {
+  width: 190px;
+  height: 190px;
+  left: -70px;
+  bottom: -60px;
+}
+.pet-stage::after {
+  width: 120px;
+  height: 120px;
+  right: -36px;
+  top: 32px;
+}
+.pet-bubble {
+  position: relative;
+  z-index: 1;
+  max-width: 300px;
+  padding: 13px 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px 18px 18px 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(84, 65, 48, 0.08);
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.pet-bubble::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  transform: rotate(45deg);
+}
+.pet-stage .pet-figure {
+  position: relative;
+  z-index: 1;
+  width: min(240px, 62%);
+  height: auto;
+  filter: drop-shadow(0 22px 26px rgba(84, 65, 48, 0.18));
+}
+.pet-caption {
+  position: relative;
+  z-index: 1;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
 }
 
 .note {

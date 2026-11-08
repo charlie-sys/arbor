@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { UsageRecord } from '@shared/types'
 import { cacheHitRate, summarizeUsage } from '@shared/usage'
 import type { UsageSummary } from '@shared/usage'
+import { t } from '@shared/i18n'
 
 let records: UsageRecord[] | null = null
 let loading: Promise<void> | null = null
@@ -95,11 +96,11 @@ export function formatChatUsage(summary: UsageSummary): string {
   const ttft =
     summary.avgFirstTokenMs === null
       ? '—'
-      : `${(summary.avgFirstTokenMs / 1000).toFixed(summary.avgFirstTokenMs < 10_000 ? 2 : 1)} 秒`
+      : t("{0} 秒", [(summary.avgFirstTokenMs / 1000).toFixed(summary.avgFirstTokenMs < 10_000 ? 2 : 1)])
   const speed = summary.tokensPerSec === null ? '—' : summary.tokensPerSec.toFixed(1)
   const rate = cacheHitRate(summary)
-  const latency = `首 token 平均 ${ttft} · ${speed} tok/s`
-  const cache = `缓存命中 ${rate === null ? '—' : `${rate.toFixed(0)}%`}`
-  const tokens = `输入 ${formatTokenCompact(summary.input)} tok · 输出 ${formatTokenCompact(summary.output)} tok`
+  const latency = t("首 token 平均 {0} · {1} tok/s", [ttft, speed])
+  const cache = t("缓存命中 {0}", [rate === null ? '—' : `${rate.toFixed(0)}%`])
+  const tokens = t("输入 {0} tok · 输出 {1} tok", [formatTokenCompact(summary.input), formatTokenCompact(summary.output)])
   return [latency, cache, tokens].join(' | ')
 }

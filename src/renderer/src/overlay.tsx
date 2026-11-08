@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { getLocale, localeFromStored, localeTag, setLocale, t } from '@shared/i18n'
+
+try {
+  setLocale(localeFromStored(window.localStorage.getItem('arbor-locale')))
+} catch {
+  /* keep default locale */
+}
+document.documentElement.lang = localeTag(getLocale())
+document.title = t('截图翻译')
 
 interface Point {
   x: number
@@ -89,8 +98,7 @@ function Overlay(): React.JSX.Element {
             pointerEvents: 'none'
           }}
         >
-          拖拽框选需要翻译的区域 · Esc 或右键取消
-        </div>
+          {' '}{t("拖拽框选需要翻译的区域 · Esc 或右键取消")}{' '}</div>
       )}
       {rect && (
         <>
@@ -140,8 +148,7 @@ function Overlay(): React.JSX.Element {
             pointerEvents: 'none'
           }}
         >
-          正在截取并翻译…
-        </div>
+          {' '}{t("正在截取并翻译…")}{' '}</div>
       )}
     </div>
   )

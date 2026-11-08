@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import * as XLSX from 'xlsx'
+import { t } from '../shared/i18n'
 
 const SPREADSHEET_EXTENSIONS = new Set(['.xlsx', '.xls', '.xlsm', '.xlsb', '.ods'])
 const MAX_FILE_BYTES = 30 * 1024 * 1024
@@ -22,7 +23,7 @@ function cellText(value: unknown): string {
 
 export async function spreadsheetToText(filePath: string, maxChars = 12000): Promise<string> {
   const stat = await fs.stat(filePath)
-  if (stat.size > MAX_FILE_BYTES) throw new Error('表格文件超过 30MB')
+  if (stat.size > MAX_FILE_BYTES) throw new Error(t("表格文件超过 30MB"))
   const workbook = XLSX.readFile(filePath, { cellDates: true })
   const parts: string[] = []
 
@@ -43,24 +44,24 @@ export async function spreadsheetToText(filePath: string, maxChars = 12000): Pro
       while (next.length < columnCount) next.push('')
       return next
     }
-    const header = normalize(trimmed[0]).map((value, index) => value || `列${index + 1}`)
+    const header = normalize(trimmed[0]).map((value, index) => value || t("列{0}", [index + 1]))
     const body = trimmed.slice(1).map(normalize)
     const lines = [
-      `【工作表：${sheetName}】`,
+      t("【工作表：{0}】", [sheetName]),
       `| ${header.join(' | ')} |`,
       `| ${header.map(() => '---').join(' | ')} |`,
       ...body.map((row) => `| ${row.join(' | ')} |`)
     ]
-    if (rows.length > MAX_ROWS + 1) lines.push(`（仅展示前 ${MAX_ROWS + 1} 行）`)
-    if ((rows[0]?.length ?? 0) > MAX_COLUMNS) lines.push(`（仅展示前 ${MAX_COLUMNS} 列）`)
+    if (rows.length > MAX_ROWS + 1) lines.push(t("（仅展示前 {0} 行）", [MAX_ROWS + 1]))
+    if ((rows[0]?.length ?? 0) > MAX_COLUMNS) lines.push(t("（仅展示前 {0} 列）", [MAX_COLUMNS]))
     const block = lines.join('\n')
     if (parts.join('\n\n').length + block.length > maxChars) {
       parts.push(block.slice(0, Math.max(0, maxChars - parts.join('\n\n').length)))
-      parts.push('（表格内容已截断）')
+      parts.push(t("（表格内容已截断）"))
       break
     }
     parts.push(block)
   }
 
-  return parts.join('\n\n').trim() || '（表格为空）'
+  return parts.join('\n\n').trim() || t("（表格为空）")
 }

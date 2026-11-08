@@ -5,6 +5,7 @@ import WordExtractor from 'word-extractor'
 import { store } from './store'
 import { documentFormatOf } from '../shared/documents'
 import type { DocumentFormat, ExtractedDocument } from '../shared/types'
+import { t } from '../shared/i18n'
 
 const PAGE_TARGET = 3000
 const LONG_BLOCK = PAGE_TARGET * 1.6
@@ -87,21 +88,21 @@ async function readDocumentBody(filePath: string, format: DocumentFormat): Promi
 
 export async function extractDocumentText(docId: string): Promise<ExtractedDocument> {
   const doc = store.getDocument(docId)
-  if (!doc) throw new Error('文献不存在')
-  if (!doc.fileName) throw new Error('该文献没有关联文件')
+  if (!doc) throw new Error(t("文献不存在"))
+  if (!doc.fileName) throw new Error(t("该文献没有关联文件"))
   const format = documentFormatOf(doc)
-  if (format === 'pdf') throw new Error('PDF 文本请在阅读器中提取')
+  if (format === 'pdf') throw new Error(t("PDF 文本请在阅读器中提取"))
   const filePath = path.join(store.filesDir, doc.fileName)
   let body = ''
   try {
     body = await readDocumentBody(filePath, format)
   } catch (err) {
     if (format === 'doc') {
-      throw new Error(`无法解析 Word 97-2003 文档：${(err as Error).message}`)
+      throw new Error(t("无法解析 Word 97-2003 文档：{0}", [(err as Error).message]))
     }
     throw err
   }
   const pages = splitIntoPages(body)
-  if (!pages.length) throw new Error('未从文件中提取到正文')
+  if (!pages.length) throw new Error(t("未从文件中提取到正文"))
   return { pageCount: pages.length, pages }
 }

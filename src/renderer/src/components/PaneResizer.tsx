@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { t } from '@shared/i18n'
 
 export default function PaneResizer({
   value,
@@ -6,7 +7,7 @@ export default function PaneResizer({
   min,
   max,
   invert = false,
-  label = '拖动调整宽度'
+  label = t("拖动调整宽度")
 }: {
   value: number
   onChange(value: number): void

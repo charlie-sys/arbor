@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import type { Property, PropertyType } from '@shared/types'
 import './properties.css'
+import { t } from '@shared/i18n'
 
 interface Props {
   properties: Property[]
@@ -55,18 +56,18 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
   const submit = async (): Promise<void> => {
     const trimmed = name.trim()
     if (!trimmed) {
-      notify('请填写属性名称', 'error')
+      notify(t("请填写属性名称"), 'error')
       return
     }
     if (needsOptions && parseOptions(optionsText).length === 0) {
-      notify('单选/多选属性至少需要一个选项', 'error')
+      notify(t("单选/多选属性至少需要一个选项"), 'error')
       return
     }
     const duplicated = properties.some(
       (property) => property.name === trimmed && property.id !== editingId
     )
     if (duplicated) {
-      notify(`属性「${trimmed}」已存在`, 'error')
+      notify(t("属性「{0}」已存在", [trimmed]), 'error')
       return
     }
     setSaving(true)
@@ -78,15 +79,15 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
       }
       if (editingId) {
         await window.api.properties.update(editingId, payload)
-        notify(`属性「${trimmed}」已更新`, 'success')
+        notify(t("属性「{0}」已更新", [trimmed]), 'success')
       } else {
         await window.api.properties.add(payload)
-        notify(`属性「${trimmed}」已创建`, 'success')
+        notify(t("属性「{0}」已创建", [trimmed]), 'success')
       }
       await onChanged()
       resetForm()
     } catch (err) {
-      notify(`保存属性失败：${(err as Error).message}`, 'error')
+      notify(t("保存属性失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setSaving(false)
     }
@@ -95,7 +96,7 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
   const remove = async (property: Property): Promise<void> => {
     if (
       !window.confirm(
-        `删除属性「${property.name}」？文献本身不会被删除，只会移除该属性在文献上的取值。`
+        t("删除属性「{0}」？文献本身不会被删除，只会移除该属性在文献上的取值。", [property.name])
       )
     ) {
       return
@@ -104,9 +105,9 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
       await window.api.properties.remove(property.id)
       if (editingId === property.id) resetForm()
       await onChanged()
-      notify(`属性「${property.name}」已删除`, 'success')
+      notify(t("属性「{0}」已删除", [property.name]), 'success')
     } catch (err) {
-      notify(`删除属性失败：${(err as Error).message}`, 'error')
+      notify(t("删除属性失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -115,10 +116,10 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
       <div className="modal property-manager">
         <div className="modal-head">
           <div>
-            <h3>属性管理</h3>
-            <p className="muted">为文献定义自定义字段，可在文献库中筛选、排序与保存为视图。</p>
+            <h3>{t("属性管理")}</h3>
+            <p className="muted">{t("为文献定义自定义字段，可在文献库中筛选、排序与保存为视图。")}</p>
           </div>
-          <button className="icon-btn" onClick={onClose} title="关闭">
+          <button className="icon-btn" onClick={onClose} title={t("关闭")}>
             <X size={18} />
           </button>
         </div>
@@ -127,11 +128,11 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
           <div className="property-form">
             <div className="property-form-row">
               <label>
-                <span className="muted small">名称</span>
+                <span className="muted small">{t("名称")}</span>
                 <input
                   className="property-input"
                   value={name}
-                  placeholder="例如：研究方法"
+                  placeholder={t("例如：研究方法")}
                   onChange={(event) => setName(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') void submit()
@@ -139,7 +140,7 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
                 />
               </label>
               <label>
-                <span className="muted small">类型</span>
+                <span className="muted small">{t("类型")}</span>
                 <select
                   className="select"
                   value={type}
@@ -147,7 +148,7 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
                 >
                   {TYPES.map((item) => (
                     <option key={item} value={item}>
-                      {TYPE_LABEL[item]}
+                      {t(TYPE_LABEL[item])}
                     </option>
                   ))}
                 </select>
@@ -155,11 +156,11 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
             </div>
             {needsOptions && (
               <label>
-                <span className="muted small">选项（逗号或换行分隔）</span>
+                <span className="muted small">{t("选项（逗号或换行分隔）")}</span>
                 <input
                   className="property-input"
                   value={optionsText}
-                  placeholder="例如：访谈, 实验, 问卷"
+                  placeholder={t("例如：访谈, 实验, 问卷")}
                   onChange={(event) => setOptionsText(event.target.value)}
                 />
               </label>
@@ -167,24 +168,23 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
             <div className="property-form-actions">
               {editingId && (
                 <button className="btn ghost" onClick={resetForm}>
-                  取消编辑
-                </button>
+                  {' '}{t("取消编辑")}{' '}</button>
               )}
               <button className="btn primary" onClick={() => void submit()} disabled={saving}>
                 {editingId ? <Pencil size={14} /> : <Plus size={14} />}
-                {saving ? '保存中…' : editingId ? '保存修改' : '新建属性'}
+                {saving ? t("保存中…") : editingId ? t("保存修改") : t("新建属性")}
               </button>
             </div>
           </div>
 
           <div className="property-list">
-            {properties.length === 0 && <div className="collections-empty">还没有属性，先创建一个。</div>}
+            {properties.length === 0 && <div className="collections-empty">{t("还没有属性，先创建一个。")}</div>}
             {properties.map((property) => (
               <div key={property.id} className="property-item">
                 <div className="property-item-main">
                   <div className="property-item-name">{property.name}</div>
                   <div className="muted small">
-                    {TYPE_LABEL[property.type]}
+                    {t(TYPE_LABEL[property.type])}
                     {property.options?.length
                       ? ` · ${property.options.map((option) => option.name).join(' / ')}`
                       : ''}
@@ -192,11 +192,9 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
                 </div>
                 <div className="property-item-actions">
                   <button className="btn ghost small" onClick={() => startEdit(property)}>
-                    <Pencil size={13} /> 编辑
-                  </button>
+                    <Pencil size={13} /> {' '}{t("编辑")}{' '}</button>
                   <button className="btn ghost small danger" onClick={() => void remove(property)}>
-                    <Trash2 size={13} /> 删除
-                  </button>
+                    <Trash2 size={13} /> {' '}{t("删除")}{' '}</button>
                 </div>
               </div>
             ))}
@@ -204,11 +202,10 @@ export default function PropertyManager({ properties, onClose, onChanged, notify
         </div>
 
         <div className="modal-foot">
-          <div className="muted small">共 {properties.length} 个属性</div>
+          <div className="muted small">{t("共")}{' '}{properties.length} {' '}{t("个属性")}</div>
           <div className="modal-actions">
             <button className="btn" onClick={onClose}>
-              完成
-            </button>
+              {' '}{t("完成")}{' '}</button>
           </div>
         </div>
       </div>

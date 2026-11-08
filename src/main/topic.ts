@@ -3,10 +3,11 @@ import { fetchWithRetry } from './http'
 import { usage, usageFromApi } from './usage'
 import { estimateTokens } from '../shared/usage'
 import type { ResearchTopic } from '../shared/types'
+import { outputLanguageName, t } from '../shared/i18n'
 
 function endpoint(base: string): string {
   let b = base.trim().replace(/\/+$/, '')
-  if (!b) throw new Error('请先在设置中填写 API Base URL')
+  if (!b) throw new Error(t("请先在设置中填写 API Base URL"))
   if (b.endsWith('/chat/completions')) b = b.slice(0, -'/chat/completions'.length)
   if (!/\/v\d+[a-z0-9.-]*$/i.test(b)) b += '/v1'
   return `${b}/chat/completions`
@@ -38,14 +39,14 @@ function parseQuestions(raw: string): string[] {
   }
   const start = text.indexOf('[')
   const end = text.lastIndexOf(']')
-  if (start < 0 || end <= start) throw new Error('模型返回的建议问题不是有效 JSON 数组')
+  if (start < 0 || end <= start) throw new Error(t("模型返回的建议问题不是有效 JSON 数组"))
   let data: unknown
   try {
     data = JSON.parse(text.slice(start, end + 1))
   } catch {
-    throw new Error('模型返回的建议问题解析失败')
+    throw new Error(t("模型返回的建议问题解析失败"))
   }
-  if (!Array.isArray(data)) throw new Error('模型返回的建议问题格式不正确')
+  if (!Array.isArray(data)) throw new Error(t("模型返回的建议问题格式不正确"))
   const values = data.filter((item): item is string => typeof item === 'string')
   return dedupeQuestions(values)
 }
@@ -72,20 +73,14 @@ async function buildDocPayload(topic: ResearchTopic): Promise<string> {
 
 export async function suggestTopicQuestions(topicId: string): Promise<string[]> {
   const topic = store.data.researchTopics.find((item) => item.id === topicId)
-  if (!topic) throw new Error('研究主题不存在')
-  if (topic.docIds.length < 1) throw new Error('该主题还没有成员文献')
+  if (!topic) throw new Error(t("研究主题不存在"))
+  if (topic.docIds.length < 1) throw new Error(t("该主题还没有成员文献"))
   const settings = store.data.settings
-  if (!settings.apiKey) throw new Error('尚未配置 API Key，请打开「设置」完成配置')
-  if (!settings.chatModel) throw new Error('尚未配置对话模型，请打开「设置」完成配置')
+  if (!settings.apiKey) throw new Error(t("尚未配置 API Key，请打开「设置」完成配置"))
+  if (!settings.chatModel) throw new Error(t("尚未配置对话模型，请打开「设置」完成配置"))
 
   const docs = await buildDocPayload(topic)
-  const prompt = `下面是用户研究主题「${topic.name}」的成员文献信息（JSON）。请基于各文献的摘要与前几页内容，生成 5-6 个中文研究问题，要求：
-1. 必须与文献内容直接相关，覆盖共同主题、方法差异、结论对比、研究空白等角度；
-2. 每个问题互不重复，避免泛泛而谈；
-3. 不要编造文献中没有的信息，不要输出序号或解释。
-只输出 JSON 字符串数组，例如：["问题一？","问题二？"]
-
-${docs}`
+  const prompt = t("下面是用户研究主题「{0}」的成员文献信息（JSON）。请基于各文献的摘要与前几页内容，生成 5-6 个{2}研究问题，要求：\n1. 必须与文献内容直接相关，覆盖共同主题、方法差异、结论对比、研究空白等角度；\n2. 每个问题互不重复，避免泛泛而谈；\n3. 不要编造文献中没有的信息，不要输出序号或解释。\n只输出 JSON 字符串数组，例如：[\"问题一？\",\"问题二？\"]\n\n{1}", [topic.name, docs, outputLanguageName()])
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 120000)
@@ -101,7 +96,7 @@ ${docs}`
         temperature: 0.4,
         stream: false,
         messages: [
-          { role: 'system', content: '你是严谨的学术研究助手，严格只输出 JSON，不输出解释。' },
+          { role: 'system', content: t("你是严谨的学术研究助手，严格只输出 JSON，不输出解释。") },
           { role: 'user', content: prompt }
         ]
       }),
@@ -119,13 +114,13 @@ ${docs}`
       ...(fromApi?.cachedTokens !== undefined ? { cachedTokens: fromApi.cachedTokens } : {}),
       estimated: !fromApi
     })
-    if (!raw.trim()) throw new Error('模型未返回建议问题')
+    if (!raw.trim()) throw new Error(t("模型未返回建议问题"))
     const questions = parseQuestions(raw)
-    if (!questions.length) throw new Error('模型未返回有效的建议问题')
+    if (!questions.length) throw new Error(t("模型未返回有效的建议问题"))
     await store.updateResearchTopic(topic.id, { questions })
     return questions
   } catch (err) {
-    if (controller.signal.aborted) throw new Error('生成建议问题超时')
+    if (controller.signal.aborted) throw new Error(t("生成建议问题超时"))
     throw err
   } finally {
     clearTimeout(timer)

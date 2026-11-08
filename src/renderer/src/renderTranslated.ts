@@ -1,10 +1,11 @@
 import type { RenderBlock, RenderRequest } from '@shared/types'
+import { t } from '@shared/i18n'
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('译文底图加载失败'))
+    image.onerror = () => reject(new Error(t("译文底图加载失败")))
     image.src = src
   })
 }
@@ -154,7 +155,7 @@ export async function renderTranslatedImage(request: RenderRequest): Promise<str
   canvas.width = image.naturalWidth
   canvas.height = image.naturalHeight
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('无法创建画布')
+  if (!context) throw new Error(t("无法创建画布"))
   context.drawImage(image, 0, 0)
   const snapshot = context.getImageData(0, 0, canvas.width, canvas.height).data
 

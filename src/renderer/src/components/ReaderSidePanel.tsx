@@ -25,6 +25,7 @@ import ComposeModal from './ComposeModal'
 import MarkdownEditorModal from './MarkdownEditorModal'
 import { useUnsavedChanges } from '../unsaved'
 import { cx, formatTime, Markdown } from '../ui'
+import { t } from '@shared/i18n'
 
 export interface ReaderPanelQuote {
   text: string
@@ -73,7 +74,7 @@ function OutlineNode({
     <div className="outline-node">
       <div className="outline-row" style={{ paddingLeft: 8 + depth * 14 }}>
         {hasChildren ? (
-          <button className="outline-toggle" title={open ? '收起' : '展开'} onClick={() => setOpen((value) => !value)}>
+          <button className="outline-toggle" title={open ? t("收起") : t("展开")} onClick={() => setOpen((value) => !value)}>
             <ChevronRight size={13} className={cx('outline-chevron', open && 'open')} />
           </button>
         ) : (
@@ -115,7 +116,7 @@ function TaskRow({
     <div className={cx('task-item', task.done && 'done')}>
       <button
         className={cx('task-check', task.done && 'checked')}
-        title={task.done ? '标记未完成' : '标记完成'}
+        title={task.done ? t("标记未完成") : t("标记完成")}
         onClick={() => onToggle(task)}
       >
         {task.done && <Check size={12} />}
@@ -124,7 +125,7 @@ function TaskRow({
       {task.due && (
         <span className={cx('task-due', !task.done && task.due < todayKey && 'overdue')}>{task.due.slice(5)}</span>
       )}
-      <button className="icon-btn tiny" title="删除任务" onClick={() => onRemove(task)}>
+      <button className="icon-btn tiny" title={t("删除任务")} onClick={() => onRemove(task)}>
         <Trash2 size={12} />
       </button>
     </div>
@@ -293,18 +294,18 @@ export default function ReaderSidePanel({
       onActiveChat(chat.id)
       onTab('agent')
     } catch (err) {
-      notify(`创建对话失败：${(err as Error).message}`, 'error')
+      notify(t("创建对话失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const deleteChat = async (chatId: string): Promise<void> => {
-    if (!window.confirm('删除这个对话？')) return
+    if (!window.confirm(t("删除这个对话？"))) return
     try {
       await window.api.chats.remove(chatId)
       if (activeChatId === chatId) onActiveChat(null)
       await onChanged()
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -324,7 +325,7 @@ export default function ReaderSidePanel({
     setSaving(true)
     try {
       await window.api.library.update(doc.id, {
-        title: title.trim() || '未命名文献',
+        title: title.trim() || t("未命名文献"),
         authors: authors.trim(),
         year: year.trim(),
         journal: journal.trim(),
@@ -339,9 +340,9 @@ export default function ReaderSidePanel({
         readingStatus
       })
       await onChanged()
-      notify('文献信息已保存', 'success')
+      notify(t("文献信息已保存"), 'success')
     } catch (err) {
-      notify(`保存失败：${(err as Error).message}`, 'error')
+      notify(t("保存失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setSaving(false)
     }
@@ -353,10 +354,10 @@ export default function ReaderSidePanel({
       await window.api.library.update(doc.id, { notes })
       setNotesDirty(false)
       setNotesPreview(true)
-      notify('笔记已保存', 'success')
+      notify(t("笔记已保存"), 'success')
       void onChanged()
     } catch (err) {
-      notify(`保存失败：${(err as Error).message}`, 'error')
+      notify(t("保存失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setSaving(false)
     }
@@ -371,7 +372,7 @@ export default function ReaderSidePanel({
       await window.api.tasks.update(task.id, { done: !task.done })
       await onChanged()
     } catch (err) {
-      notify(`更新任务失败：${(err as Error).message}`, 'error')
+      notify(t("更新任务失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -383,19 +384,19 @@ export default function ReaderSidePanel({
       setTaskTitle('')
       setTaskDue('')
       await onChanged()
-      notify('任务已创建', 'success')
+      notify(t("任务已创建"), 'success')
     } catch (err) {
-      notify(`创建任务失败：${(err as Error).message}`, 'error')
+      notify(t("创建任务失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const removeTask = async (task: TaskItem): Promise<void> => {
-    if (!window.confirm(`删除任务「${task.title}」？`)) return
+    if (!window.confirm(t("删除任务「{0}」？", [task.title]))) return
     try {
       await window.api.tasks.remove(task.id)
       await onChanged()
     } catch (err) {
-      notify(`删除任务失败：${(err as Error).message}`, 'error')
+      notify(t("删除任务失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -408,7 +409,7 @@ export default function ReaderSidePanel({
 
   const closeExcerptEditor = (): void => {
     if (excerptEditorDirty) {
-      notify('摘录有未保存的修改，请先保存', 'info')
+      notify(t("摘录有未保存的修改，请先保存"), 'info')
       return
     }
     setEditingExcerpt(null)
@@ -423,29 +424,29 @@ export default function ReaderSidePanel({
         source: excerptSource
       })
       setEditingExcerpt(null)
-      notify('摘录已更新', 'success')
+      notify(t("摘录已更新"), 'success')
       void onChanged()
     } catch (err) {
-      notify(`更新摘录失败：${(err as Error).message}`, 'error')
+      notify(t("更新摘录失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const removeExcerpt = async (excerpt: Excerpt): Promise<void> => {
-    if (!window.confirm('删除这条摘录？')) return
+    if (!window.confirm(t("删除这条摘录？"))) return
     try {
       await window.api.excerpts.remove(excerpt.id)
       if (editingExcerpt?.id === excerpt.id) setEditingExcerpt(null)
       if (viewingExcerpt?.id === excerpt.id) setViewingExcerpt(null)
-      notify('摘录已删除', 'success')
+      notify(t("摘录已删除"), 'success')
       void onChanged()
     } catch (err) {
-      notify(`删除摘录失败：${(err as Error).message}`, 'error')
+      notify(t("删除摘录失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const jumpToExcerpt = (excerpt: Excerpt): void => {
     if (excerpt.docMissing || !excerpt.docId) {
-      notify('来源文献已删除，无法跳转', 'info')
+      notify(t("来源文献已删除，无法跳转"), 'info')
       return
     }
     if (excerpt.docId === doc.id) {
@@ -456,20 +457,20 @@ export default function ReaderSidePanel({
   }
 
   const removeHighlight = async (id: string): Promise<void> => {
-    if (!window.confirm('删除这条高亮？')) return
+    if (!window.confirm(t("删除这条高亮？"))) return
     try {
       await window.api.highlights.remove(id)
       await onChanged()
-      notify('已删除高亮', 'success')
+      notify(t("已删除高亮"), 'success')
     } catch (err) {
-      notify(`删除高亮失败：${(err as Error).message}`, 'error')
+      notify(t("删除高亮失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const requestDetach = (): void => {
     if (!onDetach) return
     if (dirty) {
-      notify('有未保存的修改，请先保存', 'info')
+      notify(t("有未保存的修改，请先保存"), 'info')
       return
     }
     onDetach(tab)
@@ -481,58 +482,58 @@ export default function ReaderSidePanel({
         <button
           className={cx('panel-tab', tab === 'agent' && 'active')}
           onClick={() => onTab('agent')}
-          title="AI 助手"
+          title={t("AI 助手")}
         >
-          <Sparkles size={14} /> <span className="tab-label">AI 助手</span>
+          <Sparkles size={14} /> <span className="tab-label">{t("AI 助手")}</span>
         </button>
         <button
           className={cx('panel-tab', tab === 'outline' && 'active')}
           onClick={() => onTab('outline')}
-          title="大纲"
+          title={t("大纲")}
         >
-          <BookOpen size={14} /> <span className="tab-label">大纲</span>
+          <BookOpen size={14} /> <span className="tab-label">{t("大纲")}</span>
         </button>
         <button
           className={cx('panel-tab', tab === 'highlights' && 'active')}
           onClick={() => onTab('highlights')}
-          title="高亮"
+          title={t("高亮")}
         >
-          <Highlighter size={14} /> <span className="tab-label">高亮</span>
+          <Highlighter size={14} /> <span className="tab-label">{t("高亮")}</span>
           {docHighlights.length > 0 && <span className="tab-count">{docHighlights.length}</span>}
         </button>
         <button
           className={cx('panel-tab', tab === 'excerpts' && 'active')}
           onClick={() => onTab('excerpts')}
-          title="摘录"
+          title={t("摘录")}
         >
-          <BookmarkPlus size={14} /> <span className="tab-label">摘录</span>
+          <BookmarkPlus size={14} /> <span className="tab-label">{t("摘录")}</span>
           {sortedExcerpts.length > 0 && <span className="tab-count">{sortedExcerpts.length}</span>}
         </button>
         <button
           className={cx('panel-tab', tab === 'info' && 'active')}
           onClick={() => onTab('info')}
-          title="文献信息"
+          title={t("文献信息")}
         >
-          <Info size={14} /> <span className="tab-label">文献信息</span>
+          <Info size={14} /> <span className="tab-label">{t("文献信息")}</span>
         </button>
         <button
           className={cx('panel-tab', tab === 'notes' && 'active')}
           onClick={() => onTab('notes')}
-          title="笔记"
+          title={t("笔记")}
         >
-          <StickyNote size={14} /> <span className="tab-label">笔记</span>
+          <StickyNote size={14} /> <span className="tab-label">{t("笔记")}</span>
           {notesDirty && <span className="dot" />}
         </button>
         <button
           className={cx('panel-tab', tab === 'tasks' && 'active')}
           onClick={() => onTab('tasks')}
-          title="任务"
+          title={t("任务")}
         >
-          <ListTodo size={14} /> <span className="tab-label">任务</span>
+          <ListTodo size={14} /> <span className="tab-label">{t("任务")}</span>
           {openTasks.length > 0 && <span className="tab-count">{openTasks.length}</span>}
         </button>
         {onDetach && (
-          <button className="panel-detach" title="脱离为独立窗口" onClick={requestDetach}>
+          <button className="panel-detach" title={t("脱离为独立窗口")} onClick={requestDetach}>
             <PanelRightOpen size={14} />
           </button>
         )}
@@ -562,7 +563,7 @@ export default function ReaderSidePanel({
                 </span>
               </button>
             ))}
-            <button className="icon-btn tiny" title="新建对话" onClick={() => void createChat()}>
+            <button className="icon-btn tiny" title={t("新建对话")} onClick={() => void createChat()}>
               <Plus size={14} />
             </button>
           </div>
@@ -589,11 +590,10 @@ export default function ReaderSidePanel({
         ) : (
           <div className="panel-empty">
             <MessageSquarePlus size={26} />
-            <h3>针对本文提问</h3>
-            <p className="muted">选中 PDF 中的文字可直接“问 Agent”；回答会标注原文页码。</p>
+            <h3>{t("针对本文提问")}</h3>
+            <p className="muted">{t("选中 PDF 中的文字可直接“问 Agent”；回答会标注原文页码。")}</p>
             <button className="btn primary" onClick={() => void createChat()}>
-              <Plus size={15} /> 新建对话
-            </button>
+              <Plus size={15} /> {' '}{t("新建对话")}{' '}</button>
           </div>
         )}
       </div>
@@ -603,7 +603,7 @@ export default function ReaderSidePanel({
           {!outlineLoaded ? (
             <div className="panel-empty">
               <BookOpen size={24} />
-              <p className="muted">正在读取目录…</p>
+              <p className="muted">{t("正在读取目录…")}</p>
             </div>
           ) : outline.length > 0 ? (
             <div className="outline-tree">
@@ -614,14 +614,14 @@ export default function ReaderSidePanel({
           ) : fallbackToc.length === 0 ? (
             <div className="panel-empty">
               <BookOpen size={24} />
-              <h3>暂无目录</h3>
-              <p className="muted">该 PDF 没有书签，且尚无可用的文本首行。</p>
+              <h3>{t("暂无目录")}</h3>
+              <p className="muted">{t("该 PDF 没有书签，且尚无可用的文本首行。")}</p>
             </div>
           ) : (
             <div className="outline-fallback">
               <button className="outline-fallback-head" onClick={() => setFallbackOpen((value) => !value)}>
                 <ChevronRight size={13} className={cx('outline-chevron', fallbackOpen && 'open')} />
-                <span>按页首行生成（{fallbackToc.length} 页）</span>
+                <span>{t("按页首行生成（")}{fallbackToc.length} {' '}{t("页）")}</span>
               </button>
               {fallbackOpen && (
                 <div className="outline-fallback-list">
@@ -651,20 +651,20 @@ export default function ReaderSidePanel({
       {tab === 'info' && (
         <div className="panel-body info-panel">
           <label className="field">
-            <span>标题</span>
+            <span>{t("标题")}</span>
             <input value={title} onChange={(event) => setTitle(event.target.value)} />
           </label>
           <label className="field">
-            <span>作者</span>
-            <input value={authors} onChange={(event) => setAuthors(event.target.value)} placeholder="多个作者用分号分隔" />
+            <span>{t("作者")}</span>
+            <input value={authors} onChange={(event) => setAuthors(event.target.value)} placeholder={t("多个作者用分号分隔")} />
           </label>
           <div className="field-row">
             <label className="field">
-              <span>年份</span>
+              <span>{t("年份")}</span>
               <input value={year} onChange={(event) => setYear(event.target.value)} placeholder="2024" />
             </label>
             <label className="field">
-              <span>期刊 / 会议</span>
+              <span>{t("期刊 / 会议")}</span>
               <input value={journal} onChange={(event) => setJournal(event.target.value)} />
             </label>
           </div>
@@ -673,17 +673,17 @@ export default function ReaderSidePanel({
             <input value={doi} onChange={(event) => setDoi(event.target.value)} />
           </label>
           <label className="field">
-            <span>链接</span>
+            <span>{t("链接")}</span>
             <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://" />
           </label>
           <label className="field">
-            <span>标签</span>
-            <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="用逗号分隔，例如：大模型, 综述" />
+            <span>{t("标签")}</span>
+            <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("用逗号分隔，例如：大模型, 综述")} />
           </label>
           <div className="field">
-            <span>分类</span>
+            <span>{t("分类")}</span>
             {collections.length === 0 ? (
-              <div className="muted small">尚未创建分类（可在左侧栏新建）</div>
+              <div className="muted small">{t("尚未创建分类（可在左侧栏新建）")}</div>
             ) : (
               <div className="collection-checks">
                 {collections.map((collection) => (
@@ -700,23 +700,23 @@ export default function ReaderSidePanel({
             )}
           </div>
           <label className="field">
-            <span>阅读状态</span>
+            <span>{t("阅读状态")}</span>
             <select
               className="select"
               value={readingStatus}
               onChange={(event) => setReadingStatus(event.target.value as ReadingStatus)}
             >
-              <option value="unread">未读</option>
-              <option value="reading">阅读中</option>
-              <option value="read">已读</option>
+              <option value="unread">{t("未读")}</option>
+              <option value="reading">{t("阅读中")}</option>
+              <option value="read">{t("已读")}</option>
             </select>
           </label>
           <label className="field">
-            <span>摘要</span>
+            <span>{t("摘要")}</span>
             <textarea rows={5} value={abstract} onChange={(event) => setAbstract(event.target.value)} />
           </label>
           <button className="btn primary full" onClick={() => void saveMeta()} disabled={saving}>
-            <Save size={15} /> {saving ? '保存中…' : '保存文献信息'}
+            <Save size={15} /> {saving ? t("保存中…") : t("保存文献信息")}
           </button>
         </div>
       )}
@@ -725,16 +725,15 @@ export default function ReaderSidePanel({
         <div className="panel-body notes-panel">
           <div className="notes-head">
             <div>
-              <div className="notes-title">阅读笔记</div>
-              <div className="muted small">{notesDirty ? '有未保存的修改' : '已保存'}</div>
+              <div className="notes-title">{t("阅读笔记")}</div>
+              <div className="muted small">{notesDirty ? t("有未保存的修改") : t("已保存")}</div>
             </div>
             <div className="notes-head-actions">
               <button className="btn ghost small" onClick={() => setNotesPreview((value) => !value)}>
-                {notesPreview ? '编辑' : '预览'}
+                {notesPreview ? t("编辑") : t("预览")}
               </button>
               <button className="btn primary small" onClick={() => void saveNotes()} disabled={saving || !notesDirty}>
-                <Save size={14} /> 保存笔记
-              </button>
+                <Save size={14} /> {' '}{t("保存笔记")}{' '}</button>
             </div>
           </div>
           {notesPreview ? (
@@ -742,7 +741,7 @@ export default function ReaderSidePanel({
               {notes.trim() ? (
                 <Markdown>{notes}</Markdown>
               ) : (
-                <div className="muted small">暂无笔记。切到「编辑」开始记录，支持 Markdown 与 LaTeX。</div>
+                <div className="muted small">{t("暂无笔记。切到「编辑」开始记录，支持 Markdown 与 LaTeX。")}</div>
               )}
             </div>
           ) : (
@@ -753,7 +752,7 @@ export default function ReaderSidePanel({
                 setNotes(event.target.value)
                 setNotesDirty(true)
               }}
-              placeholder="记录阅读心得、选中文本保存的摘录、待办问题…支持 Markdown 与 LaTeX"
+              placeholder={t("记录阅读心得、选中文本保存的摘录、待办问题…支持 Markdown 与 LaTeX")}
             />
           )}
         </div>
@@ -764,16 +763,16 @@ export default function ReaderSidePanel({
           {docHighlights.length === 0 ? (
             <div className="panel-empty">
               <Highlighter size={26} />
-              <h3>还没有高亮</h3>
-              <p className="muted">在 PDF 中选中文字，选择颜色即可创建高亮。</p>
+              <h3>{t("还没有高亮")}</h3>
+              <p className="muted">{t("在 PDF 中选中文字，选择颜色即可创建高亮。")}</p>
             </div>
           ) : (
             <div className="highlight-list">
               {highlightGroups.map(([pageNumber, items]) => (
                 <div className="highlight-group" key={pageNumber}>
                   <div className="highlight-group-head">
-                    <span>第 {pageNumber} 页</span>
-                    <span className="muted small">{items.length} 条</span>
+                    <span>{t("第")}{' '}{pageNumber} {' '}{t("页")}</span>
+                    <span className="muted small">{items.length} {' '}{t("条")}</span>
                   </div>
                   {items.map((highlight) => (
                     <div
@@ -781,7 +780,7 @@ export default function ReaderSidePanel({
                       className="highlight-item"
                       role="button"
                       tabIndex={0}
-                      title="点击跳转到原文"
+                      title={t("点击跳转到原文")}
                       onClick={() => onJumpPage(highlight.page)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') onJumpPage(highlight.page)
@@ -797,7 +796,7 @@ export default function ReaderSidePanel({
                         className="pill-delete"
                         role="button"
                         tabIndex={-1}
-                        title="删除高亮"
+                        title={t("删除高亮")}
                         onClick={(event) => {
                           event.stopPropagation()
                           void removeHighlight(highlight.id)
@@ -819,8 +818,8 @@ export default function ReaderSidePanel({
           {sortedExcerpts.length === 0 ? (
             <div className="panel-empty">
               <BookmarkPlus size={26} />
-              <h3>还没有摘录</h3>
-              <p className="muted">在 AI 回答上点击「存为摘录」，即可把问答与页码沉淀到这里。</p>
+              <h3>{t("还没有摘录")}</h3>
+              <p className="muted">{t("在 AI 回答上点击「存为摘录」，即可把问答与页码沉淀到这里。")}</p>
             </div>
           ) : (
             <div className="excerpt-list">
@@ -830,7 +829,7 @@ export default function ReaderSidePanel({
                   className={cx('excerpt-item', 'clickable', excerpt.docMissing && 'missing')}
                   role="button"
                   tabIndex={0}
-                  title="点击查看完整摘录"
+                  title={t("点击查看完整摘录")}
                   onClick={() => setViewingExcerpt(excerpt)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -845,7 +844,7 @@ export default function ReaderSidePanel({
                     </span>
                     {excerpt.page ? <span className="excerpt-page">p.{excerpt.page}</span> : null}
                   </div>
-                  {excerpt.docMissing && <div className="excerpt-missing">来源已删除</div>}
+                  {excerpt.docMissing && <div className="excerpt-missing">{t("来源已删除")}</div>}
                   {excerpt.source && <div className="excerpt-source">{excerpt.source}</div>}
                   {excerpt.question && (
                     <div className="excerpt-question">
@@ -867,11 +866,10 @@ export default function ReaderSidePanel({
                           jumpToExcerpt(excerpt)
                         }}
                       >
-                        跳回原文
-                      </button>
+                        {' '}{t("跳回原文")}{' '}</button>
                       <button
                         className="icon-btn tiny"
-                        title="编辑摘录"
+                        title={t("编辑摘录")}
                         onClick={(event) => {
                           event.stopPropagation()
                           openExcerptEditor(excerpt)
@@ -881,7 +879,7 @@ export default function ReaderSidePanel({
                       </button>
                       <button
                         className="icon-btn tiny"
-                        title="删除摘录"
+                        title={t("删除摘录")}
                         onClick={(event) => {
                           event.stopPropagation()
                           void removeExcerpt(excerpt)
@@ -904,7 +902,7 @@ export default function ReaderSidePanel({
             <input
               className="task-input"
               value={taskTitle}
-              placeholder="添加任务，回车确认"
+              placeholder={t("添加任务，回车确认")}
               onChange={(event) => setTaskTitle(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void createTask()
@@ -914,24 +912,23 @@ export default function ReaderSidePanel({
               className="task-date"
               type="date"
               value={taskDue}
-              title="截止日期"
+              title={t("截止日期")}
               onChange={(event) => setTaskDue(event.target.value)}
             />
             <button className="btn small primary" disabled={!taskTitle.trim()} onClick={() => void createTask()}>
-              <Plus size={13} /> 添加
-            </button>
+              <Plus size={13} /> {' '}{t("添加")}{' '}</button>
           </div>
           {tasks.length === 0 ? (
             <div className="panel-empty">
               <ListTodo size={26} />
-              <h3>还没有任务</h3>
-              <p className="muted">在这里添加任务，或用 Ctrl+N 捕获待办。</p>
+              <h3>{t("还没有任务")}</h3>
+              <p className="muted">{t("在这里添加任务，或用 Ctrl+N 捕获待办。")}</p>
             </div>
           ) : (
             <div className="task-groups">
               {dueTodayTasks.length > 0 && (
                 <div className="task-group">
-                  <div className="task-group-head">今日到期</div>
+                  <div className="task-group-head">{t("今日到期")}</div>
                   {dueTodayTasks.map((task) => (
                     <TaskRow key={task.id} task={task} todayKey={todayKey} onToggle={(item) => void toggleTask(item)} onRemove={(item) => void removeTask(item)} />
                   ))}
@@ -939,16 +936,16 @@ export default function ReaderSidePanel({
               )}
               {otherOpenTasks.length > 0 && (
                 <div className="task-group">
-                  <div className="task-group-head">未完成</div>
+                  <div className="task-group-head">{t("未完成")}</div>
                   {otherOpenTasks.map((task) => (
                     <TaskRow key={task.id} task={task} todayKey={todayKey} onToggle={(item) => void toggleTask(item)} onRemove={(item) => void removeTask(item)} />
                   ))}
                 </div>
               )}
-              {openTasks.length === 0 && <div className="task-group-empty">全部任务已完成</div>}
+              {openTasks.length === 0 && <div className="task-group-empty">{t("全部任务已完成")}</div>}
               {doneTasks.length > 0 && (
                 <div className="task-group">
-                  <div className="task-group-head">已完成 {doneTasks.length}</div>
+                  <div className="task-group-head">{t("已完成")}{' '}{doneTasks.length}</div>
                   {doneTasks.map((task) => (
                     <TaskRow key={task.id} task={task} todayKey={todayKey} onToggle={(item) => void toggleTask(item)} onRemove={(item) => void removeTask(item)} />
                   ))}
@@ -967,27 +964,27 @@ export default function ReaderSidePanel({
           <div className="modal excerpt-detail-modal">
             <div className="modal-head">
               <div>
-                <h3>摘录详情</h3>
+                <h3>{t("摘录详情")}</h3>
                 <p className="muted">
                   {viewingExcerpt.docTitle}
-                  {viewingExcerpt.page ? ` · 第 ${viewingExcerpt.page} 页` : ''}
-                  {viewingExcerpt.docMissing ? ' · 来源已删除' : ''}
+                  {viewingExcerpt.page ? t(" · 第 {0} 页", [viewingExcerpt.page]) : ''}
+                  {viewingExcerpt.docMissing ? t(" · 来源已删除") : ''}
                 </p>
               </div>
-              <button className="icon-btn" title="关闭" onClick={() => setViewingExcerpt(null)}>
+              <button className="icon-btn" title={t("关闭")} onClick={() => setViewingExcerpt(null)}>
                 <X size={18} />
               </button>
             </div>
             <div className="excerpt-detail-body">
               {viewingExcerpt.source && (
                 <section className="excerpt-detail-section">
-                  <div className="excerpt-detail-label">原文引用</div>
+                  <div className="excerpt-detail-label">{t("原文引用")}</div>
                   <blockquote className="excerpt-detail-quote">{viewingExcerpt.source}</blockquote>
                 </section>
               )}
               {viewingExcerpt.question && (
                 <section className="excerpt-detail-section">
-                  <div className="excerpt-detail-label">问题</div>
+                  <div className="excerpt-detail-label">{t("问题")}</div>
                   <div className="excerpt-detail-content">
                     <Markdown>{viewingExcerpt.question}</Markdown>
                   </div>
@@ -995,7 +992,7 @@ export default function ReaderSidePanel({
               )}
               {viewingExcerpt.answer && (
                 <section className="excerpt-detail-section">
-                  <div className="excerpt-detail-label">回答 / 摘要</div>
+                  <div className="excerpt-detail-label">{t("回答 / 摘要")}</div>
                   <div className="excerpt-detail-content">
                     <Markdown>{viewingExcerpt.answer}</Markdown>
                   </div>
@@ -1014,8 +1011,7 @@ export default function ReaderSidePanel({
                     jumpToExcerpt(item)
                   }}
                 >
-                  跳回原文
-                </button>
+                  {' '}{t("跳回原文")}{' '}</button>
                 <button
                   className="btn ghost"
                   onClick={() => {
@@ -1024,14 +1020,11 @@ export default function ReaderSidePanel({
                     openExcerptEditor(item)
                   }}
                 >
-                  <PenLine size={14} /> 编辑
-                </button>
+                  <PenLine size={14} /> {' '}{t("编辑")}{' '}</button>
                 <button className="btn ghost danger" onClick={() => void removeExcerpt(viewingExcerpt)}>
-                  <Trash2 size={14} /> 删除
-                </button>
+                  <Trash2 size={14} /> {' '}{t("删除")}{' '}</button>
                 <button className="btn primary" onClick={() => setViewingExcerpt(null)}>
-                  关闭
-                </button>
+                  {' '}{t("关闭")}{' '}</button>
               </div>
             </div>
           </div>
@@ -1041,8 +1034,8 @@ export default function ReaderSidePanel({
       {editingExcerpt && (
         <MarkdownEditorModal
           key={editingExcerpt.id}
-          heading="编辑摘录"
-          subtitle={`${editingExcerpt.docTitle}${editingExcerpt.page ? ` · 第 ${editingExcerpt.page} 页` : ''}`}
+          heading={t("编辑摘录")}
+          subtitle={t("{0}{1}", [editingExcerpt.docTitle, editingExcerpt.page ? t(' · 第 {0} 页', [editingExcerpt.page]) : ''])}
           initialTitle={editingExcerpt.question}
           initialContent={editingExcerpt.answer}
           attachments={editingExcerpt.attachments ?? []}
@@ -1057,12 +1050,12 @@ export default function ReaderSidePanel({
           onRemoveAttachment={(attachmentId) => window.api.excerpts.removeAttachment(editingExcerpt.id, attachmentId)}
           onExportZip={async () => {
             const result = await window.api.excerpts.exportZip(editingExcerpt.id)
-            if (!result.canceled && result.filePath) notify(`已导出：${result.filePath}`, 'success')
+            if (!result.canceled && result.filePath) notify(t("已导出：{0}", [result.filePath]), 'success')
           }}
           onSave={async (nextTitle, content) => {
             await window.api.excerpts.update(editingExcerpt.id, { question: nextTitle, answer: content })
             await onChanged()
-            notify('摘录已更新', 'success')
+            notify(t("摘录已更新"), 'success')
             return true
           }}
           onClose={closeExcerptEditor}

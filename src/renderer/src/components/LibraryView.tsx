@@ -20,6 +20,7 @@ import CollectionPicker from './CollectionPicker'
 import PropertyCell from './PropertyCell'
 import './properties.css'
 import { cx, formatTime } from '../ui'
+import { localeTag, t } from '@shared/i18n'
 
 interface Props {
   data: LibraryData
@@ -253,13 +254,13 @@ export default function LibraryView({
   const yearOptions = useMemo(
     () =>
       Array.from(new Set(data.documents.map((doc) => doc.year.trim()).filter(Boolean))).sort((a, b) =>
-        b.localeCompare(a, 'zh-CN')
+        b.localeCompare(a, localeTag())
       ),
     [data.documents]
   )
 
   const tagOptions = useMemo(
-    () => Array.from(new Set(data.documents.flatMap((doc) => doc.tags))).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+    () => Array.from(new Set(data.documents.flatMap((doc) => doc.tags))).sort((a, b) => a.localeCompare(b, localeTag())),
     [data.documents]
   )
 
@@ -300,7 +301,7 @@ export default function LibraryView({
       doc.collections
         .map((id) => data.collections.find((collection) => collection.id === id)?.name ?? '')
         .filter(Boolean)
-        .join('、')
+        .join(t('、'))
 
     const sorted = [...list]
     const dir = tableSort.dir === 'asc' ? 1 : -1
@@ -312,7 +313,7 @@ export default function LibraryView({
       if (!sortProperty) return ''
       const value = doc.propertyValues?.[sortProperty.id]
       if (value === null || value === undefined) return ''
-      if (Array.isArray(value)) return value.map((id) => optionLabel(sortProperty, id)).join('、')
+      if (Array.isArray(value)) return value.map((id) => optionLabel(sortProperty, id)).join(t('、'))
       if (typeof value === 'boolean') return value ? '1' : '0'
       return String(value)
     }
@@ -323,26 +324,26 @@ export default function LibraryView({
           sortProperty.type === 'number'
             ? (Number(a.propertyValues?.[sortProperty.id]) || 0) -
               (Number(b.propertyValues?.[sortProperty.id]) || 0)
-            : propertyText(a).localeCompare(propertyText(b), 'zh-CN')
+            : propertyText(a).localeCompare(propertyText(b), localeTag())
       } else {
         switch (tableSort.key) {
         case 'title':
-          result = a.title.localeCompare(b.title, 'zh-CN')
+          result = a.title.localeCompare(b.title, localeTag())
           break
         case 'authors':
-          result = a.authors.localeCompare(b.authors, 'zh-CN')
+          result = a.authors.localeCompare(b.authors, localeTag())
           break
         case 'year':
           result = (Number(a.year) || 0) - (Number(b.year) || 0)
           break
         case 'journal':
-          result = a.journal.localeCompare(b.journal, 'zh-CN')
+          result = a.journal.localeCompare(b.journal, localeTag())
           break
         case 'collections':
-          result = collectionLabels(a).localeCompare(collectionLabels(b), 'zh-CN')
+          result = collectionLabels(a).localeCompare(collectionLabels(b), localeTag())
           break
         case 'tags':
-          result = a.tags.join('、').localeCompare(b.tags.join('、'), 'zh-CN')
+          result = a.tags.join(t('、')).localeCompare(b.tags.join(t('、')), localeTag())
           break
         case 'pageCount':
           result = a.pageCount - b.pageCount
@@ -421,7 +422,7 @@ export default function LibraryView({
       await window.api.library.update(doc.id, { propertyValues: next })
       await onChanged()
     } catch (err) {
-      notify(`保存「${property.name}」失败：${(err as Error).message}`, 'error')
+      notify(t("保存「{0}」失败：{1}", [property.name, (err as Error).message]), 'error')
     }
   }
 
@@ -440,7 +441,7 @@ export default function LibraryView({
   }
 
   const openSaveView = (): void => {
-    setSaveViewName(savedView?.name ? `${savedView.name} 副本` : '我的视图')
+    setSaveViewName(savedView?.name ? t("{0} 副本", [savedView.name]) : t("我的视图"))
     setSaveViewOpen(true)
   }
 
@@ -456,20 +457,20 @@ export default function LibraryView({
       await window.api.views.add(name, currentConfig())
       await onChanged()
       setSaveViewOpen(false)
-      notify(`已保存视图「${name}」，可在左侧栏切换`, 'success')
+      notify(t("已保存视图「{0}」，可在左侧栏切换", [name]), 'success')
     } catch (err) {
-      notify(`保存视图失败：${(err as Error).message}`, 'error')
+      notify(t("保存视图失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const remove = async (doc: DocumentMeta): Promise<void> => {
-    if (!window.confirm(`删除《${doc.title}》？该操作会同时删除本地 PDF 与提取的文本，且不可恢复。`)) return
+    if (!window.confirm(t("删除《{0}》？该操作会同时删除本地 PDF 与提取的文本，且不可恢复。", [doc.title]))) return
     try {
       await window.api.library.remove(doc.id)
       await onChanged()
-      notify('文献已删除', 'success')
+      notify(t("文献已删除"), 'success')
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -477,7 +478,7 @@ export default function LibraryView({
     doc.collections
       .map((id) => data.collections.find((collection) => collection.id === id)?.name ?? '')
       .filter(Boolean)
-      .join('、')
+      .join(t('、'))
 
   const updateState = updateInfo?.error
     ? 'error'
@@ -490,29 +491,28 @@ export default function LibraryView({
           : 'error'
   const updateLabel =
     updateState === 'checking'
-      ? '检查中…'
+      ? t("检查中…")
       : updateState === 'error'
-        ? '更新检查失败'
+        ? t("更新检查失败")
         : updateState === 'new'
-          ? `新版本 v${updateInfo?.latestVersion}`
-          : '已是最新'
+          ? t("新版本 v{0}", [updateInfo?.latestVersion])
+          : t("已是最新")
 
   return (
     <div className="view library-view">
       <header className="view-head">
         <div>
-          <h1>{collectionName ? collectionName : '文献库'}</h1>
+          <h1>{collectionName ? collectionName : t("文献库")}</h1>
           <p className="muted">
-            共 {data.documents.length} 篇文献
-            {collectionName ? ` · 分类「${collectionName}」` : ''}
-            {documents.length !== data.documents.length ? ` · 当前显示 ${documents.length} 篇` : ''}
+            {' '}{t("共")}{' '}{data.documents.length} {' '}{t("篇文献")}{' '}{collectionName ? t(" · 分类「{0}」", [collectionName]) : ''}
+            {documents.length !== data.documents.length ? t(" · 当前显示 {0} 篇", [documents.length]) : ''}
           </p>
         </div>
         <div className="view-head-actions">
           <button
             className={cx('version-pill', updateState)}
             onClick={onOpenUpdate}
-            title={updateState === 'new' ? `发现新版本 v${updateInfo?.latestVersion}，打开设置更新` : '打开设置检查更新'}
+            title={updateState === 'new' ? t("发现新版本 v{0}，打开设置更新", [updateInfo?.latestVersion]) : t("打开设置检查更新")}
           >
             <span className="version-dot" />
             <span className="version-number">v{updateInfo?.currentVersion ?? '—'}</span>
@@ -520,7 +520,7 @@ export default function LibraryView({
           </button>
           <button className="btn primary" onClick={onImport} disabled={!!importing}>
             {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-            {importing ? `导入中 ${importing.done}/${importing.total}` : '导入文献'}
+            {importing ? t("导入中 {0}/{1}", [importing.done, importing.total]) : t("导入文献")}
           </button>
         </div>
       </header>
@@ -528,11 +528,11 @@ export default function LibraryView({
       <div className="library-toolbar">
         <div className="search-box">
           <Search size={16} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、作者、期刊、标签…" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("搜索标题、作者、期刊、标签…")} />
         </div>
         <div className="library-filters">
           <select className="select" value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
-            <option value="all">全部年份</option>
+            <option value="all">{t("全部年份")}</option>
             {yearOptions.map((year) => (
               <option key={year} value={year}>
                 {year}
@@ -544,7 +544,7 @@ export default function LibraryView({
             value={activeCollection ?? ''}
             onChange={(event) => onSelectCollection?.(event.target.value || undefined)}
           >
-            <option value="">全部分类</option>
+            <option value="">{t("全部分类")}</option>
             {data.collections.map((collection) => (
               <option key={collection.id} value={collection.id}>
                 {collection.name}
@@ -552,7 +552,7 @@ export default function LibraryView({
             ))}
           </select>
           <select className="select" value={tagFilter} onChange={(event) => setTagFilter(event.target.value)}>
-            <option value="all">全部标签</option>
+            <option value="all">{t("全部标签")}</option>
             {tagOptions.map((tag) => (
               <option key={tag} value={tag}>
                 {tag}
@@ -564,28 +564,24 @@ export default function LibraryView({
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as ReadingStatus | 'all')}
           >
-            <option value="all">全部阅读状态</option>
-            <option value="unread">未读</option>
-            <option value="reading">阅读中</option>
-            <option value="read">已读</option>
+            <option value="all">{t("全部阅读状态")}</option>
+            <option value="unread">{t("未读")}</option>
+            <option value="reading">{t("阅读中")}</option>
+            <option value="read">{t("已读")}</option>
           </select>
           <button className={cx('btn ghost', starredOnly && 'active')} onClick={() => setStarredOnly((value) => !value)}>
-            <Star size={15} fill={starredOnly ? 'currentColor' : 'none'} /> 星标
-          </button>
-          <button className="btn ghost" onClick={openSaveView} title="保存当前筛选、排序与属性条件">
-            <Save size={15} /> 保存视图
-          </button>
-          <button className="btn ghost" onClick={onManageProperties} title="新建、编辑或删除文献属性">
-            <Settings2 size={15} /> 属性
-          </button>
+            <Star size={15} fill={starredOnly ? 'currentColor' : 'none'} /> {' '}{t("星标")}{' '}</button>
+          <button className="btn ghost" onClick={openSaveView} title={t("保存当前筛选、排序与属性条件")}>
+            <Save size={15} /> {' '}{t("保存视图")}{' '}</button>
+          <button className="btn ghost" onClick={onManageProperties} title={t("新建、编辑或删除文献属性")}>
+            <Settings2 size={15} /> {' '}{t("属性")}{' '}</button>
         </div>
       </div>
 
       {data.properties.length > 0 && (
         <div className="property-filter-bar">
           <span className="property-filter-label">
-            <SlidersHorizontal size={14} /> 属性筛选
-          </span>
+            <SlidersHorizontal size={14} /> {' '}{t("属性筛选")}{' '}</span>
           {data.properties.map((property) => {
             const current = propertyFilters[property.id] ?? ''
             const update = (value: string): void => {
@@ -605,7 +601,7 @@ export default function LibraryView({
                     value={current}
                     onChange={(event) => update(event.target.value)}
                   >
-                    <option value="">全部</option>
+                    <option value="">{t("全部")}</option>
                     {(property.options ?? []).map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.name}
@@ -624,9 +620,9 @@ export default function LibraryView({
                     value={current}
                     onChange={(event) => update(event.target.value)}
                   >
-                    <option value="">全部</option>
-                    <option value="yes">是</option>
-                    <option value="no">否</option>
+                    <option value="">{t("全部")}</option>
+                    <option value="yes">{t("是")}</option>
+                    <option value="no">{t("否")}</option>
                   </select>
                 </label>
               )
@@ -638,7 +634,7 @@ export default function LibraryView({
                   className="property-filter-input"
                   type={property.type === 'number' ? 'number' : property.type === 'date' ? 'date' : 'text'}
                   value={current}
-                  placeholder="筛选…"
+                  placeholder={t("筛选…")}
                   onChange={(event) => update(event.target.value)}
                 />
               </label>
@@ -646,8 +642,7 @@ export default function LibraryView({
           })}
           {Object.values(propertyFilters).some(Boolean) && (
             <button className="btn ghost small" onClick={() => setPropertyFilters({})}>
-              清除属性筛选
-            </button>
+              {' '}{t("清除属性筛选")}{' '}</button>
           )}
         </div>
       )}
@@ -659,27 +654,25 @@ export default function LibraryView({
           </div>
           <h2>
             {data.documents.length === 0
-              ? '先把文献放进来'
+              ? t("先把文献放进来")
               : activeCollection && !collectionHasDocs
-                ? '该分类还没有文献'
-                : '没有匹配的文献'}
+                ? t("该分类还没有文献")
+                : t("没有匹配的文献")}
           </h2>
           <p className="muted">
             {data.documents.length === 0
-              ? '导入 PDF、Word、Markdown 或 TXT 后，Arbor 会自动提取全文，用于阅读、检索、问答和翻译。'
+              ? t("导入 PDF、Word、Markdown 或 TXT 后，Arbor 会自动提取全文，用于阅读、检索、问答和翻译。")
               : activeCollection && !collectionHasDocs
-                ? '在列表行中点击「分类」按钮，即可把文献加入该分类。'
-                : '当前筛选条件下没有结果，试试更换关键词或清除筛选条件。'}
+                ? t("在列表行中点击「分类」按钮，即可把文献加入该分类。")
+                : t("当前筛选条件下没有结果，试试更换关键词或清除筛选条件。")}
           </p>
           {data.documents.length === 0 && (
             <button className="btn primary" onClick={onImport}>
-              <Upload size={16} /> 导入文献
-            </button>
+              <Upload size={16} /> {' '}{t("导入文献")}{' '}</button>
           )}
           {data.documents.length > 0 && hasFilters && (
             <button className="btn" onClick={clearFilters}>
-              清除筛选
-            </button>
+              {' '}{t("清除筛选")}{' '}</button>
           )}
         </div>
       ) : (
@@ -709,15 +702,15 @@ export default function LibraryView({
                     key={column.key}
                     className={cx('sortable', tableSort.key === column.key && 'sorted')}
                     onClick={() => toggleTableSort(column.key)}
-                    title={`按${column.label}排序`}
+                    title={t("按{0}排序", [t(column.label)])}
                   >
-                    {column.label}
+                    {t(column.label)}
                     <span className="sort-arrow">
                       {tableSort.key === column.key ? (tableSort.dir === 'asc' ? '↑' : '↓') : '↕'}
                     </span>
                     <span
                       className="col-resizer"
-                      title="拖动调整列宽，双击恢复默认"
+                      title={t("拖动调整列宽，双击恢复默认")}
                       onPointerDown={(event) => startColumnResize(event, column.key)}
                       onClick={(event) => event.stopPropagation()}
                       onDoubleClick={(event) => {
@@ -734,7 +727,7 @@ export default function LibraryView({
                       key={property.id}
                       className={cx('sortable', tableSort.key === key && 'sorted')}
                       onClick={() => toggleTableSort(key)}
-                      title={`按${property.name}排序`}
+                      title={t("按{0}排序", [property.name])}
                     >
                       {property.name}
                       <span className="sort-arrow">
@@ -742,7 +735,7 @@ export default function LibraryView({
                       </span>
                       <span
                         className="col-resizer"
-                        title="拖动调整列宽，双击恢复默认"
+                        title={t("拖动调整列宽，双击恢复默认")}
                         onPointerDown={(event) => startColumnResize(event, key)}
                         onClick={(event) => event.stopPropagation()}
                         onDoubleClick={(event) => {
@@ -753,7 +746,7 @@ export default function LibraryView({
                     </th>
                   )
                 })}
-                <th className="actions-head">操作</th>
+                <th className="actions-head">{t("操作")}</th>
               </tr>
             </thead>
             <tbody>
@@ -763,7 +756,7 @@ export default function LibraryView({
                     <div className="cell-title-inner">
                       <button
                         className={cx('icon-btn star-btn', doc.starred && 'starred')}
-                        title={doc.starred ? '取消星标' : '设为星标'}
+                        title={doc.starred ? t("取消星标") : t("设为星标")}
                         onClick={(event) => {
                           event.stopPropagation()
                           void toggleStar(doc)
@@ -800,7 +793,7 @@ export default function LibraryView({
                     >
                       {(Object.keys(STATUS_LABEL) as ReadingStatus[]).map((status) => (
                         <option key={status} value={status}>
-                          {STATUS_LABEL[status]}
+                          {t(STATUS_LABEL[status])}
                         </option>
                       ))}
                     </select>
@@ -821,13 +814,13 @@ export default function LibraryView({
                   ))}
                   <td className="cell-actions" onClick={(event) => event.stopPropagation()}>
                     <span className="row-actions">
-                      <button className="icon-btn tiny" title="加入分类" onClick={() => setPickerDoc(doc)}>
+                      <button className="icon-btn tiny" title={t("加入分类")} onClick={() => setPickerDoc(doc)}>
                         <FolderPlus size={14} />
                       </button>
-                      <button className="icon-btn tiny" title="与文献对话" onClick={() => void onChat(doc.id)}>
+                      <button className="icon-btn tiny" title={t("与文献对话")} onClick={() => void onChat(doc.id)}>
                         <MessageSquare size={14} />
                       </button>
-                      <button className="icon-btn tiny" title="删除文献" onClick={() => void remove(doc)}>
+                      <button className="icon-btn tiny" title={t("删除文献")} onClick={() => void remove(doc)}>
                         <Trash2 size={14} />
                       </button>
                     </span>
@@ -839,7 +832,7 @@ export default function LibraryView({
             </div>
             <div
               className="list-width-handle"
-              title="拖动调整列表宽度"
+              title={t("拖动调整列表宽度")}
               onPointerDown={startListResize}
             />
           </div>
@@ -851,15 +844,15 @@ export default function LibraryView({
           <div className="modal save-view-modal">
             <div className="modal-head">
               <div>
-                <h3>保存视图</h3>
-                <p className="muted">保存当前筛选、排序与属性条件，之后可在左侧栏一键恢复。</p>
+                <h3>{t("保存视图")}</h3>
+                <p className="muted">{t("保存当前筛选、排序与属性条件，之后可在左侧栏一键恢复。")}</p>
               </div>
-              <button className="icon-btn" title="关闭" onClick={() => setSaveViewOpen(false)}>
+              <button className="icon-btn" title={t("关闭")} onClick={() => setSaveViewOpen(false)}>
                 <X size={18} />
               </button>
             </div>
             <div className="field">
-              <label>视图名称</label>
+              <label>{t("视图名称")}</label>
               <input
                 autoFocus
                 value={saveViewName}
@@ -867,18 +860,16 @@ export default function LibraryView({
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') void saveView()
                 }}
-                placeholder="例如：未读方法学文献"
+                placeholder={t("例如：未读方法学文献")}
               />
             </div>
             <div className="modal-foot">
-              <div className="muted small">视图保存在本机文献库中</div>
+              <div className="muted small">{t("视图保存在本机文献库中")}</div>
               <div className="modal-actions">
                 <button className="btn ghost" onClick={() => setSaveViewOpen(false)}>
-                  取消
-                </button>
+                  {' '}{t("取消")}{' '}</button>
                 <button className="btn primary" onClick={() => void saveView()} disabled={!saveViewName.trim()}>
-                  保存
-                </button>
+                  {' '}{t("保存")}{' '}</button>
               </div>
             </div>
           </div>

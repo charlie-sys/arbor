@@ -1,0 +1,42 @@
+{
+  "typing": {
+    "label": "正在写作",
+    "fps": 10,
+    "frames": 6
+  },
+  "reading": {
+    "label": "正在阅读",
+    "fps": 5,
+    "frames": 6
+  },
+  "thinking": {
+    "label": "正在思考",
+    "fps": 4,
+    "frames": 6
+  },
+  "active": {
+    "label": "四处看看",
+    "fps": 8,
+    "frames": 6
+  },
+  "idle": {
+    "label": "摸一会儿鱼",
+    "fps": 3,
+    "frames": 6
+  },
+  "away": {
+    "label": "睡着了",
+    "fps": 2,
+    "frames": 4
+  },
+  "busy": {
+    "label": "AI 正在干活",
+    "fps": 10,
+    "frames": 6
+  },
+  "happy": {
+    "label": "开心",
+    "fps": 12,
+    "frames": 6
+  }
+}

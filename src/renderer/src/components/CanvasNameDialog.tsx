@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { t } from '@shared/i18n'
 
 interface Props {
   title: string
@@ -13,7 +14,7 @@ export default function CanvasNameDialog({
   title,
   initialValue,
   placeholder,
-  confirmLabel = '确定',
+  confirmLabel = t("确定"),
   onCancel,
   onConfirm
 }: Props): React.JSX.Element {
@@ -68,8 +69,7 @@ export default function CanvasNameDialog({
           <div />
           <div className="modal-actions">
             <button className="btn ghost" data-canvas-dialog-cancel onClick={onCancel}>
-              取消
-            </button>
+              {' '}{t("取消")}{' '}</button>
             <button className="btn primary" data-canvas-dialog-confirm onClick={submit} disabled={!value.trim()}>
               {confirmLabel}
             </button>

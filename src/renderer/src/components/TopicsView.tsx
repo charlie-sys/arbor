@@ -3,6 +3,7 @@ import { ArrowLeft, FileText, Layers, Loader2, MessagesSquare, Plus, Sparkles, T
 import type { Excerpt, LibraryData } from '@shared/types'
 import { cx, formatTime, Markdown } from '../ui'
 import MarkdownEditorModal from './MarkdownEditorModal'
+import { t } from '@shared/i18n'
 
 interface Props {
   data: LibraryData
@@ -54,29 +55,29 @@ export default function TopicsView({
   const createTopic = async (): Promise<void> => {
     setBusy('create')
     try {
-      const created = await window.api.topics.add({ name: name.trim() || '未命名研究主题', docIds: picked })
+      const created = await window.api.topics.add({ name: name.trim() || t("未命名研究主题"), docIds: picked })
       await onChanged()
       setName('')
       setPicked([])
       setCreating(false)
       onSelectTopic(created.id)
-      notify(`已创建研究主题「${created.name}」`, 'success')
+      notify(t("已创建研究主题「{0}」", [created.name]), 'success')
     } catch (err) {
-      notify(`创建失败：${(err as Error).message}`, 'error')
+      notify(t("创建失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setBusy(null)
     }
   }
 
   const removeTopic = async (id: string, title: string): Promise<void> => {
-    if (!window.confirm(`删除研究主题「${title}」？文献、摘录与对话不会被删除。`)) return
+    if (!window.confirm(t("删除研究主题「{0}」？文献、摘录与对话不会被删除。", [title]))) return
     try {
       await window.api.topics.remove(id)
       await onChanged()
       if (topicId === id) onSelectTopic(undefined)
-      notify('研究主题已删除', 'success')
+      notify(t("研究主题已删除"), 'success')
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -86,9 +87,9 @@ export default function TopicsView({
     try {
       await window.api.topics.suggest(topic.id)
       await onChanged()
-      notify('已生成建议问题', 'success')
+      notify(t("已生成建议问题"), 'success')
     } catch (err) {
-      notify(`生成建议问题失败：${(err as Error).message}`, 'error')
+      notify(t("生成建议问题失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setBusy(null)
     }
@@ -99,12 +100,12 @@ export default function TopicsView({
     setBusy('chat')
     try {
       const chat = await window.api.chats.create(topic.docIds)
-      await window.api.chats.update(chat.id, { title: title ?? `${topic.name} · 主题对话` })
+      await window.api.chats.update(chat.id, { title: title ?? t("{0} · 主题对话", [topic.name]) })
       if (!question) await window.api.topics.update(topic.id, { chatId: chat.id })
       await onChanged()
       onOpenChat(chat.id, question)
     } catch (err) {
-      notify(`创建主题对话失败：${(err as Error).message}`, 'error')
+      notify(t("创建主题对话失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setBusy(null)
     }
@@ -123,18 +124,16 @@ export default function TopicsView({
     <div className="view">
       <header className="view-head">
         <div>
-          <h1>研究主题</h1>
-          <p className="muted">把多篇文献聚合为一个研究空间，汇总问题、摘录与对话。</p>
+          <h1>{t("研究主题")}</h1>
+          <p className="muted">{t("把多篇文献聚合为一个研究空间，汇总问题、摘录与对话。")}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {topic && (
             <button className="btn ghost" onClick={() => onSelectTopic(undefined)}>
-              <ArrowLeft size={14} /> 全部主题
-            </button>
+              <ArrowLeft size={14} /> {' '}{t("全部主题")}{' '}</button>
           )}
           <button className="btn primary" onClick={() => setCreating(true)}>
-            <Plus size={15} /> 新建研究主题
-          </button>
+            <Plus size={15} /> {' '}{t("新建研究主题")}{' '}</button>
         </div>
       </header>
 
@@ -145,11 +144,10 @@ export default function TopicsView({
               <div className="empty-icon">
                 <Layers size={28} />
               </div>
-              <h2>还没有研究主题</h2>
-              <p className="muted">选择若干文献，生成主题空间与建议提问。</p>
+              <h2>{t("还没有研究主题")}</h2>
+              <p className="muted">{t("选择若干文献，生成主题空间与建议提问。")}</p>
               <button className="btn primary" onClick={() => setCreating(true)}>
-                <Plus size={16} /> 新建研究主题
-              </button>
+                <Plus size={16} /> {' '}{t("新建研究主题")}{' '}</button>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
@@ -161,7 +159,7 @@ export default function TopicsView({
                       <strong>{item.name}</strong>
                       <button
                         className="icon-btn tiny"
-                        title="删除研究主题"
+                        title={t("删除研究主题")}
                         onClick={(event) => {
                           event.stopPropagation()
                           void removeTopic(item.id, item.name)
@@ -171,7 +169,7 @@ export default function TopicsView({
                       </button>
                     </div>
                     <div className="muted small">
-                      {item.docIds.length} 篇文献 · {item.questions.length} 个建议问题 · {formatTime(item.updatedAt)}
+                      {item.docIds.length} {' '}{t("篇文献 ·")}{' '}{item.questions.length} {' '}{t("个建议问题 ·")}{' '}{formatTime(item.updatedAt)}
                     </div>
                     <div className="chat-doc-chips">
                       {members.slice(0, 3).map((doc) => (
@@ -193,8 +191,8 @@ export default function TopicsView({
           <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={panelStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 15 }}>成员文献</h2>
-                <span className="muted small">{docs.length} 篇</span>
+                <h2 style={{ margin: 0, fontSize: 15 }}>{t("成员文献")}</h2>
+                <span className="muted small">{docs.length} {' '}{t("篇")}</span>
               </div>
               {docs.map((doc) => (
                 <button key={doc.id} className="doc-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => onOpenDoc(doc.id)}>
@@ -203,21 +201,20 @@ export default function TopicsView({
                   <span className="muted small">{doc.year || '—'}</span>
                 </button>
               ))}
-              {!docs.length && <div className="muted small">成员文献均已删除，请重建主题。</div>}
+              {!docs.length && <div className="muted small">{t("成员文献均已删除，请重建主题。")}</div>}
             </div>
 
             <div style={panelStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 15 }}>建议问题</h2>
+                <h2 style={{ margin: 0, fontSize: 15 }}>{t("建议问题")}</h2>
                 <button className="btn small" onClick={() => void suggest()} disabled={busy === 'suggest' || !docs.length}>
                   {busy === 'suggest' ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />}
-                  {topic.questions.length ? '重新生成' : '生成建议问题'}
+                  {topic.questions.length ? t("重新生成") : t("生成建议问题")}
                 </button>
               </div>
               {!data.settings.apiKey && (
                 <div className="notice" style={{ marginBottom: 8 }}>
-                  尚未配置模型 API，生成建议问题前请先在「设置」中填写 API Key。
-                </div>
+                  {' '}{t("尚未配置模型 API，生成建议问题前请先在「设置」中填写 API Key。")}{' '}</div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {topic.questions.map((question) => (
@@ -230,35 +227,32 @@ export default function TopicsView({
                     {question}
                   </button>
                 ))}
-                {!topic.questions.length && <div className="muted small">生成后点击问题即可发起主题对话。</div>}
+                {!topic.questions.length && <div className="muted small">{t("生成后点击问题即可发起主题对话。")}</div>}
               </div>
             </div>
           </section>
 
           <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={panelStyle}>
-              <h2 style={{ margin: '0 0 10px', fontSize: 15 }}>主题对话</h2>
+              <h2 style={{ margin: '0 0 10px', fontSize: 15 }}>{t("主题对话")}</h2>
               <p className="muted small" style={{ margin: '0 0 10px' }}>
-                对话会自动携带全部 {topic.docIds.length} 篇成员文献作为上下文。
-              </p>
+                {' '}{t("对话会自动携带全部")}{' '}{topic.docIds.length} {' '}{t("篇成员文献作为上下文。")}{' '}</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button className="btn primary small" onClick={() => void openChat()} disabled={busy === 'chat' || !topic.docIds.length}>
-                  <MessagesSquare size={14} /> 打开主题对话
-                </button>
+                  <MessagesSquare size={14} /> {' '}{t("打开主题对话")}{' '}</button>
                 <button
                   className="btn ghost small"
-                  onClick={() => void startChat(REVIEW_PROMPT, `${topic.name} · 研究综述`)}
+                  onClick={() => void startChat(t(REVIEW_PROMPT), t("{0} · 研究综述", [topic.name]))}
                   disabled={busy === 'chat' || !topic.docIds.length}
                 >
-                  <Sparkles size={14} /> 生成综述
-                </button>
+                  <Sparkles size={14} /> {' '}{t("生成综述")}{' '}</button>
               </div>
             </div>
 
             <div style={panelStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 15 }}>主题摘录</h2>
-                <span className="muted small">{excerpts.length} 条</span>
+                <h2 style={{ margin: 0, fontSize: 15 }}>{t("主题摘录")}</h2>
+                <span className="muted small">{excerpts.length} {' '}{t("条")}</span>
               </div>
               <div className="excerpt-list">
                 {excerpts.map((excerpt) => (
@@ -267,7 +261,7 @@ export default function TopicsView({
                     className={cx('excerpt-item', 'clickable', excerpt.docMissing && 'missing')}
                     role="button"
                     tabIndex={0}
-                    title="点击编辑摘录"
+                    title={t("点击编辑摘录")}
                     onClick={() => setEditingExcerpt(excerpt)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
@@ -301,7 +295,7 @@ export default function TopicsView({
                     )}
                   </div>
                 ))}
-                {!excerpts.length && <div className="muted small">主题内文献还没有摘录或保存的回答。</div>}
+                {!excerpts.length && <div className="muted small">{t("主题内文献还没有摘录或保存的回答。")}</div>}
               </div>
             </div>
           </section>
@@ -313,10 +307,10 @@ export default function TopicsView({
           <div className="modal new-chat-modal">
             <div className="modal-head">
               <div>
-                <h3>新建研究主题</h3>
-                <p className="muted">选择若干文献，之后可生成建议问题并围绕它们对话。</p>
+                <h3>{t("新建研究主题")}</h3>
+                <p className="muted">{t("选择若干文献，之后可生成建议问题并围绕它们对话。")}</p>
               </div>
-              <button className="icon-btn" onClick={() => setCreating(false)} title="关闭">
+              <button className="icon-btn" onClick={() => setCreating(false)} title={t("关闭")}>
                 <X size={18} />
               </button>
             </div>
@@ -325,7 +319,7 @@ export default function TopicsView({
               style={{ marginBottom: 10 }}
               autoFocus
               value={name}
-              placeholder="研究主题名称，如：多模态检索综述"
+              placeholder={t("研究主题名称，如：多模态检索综述")}
               onChange={(event) => setName(event.target.value)}
             />
             <div className="doc-picker">
@@ -334,20 +328,19 @@ export default function TopicsView({
                   <input type="checkbox" checked={picked.includes(doc.id)} onChange={() => toggleDoc(doc.id)} />
                   <div>
                     <div className="doc-pick-title">{doc.title}</div>
-                    <div className="muted small">{[doc.authors, doc.year].filter(Boolean).join(' · ') || '未填写元数据'}</div>
+                    <div className="muted small">{[doc.authors, doc.year].filter(Boolean).join(' · ') || t("未填写元数据")}</div>
                   </div>
                 </label>
               ))}
-              {!data.documents.length && <div className="muted">文献库为空，请先导入文献。</div>}
+              {!data.documents.length && <div className="muted">{t("文献库为空，请先导入文献。")}</div>}
             </div>
             <div className="modal-foot">
-              <div className="muted small">已选择 {picked.length} 篇</div>
+              <div className="muted small">{t("已选择")}{' '}{picked.length} {' '}{t("篇")}</div>
               <div className="modal-actions">
                 <button className="btn ghost" onClick={() => setCreating(false)}>
-                  取消
-                </button>
+                  {' '}{t("取消")}{' '}</button>
                 <button className="btn primary" onClick={() => void createTopic()} disabled={busy === 'create' || !picked.length}>
-                  {busy === 'create' ? '创建中…' : '创建主题'}
+                  {busy === 'create' ? t("创建中…") : t("创建主题")}
                 </button>
               </div>
             </div>
@@ -358,8 +351,8 @@ export default function TopicsView({
       {editingExcerpt && (
         <MarkdownEditorModal
           key={editingExcerpt.id}
-          heading="编辑主题摘录"
-          subtitle={`${editingExcerpt.docTitle}${editingExcerpt.page ? ` · 第 ${editingExcerpt.page} 页` : ''}`}
+          heading={t("编辑主题摘录")}
+          subtitle={t("{0}{1}", [editingExcerpt.docTitle, editingExcerpt.page ? ` · 第 ${editingExcerpt.page} 页` : ''])}
           initialTitle={editingExcerpt.question}
           initialContent={editingExcerpt.answer}
           attachments={editingExcerpt.attachments ?? []}
@@ -376,12 +369,12 @@ export default function TopicsView({
           }
           onExportZip={async () => {
             const result = await window.api.excerpts.exportZip(editingExcerpt.id)
-            if (!result.canceled && result.filePath) notify(`已导出：${result.filePath}`, 'success')
+            if (!result.canceled && result.filePath) notify(t("已导出：{0}", [result.filePath]), 'success')
           }}
           onSave={async (title, content) => {
             await window.api.excerpts.update(editingExcerpt.id, { question: title, answer: content })
             await onChanged()
-            notify('摘录已更新', 'success')
+            notify(t("摘录已更新"), 'success')
             return true
           }}
           onClose={() => setEditingExcerpt(null)}

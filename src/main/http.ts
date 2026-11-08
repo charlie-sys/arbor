@@ -1,3 +1,6 @@
+
+import { t } from '../shared/i18n'
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -13,14 +16,14 @@ function requestIdOf(body: string): string {
 
 function formatHttpError(status: number, body: string): string {
   const requestId = requestIdOf(body)
-  const suffix = requestId ? `，请求 ID：${requestId}` : ''
+  const suffix = requestId ? t("，请求 ID：{0}", [requestId]) : ''
   if (status === 429) {
-    return `模型服务限流（429）${suffix}。请稍后重试，或降低请求频率。`
+    return t("模型服务限流（429）{0}。请稍后重试，或降低请求频率。", [suffix])
   }
   if (status >= 500) {
-    return `模型服务暂时不可用（${status}）${suffix}。已自动重试仍失败，请稍后再试或在设置中更换模型。`
+    return t("模型服务暂时不可用（{0}）{1}。已自动重试仍失败，请稍后再试或在设置中更换模型。", [status, suffix])
   }
-  return `API 请求失败（${status}）${suffix}：${body.slice(0, 400)}`
+  return t("API 请求失败（{0}）{1}：{2}", [status, suffix, body.slice(0, 400)])
 }
 
 export async function fetchWithRetry(
@@ -37,7 +40,7 @@ export async function fetchWithRetry(
     try {
       response = await fetch(url, init)
     } catch (error) {
-      if (init.signal?.aborted) throw new Error('AI 请求已取消或超时')
+      if (init.signal?.aborted) throw new Error(t("AI 请求已取消或超时"))
       lastError = error instanceof Error ? error : new Error(String(error))
       if (attempt < attempts - 1) {
         await delay(baseDelay * (attempt + 1))
@@ -58,5 +61,5 @@ export async function fetchWithRetry(
     throw error
   }
 
-  throw lastError ?? new Error('模型服务请求失败')
+  throw lastError ?? new Error(t("模型服务请求失败"))
 }

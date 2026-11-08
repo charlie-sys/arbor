@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, ListTree, MoveRight, Plus, Trash2 } from 'lucide-react'
 import type { Collection, DocumentMeta } from '@shared/types'
 import { cx } from '../ui'
+import { t } from '@shared/i18n'
 
 interface Props {
   collections: Collection[]
@@ -103,7 +104,7 @@ export default function CollectionTree({
       await window.api.collections.update(id, { parentId })
       await onChanged()
     } catch (err) {
-      notify(`移动分类失败：${(err as Error).message}`, 'error')
+      notify(t("移动分类失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -112,7 +113,7 @@ export default function CollectionTree({
       await window.api.collections.update(collection.id, { includeChildren: collection.includeChildren === false })
       await onChanged()
     } catch (err) {
-      notify(`更新分类失败：${(err as Error).message}`, 'error')
+      notify(t("更新分类失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -133,18 +134,18 @@ export default function CollectionTree({
       })
       await onChanged()
     } catch (err) {
-      notify(`创建子分类失败：${(err as Error).message}`, 'error')
+      notify(t("创建子分类失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const remove = async (collection: Collection): Promise<void> => {
-    if (!window.confirm(`删除分类「${collection.name}」？子分类会上移一级，文献本身不会被删除。`)) return
+    if (!window.confirm(t("删除分类「{0}」？子分类会上移一级，文献本身不会被删除。", [collection.name]))) return
     try {
       await window.api.collections.remove(collection.id)
       await onChanged()
       onActiveRemoved(collection.id)
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -166,7 +167,7 @@ export default function CollectionTree({
               {hasChildren ? (
                 <button
                   className="icon-btn tiny"
-                  title={isCollapsed ? '展开子分类' : '收起子分类'}
+                  title={isCollapsed ? t("展开子分类") : t("收起子分类")}
                   onClick={(event) => {
                     event.stopPropagation()
                     toggleCollapsed(collection.id)
@@ -181,7 +182,7 @@ export default function CollectionTree({
               <span className="nav-count">{effectiveCount(collection.id)}</span>
               <button
                 className="icon-btn tiny collection-delete"
-                title="新建子分类"
+                title={t("新建子分类")}
                 onClick={(event) => {
                   event.stopPropagation()
                   setMovingId(null)
@@ -193,7 +194,7 @@ export default function CollectionTree({
               </button>
               <button
                 className="icon-btn tiny collection-delete"
-                title="移动到其他分类"
+                title={t("移动到其他分类")}
                 onClick={(event) => {
                   event.stopPropagation()
                   setAddingParentId(null)
@@ -205,7 +206,7 @@ export default function CollectionTree({
               {hasChildren && (
                 <button
                   className={cx('icon-btn tiny collection-delete', collection.includeChildren !== false && 'active')}
-                  title={collection.includeChildren === false ? '显示子分类文献（当前关闭）' : '显示子分类文献（当前开启）'}
+                  title={collection.includeChildren === false ? t("显示子分类文献（当前关闭）") : t("显示子分类文献（当前开启）")}
                   onClick={(event) => {
                     event.stopPropagation()
                     void toggleIncludeChildren(collection)
@@ -216,7 +217,7 @@ export default function CollectionTree({
               )}
               <button
                 className="icon-btn tiny collection-delete"
-                title="删除分类"
+                title={t("删除分类")}
                 onClick={(event) => {
                   event.stopPropagation()
                   void remove(collection)
@@ -233,10 +234,10 @@ export default function CollectionTree({
                 onChange={(event) => void move(collection.id, event.target.value)}
                 onBlur={() => setMovingId(null)}
               >
-                <option value="">移到根级</option>
+                <option value="">{t("移到根级")}</option>
                 {moveOptions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    移到「{item.name}」
+                    {' '}{t("移到「")}{item.name}」
                   </option>
                 ))}
               </select>
@@ -246,7 +247,7 @@ export default function CollectionTree({
                 className="collection-input"
                 autoFocus
                 value={childName}
-                placeholder={`「${collection.name}」下的子分类，回车确认`}
+                placeholder={t("「{0}」下的子分类，回车确认", [collection.name])}
                 onChange={(event) => setChildName(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') void createChild(collection.id)

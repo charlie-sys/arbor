@@ -16,6 +16,7 @@ import {
 import type { InboxAttachment } from '@shared/types'
 import { cx, Markdown } from '../ui'
 import { useUnsavedChanges } from '../unsaved'
+import { t } from '@shared/i18n'
 
 export interface MarkdownEditorModalProps {
   heading: string
@@ -115,7 +116,7 @@ export default function MarkdownEditorModal({
 
   const close = (): void => {
     if (dirty) {
-      notify('有未保存的修改，请先保存', 'info')
+      notify(t("有未保存的修改，请先保存"), 'info')
       return
     }
     onClose()
@@ -123,14 +124,14 @@ export default function MarkdownEditorModal({
 
   const persist = async (): Promise<boolean> => {
     if (!content.trim()) {
-      notify('内容不能为空', 'error')
+      notify(t("内容不能为空"), 'error')
       return false
     }
     setSaving(true)
     try {
       return await onSave(title, content)
     } catch (err) {
-      notify(`保存失败：${(err as Error).message}`, 'error')
+      notify(t("保存失败：{0}", [(err as Error).message]), 'error')
       return false
     } finally {
       setSaving(false)
@@ -147,7 +148,7 @@ export default function MarkdownEditorModal({
     try {
       await onExportZip()
     } catch (err) {
-      notify(`导出失败：${(err as Error).message}`, 'error')
+      notify(t("导出失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -171,20 +172,20 @@ export default function MarkdownEditorModal({
       const added = await onPickAttachments(kind)
       if (!added.length) return
       setAttachments((prev) => [...prev, ...added])
-      notify(`已上传 ${added.length} 个文件`, 'success')
+      notify(t("已上传 {0} 个文件", [added.length]), 'success')
     } catch (err) {
-      notify(`上传失败：${(err as Error).message}`, 'error')
+      notify(t("上传失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const remove = async (attachment: InboxAttachment): Promise<void> => {
-    if (!window.confirm(`删除附件「${attachment.name}」？`)) return
+    if (!window.confirm(t("删除附件「{0}」？", [attachment.name]))) return
     try {
       await onRemoveAttachment(attachment.id)
       setAttachments((prev) => prev.filter((entry) => entry.id !== attachment.id))
-      notify('附件已删除', 'success')
+      notify(t("附件已删除"), 'success')
     } catch (err) {
-      notify(`删除附件失败：${(err as Error).message}`, 'error')
+      notify(t("删除附件失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -226,17 +227,17 @@ export default function MarkdownEditorModal({
           <div className="modal-head">
             <div>
               <h3>{heading}</h3>
-              <p className="muted">{subtitle ?? '支持 Markdown、LaTeX、附件与 ZIP 导出，右侧实时预览。'}</p>
+              <p className="muted">{subtitle ?? t("支持 Markdown、LaTeX、附件与 ZIP 导出，右侧实时预览。")}</p>
             </div>
             <div className="inbox-editor-head-actions">
               <button
                 className="icon-btn"
-                title={fullscreen ? '退出全屏' : '全屏编辑'}
+                title={fullscreen ? t("退出全屏") : t("全屏编辑")}
                 onClick={() => setFullscreen((value) => !value)}
               >
                 {fullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
               </button>
-              <button className="icon-btn" title="关闭" onClick={close}>
+              <button className="icon-btn" title={t("关闭")} onClick={close}>
                 <X size={18} />
               </button>
             </div>
@@ -246,28 +247,23 @@ export default function MarkdownEditorModal({
               className="inbox-editor-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="标题（可选）"
+              placeholder={t("标题（可选）")}
             />
             <div className="inbox-editor-toolbar">
               <button className="btn ghost small" onClick={() => setPickerOpen(true)}>
-                <ImagePlus size={14} /> 插入图片
-              </button>
+                <ImagePlus size={14} /> {' '}{t("插入图片")}{' '}</button>
               <button className="btn ghost small" onClick={() => void upload('file')}>
-                <Paperclip size={14} /> 上传文件
-              </button>
+                <Paperclip size={14} /> {' '}{t("上传文件")}{' '}</button>
               <button className="btn ghost small" onClick={() => insertText('\n$$\n\n$$\n')}>
-                插入公式
-              </button>
-              <button className="btn ghost small" onClick={() => insertText('\n- [ ] 待办\n')}>
-                插入待办
-              </button>
+                {' '}{t("插入公式")}{' '}</button>
+              <button className="btn ghost small" onClick={() => insertText(t("\n- [ ] 待办\n"))}>
+                {' '}{t("插入待办")}{' '}</button>
               <button className="btn ghost small" onClick={() => void exportZip()}>
-                <Download size={14} /> 导出 ZIP
-              </button>
+                <Download size={14} /> {' '}{t("导出 ZIP")}{' '}</button>
               <div className="inbox-zoom-controls">
                 <button
                   className="icon-btn tiny"
-                  title="缩小预览"
+                  title={t("缩小预览")}
                   onClick={() => setZoom((value) => Math.max(0.6, Math.round((value - 0.1) * 10) / 10))}
                 >
                   <ZoomOut size={13} />
@@ -275,7 +271,7 @@ export default function MarkdownEditorModal({
                 <span className="muted small">{Math.round(zoom * 100)}%</span>
                 <button
                   className="icon-btn tiny"
-                  title="放大预览"
+                  title={t("放大预览")}
                   onClick={() => setZoom((value) => Math.min(2, Math.round((value + 0.1) * 10) / 10))}
                 >
                   <ZoomIn size={13} />
@@ -302,12 +298,12 @@ export default function MarkdownEditorModal({
                     </div>
                     <button
                       className="icon-btn tiny"
-                      title={attachment.kind === 'image' ? '插入图片' : '插入链接'}
+                      title={attachment.kind === 'image' ? t("插入图片") : t("插入链接")}
                       onClick={() => insertAttachment(attachment)}
                     >
                       <Plus size={12} />
                     </button>
-                    <button className="icon-btn tiny" title="删除附件" onClick={() => void remove(attachment)}>
+                    <button className="icon-btn tiny" title={t("删除附件")} onClick={() => void remove(attachment)}>
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -329,13 +325,13 @@ export default function MarkdownEditorModal({
                     void save()
                   }
                 }}
-                placeholder="支持 Markdown、LaTeX 公式与图片…"
+                placeholder={t("支持 Markdown、LaTeX 公式与图片…")}
               />
-              <div className="inbox-editor-divider" onPointerDown={startSplitDrag} title="拖动调整编辑/预览宽度" />
+              <div className="inbox-editor-divider" onPointerDown={startSplitDrag} title={t("拖动调整编辑/预览宽度")} />
               <div
                 className="inbox-editor-preview"
                 ref={previewRef}
-                title="Ctrl+滚轮缩放，Shift+滚轮横向滚动，普通滚轮上下滚动"
+                title={t("Ctrl+滚轮缩放，Shift+滚轮横向滚动，普通滚轮上下滚动")}
               >
                 <div
                   className="inbox-preview-scaler"
@@ -359,13 +355,12 @@ export default function MarkdownEditorModal({
             </div>
           </div>
           <div className="modal-foot">
-            <div className="muted small">Ctrl+Enter 保存；保存后列表按 Markdown 渲染</div>
+            <div className="muted small">{t("Ctrl+Enter 保存；保存后列表按 Markdown 渲染")}</div>
             <div className="modal-actions">
               <button className="btn ghost" onClick={close}>
-                取消
-              </button>
+                {' '}{t("取消")}{' '}</button>
               <button className="btn primary" onClick={() => void save()} disabled={saving}>
-                {saving ? '保存中…' : '保存'}
+                {saving ? t("保存中…") : t("保存")}
               </button>
             </div>
           </div>
@@ -380,16 +375,16 @@ export default function MarkdownEditorModal({
           <div className="modal attachment-picker-modal">
             <div className="modal-head">
               <div>
-                <h3>选择图片</h3>
-                <p className="muted">从已上传的图片中选择，或上传新图片后插入。</p>
+                <h3>{t("选择图片")}</h3>
+                <p className="muted">{t("从已上传的图片中选择，或上传新图片后插入。")}</p>
               </div>
-              <button className="icon-btn" title="关闭" onClick={() => setPickerOpen(false)}>
+              <button className="icon-btn" title={t("关闭")} onClick={() => setPickerOpen(false)}>
                 <X size={18} />
               </button>
             </div>
             <div className="attachment-picker-grid">
               {attachments.filter((attachment) => attachment.kind === 'image').length === 0 && (
-                <div className="muted">还没有图片附件，请先上传。</div>
+                <div className="muted">{t("还没有图片附件，请先上传。")}</div>
               )}
               {attachments
                 .filter((attachment) => attachment.kind === 'image')
@@ -406,14 +401,12 @@ export default function MarkdownEditorModal({
                 ))}
             </div>
             <div className="modal-foot">
-              <div className="muted small">插入的是附件路径，不会把图片编码进 Markdown</div>
+              <div className="muted small">{t("插入的是附件路径，不会把图片编码进 Markdown")}</div>
               <div className="modal-actions">
                 <button className="btn ghost" onClick={() => void upload('image')}>
-                  <ImagePlus size={14} /> 上传新图片
-                </button>
+                  <ImagePlus size={14} /> {' '}{t("上传新图片")}{' '}</button>
                 <button className="btn ghost" onClick={() => setPickerOpen(false)}>
-                  取消
-                </button>
+                  {' '}{t("取消")}{' '}</button>
               </div>
             </div>
           </div>

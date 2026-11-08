@@ -2,9 +2,11 @@ import { BrowserWindow, desktopCapturer, screen } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { store, uid } from './store'
+import { setPetBusy } from './pet'
 import { translateImage, translateLayoutBlocks } from './llm'
 import { groupLines, ocrImage } from './ocr'
 import type { RenderBlock, RenderRequest, TranslationRecord, TranslationResult } from '../shared/types'
+import { t } from '../shared/i18n'
 
 type Item = { type: 'status'; status: 'selecting' | 'capturing' | 'translating' | 'canceled' | 'error'; message?: string } | { type: 'result'; result: TranslationResult }
 
@@ -85,7 +87,7 @@ function overlayUrl(): string {
 }
 
 export function startCapture(): { ok: boolean; reason?: string } {
-  if (overlay || busy) return { ok: false, reason: '已有截图任务正在进行' }
+  if (overlay || busy) return { ok: false, reason: t("已有截图任务正在进行") }
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
   pendingDisplay = display
 
@@ -149,6 +151,7 @@ export async function captureSelection(rect: { x: number; y: number; width: numb
   }
 
   busy = true
+  setPetBusy('translate', true)
   const id = uid()
   const imageFile = `${id}.png`
   const imagePath = path.join(store.translationsDir, imageFile)
@@ -167,9 +170,9 @@ export async function captureSelection(rect: { x: number; y: number; width: numb
       fetchWindowIcons: false
     })
     const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
-    if (!source) throw new Error('未获取到屏幕画面')
+    if (!source) throw new Error(t("未获取到屏幕画面"))
     const shot = source.thumbnail
-    if (shot.isEmpty()) throw new Error('屏幕截图失败')
+    if (shot.isEmpty()) throw new Error(t("屏幕截图失败"))
 
     const shotSize = shot.getSize()
     const ratioX = shotSize.width / display.size.width
@@ -178,7 +181,7 @@ export async function captureSelection(rect: { x: number; y: number; width: numb
     const cropY = Math.max(0, Math.round(rect.y * ratioY))
     const cropW = Math.min(shotSize.width - cropX, Math.round(rect.width * ratioX))
     const cropH = Math.min(shotSize.height - cropY, Math.round(rect.height * ratioY))
-    if (cropW < 4 || cropH < 4) throw new Error('选区太小，请重新截图')
+    if (cropW < 4 || cropH < 4) throw new Error(t("选区太小，请重新截图"))
 
     const cropped = shot.crop({ x: cropX, y: cropY, width: cropW, height: cropH })
     await fs.writeFile(imagePath, cropped.toPNG())
@@ -193,7 +196,7 @@ export async function captureSelection(rect: { x: number; y: number; width: numb
 
     let translatedImageFile: string | undefined
     try {
-      emit({ type: 'status', status: 'translating', message: '正在生成译文截图…' }, true)
+      emit({ type: 'status', status: 'translating', message: t("正在生成译文截图…") }, true)
       const ocr = await ocrImage(imagePath)
       if (ocr) {
         const blocks = groupLines(ocr.lines)
@@ -243,9 +246,10 @@ export async function captureSelection(rect: { x: number; y: number; width: numb
   } catch (err) {
     await fs.unlink(imagePath).catch(() => undefined)
     if (translatedImagePath) await fs.unlink(translatedImagePath).catch(() => undefined)
-    emit({ type: 'status', status: 'error', message: (err as Error).message || '截图翻译失败' }, true)
+    emit({ type: 'status', status: 'error', message: (err as Error).message || t("截图翻译失败") }, true)
   } finally {
     busy = false
+    setPetBusy('translate', false)
     if (win && !win.isDestroyed()) win.destroy()
     overlay = null
     pendingDisplay = null

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '@shared/types'
 import { cx, formatTime } from '../ui'
+import { t } from '@shared/i18n'
 
 interface Props {
   messages: ChatMessage[]
@@ -15,7 +16,7 @@ function questionPreview(content: string): string {
     .replace(/[*_`#>]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
-  return text || '（仅附件）'
+  return text || t("（仅附件）")
 }
 
 export default function ChatMinimap({ messages, listRef, active, chatId }: Props): React.JSX.Element {
@@ -118,7 +119,7 @@ export default function ChatMinimap({ messages, listRef, active, chatId }: Props
     : 9
 
   return (
-    <nav className="chat-minimap" ref={navRef} aria-label="提问导航">
+    <nav className="chat-minimap" ref={navRef} aria-label={t("提问导航")}>
       <div className="chat-minimap-track">
         {questions.map((question, index) => {
           const preview = questionPreview(question.content)
@@ -131,12 +132,12 @@ export default function ChatMinimap({ messages, listRef, active, chatId }: Props
               <button
                 type="button"
                 className="minimap-tick"
-                aria-label={`跳到第 ${index + 1} 个提问：${preview.slice(0, 40)}`}
+                aria-label={t("跳到第 {0} 个提问：{1}", [index + 1, preview.slice(0, 40)])}
                 onClick={() => jumpTo(question.id)}
               />
               <div className="minimap-popover" role="tooltip">
                 <div className="minimap-popover-head">
-                  <span className="minimap-index">提问 {index + 1}</span>
+                  <span className="minimap-index">{t("提问")}{' '}{index + 1}</span>
                   <span className="minimap-time">{formatTime(question.createdAt)}</span>
                 </div>
                 <div className="minimap-preview">{preview}</div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarRange, Loader2, Trash2 } from 'lucide-react'
 import type { DocumentMeta, ReadingPlan } from '@shared/types'
+import { localeTag, t } from '@shared/i18n'
 
 interface Props {
   documents: DocumentMeta[]
@@ -31,7 +32,7 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
   const generate = async (): Promise<void> => {
     const value = goal.trim()
     if (!value) {
-      notify('请先填写学习目标', 'info')
+      notify(t("请先填写学习目标"), 'info')
       return
     }
     setBusy(true)
@@ -39,16 +40,16 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
       const plan = await window.api.readingPlan.generate(value)
       setPlans((prev) => [plan, ...prev])
       setGoal('')
-      notify(`已生成 ${plan.items.length} 篇文献的阅读计划`, 'success')
+      notify(t("已生成 {0} 篇文献的阅读计划", [plan.items.length]), 'success')
     } catch (err) {
-      notify(`生成阅读计划失败：${(err as Error).message}`, 'error')
+      notify(t("生成阅读计划失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setBusy(false)
     }
   }
 
   const removePlan = (id: string): void => {
-    if (!window.confirm('删除这份阅读计划？')) return
+    if (!window.confirm(t("删除这份阅读计划？"))) return
     setPlans((prev) => prev.filter((plan) => plan.id !== id))
   }
 
@@ -58,8 +59,8 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
     <div className="view reading-plan-view">
       <header className="view-head">
         <div>
-          <h1>主题阅读计划</h1>
-          <p className="muted">输入学习目标，基于库内文献生成阅读顺序、关注点与问题清单</p>
+          <h1>{t("主题阅读计划")}</h1>
+          <p className="muted">{t("输入学习目标，基于库内文献生成阅读顺序、关注点与问题清单")}</p>
         </div>
       </header>
 
@@ -68,13 +69,13 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
           className="input"
           value={goal}
           rows={3}
-          placeholder="例如：系统掌握因果推断在观察性研究中的应用，重点关注双重差分与工具变量"
+          placeholder={t("例如：系统掌握因果推断在观察性研究中的应用，重点关注双重差分与工具变量")}
           onChange={(event) => setGoal(event.target.value)}
           style={{ flex: 1, resize: 'vertical' }}
         />
         <button className="btn primary" onClick={() => void generate()} disabled={busy || !goal.trim()}>
           {busy ? <Loader2 size={16} className="spin" /> : <CalendarRange size={16} />}
-          {busy ? '生成中…' : '生成阅读计划'}
+          {busy ? t("生成中…") : t("生成阅读计划")}
         </button>
       </div>
 
@@ -83,8 +84,8 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
           <div className="empty-icon">
             <CalendarRange size={28} />
           </div>
-          <h2>还没有阅读计划</h2>
-          <p className="muted">填写学习目标后生成计划，计划会保存在本机，重启后仍可查看。</p>
+          <h2>{t("还没有阅读计划")}</h2>
+          <p className="muted">{t("填写学习目标后生成计划，计划会保存在本机，重启后仍可查看。")}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -94,11 +95,10 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
                 <div style={{ flex: 1 }}>
                   <h2 style={{ fontSize: 16, margin: 0 }}>{plan.goal}</h2>
                   <p className="muted small" style={{ margin: '4px 0 0' }}>
-                    {new Date(plan.createdAt).toLocaleString('zh-CN')}
-                    {plan.model ? ` · ${plan.model}` : ''} · {plan.items.length} 篇文献
-                  </p>
+                    {new Date(plan.createdAt).toLocaleString(localeTag())}
+                    {plan.model ? ` · ${plan.model}` : ''} · {plan.items.length} {' '}{t("篇文献")}{' '}</p>
                 </div>
-                <button className="icon-btn" title="删除计划" onClick={() => removePlan(plan.id)}>
+                <button className="icon-btn" title={t("删除计划")} onClick={() => removePlan(plan.id)}>
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -110,15 +110,14 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
                     return (
                       <li key={`${plan.id}-${item.docId}`}>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                          <strong style={{ fontSize: 13.5 }}>{doc ? doc.title : '文献已删除'}</strong>
+                          <strong style={{ fontSize: 13.5 }}>{doc ? doc.title : t("文献已删除")}</strong>
                           <span className="muted small">
                             {index + 1}.
-                            {doc ? ` ${doc.authors || '未知作者'}${doc.year ? ` · ${doc.year}` : ''}` : ''}
+                            {doc ? t(" {0}{1}", [doc.authors || '未知作者', doc.year ? ` · ${doc.year}` : '']) : ''}
                           </span>
                           {doc && (
                             <button className="btn ghost" style={{ padding: '1px 8px', fontSize: 11 }} onClick={() => onOpenDoc(doc.id)}>
-                              开始阅读
-                            </button>
+                              {' '}{t("开始阅读")}{' '}</button>
                           )}
                         </div>
                         {item.focus && <p style={{ margin: '4px 0 0', fontSize: 12.5 }}>{item.focus}</p>}

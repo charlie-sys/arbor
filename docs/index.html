@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Arbor 是一款本地优先的文献阅读、知识整理与 AI 研究工坊，支持 PDF、Word、Markdown 与 TXT 阅读、可溯源 AI 对话、对话附件、Token 用量仪表盘、灵感收集、截图翻译、研究主题与阅读计划。" />
+    <meta name="description" content="Arbor 是一款本地优先的文献阅读、知识整理与 AI 研究工坊，支持 PDF、Word、Markdown 与 TXT 阅读、可溯源 AI 对话、桌面伙伴阿栗、多语言界面、对话附件、Token 用量仪表盘、灵感收集、截图翻译、研究主题与阅读计划。" />
     <meta name="theme-color" content="#faf6f1" />
     <title>Arbor — 让研究与阅读自然生长</title>
     <link rel="icon" type="image/svg+xml" href="./assets/arbor-logo.svg" />
@@ -21,6 +21,7 @@
         </a>
         <nav class="site-nav" aria-label="主导航">
           <a href="#features">功能</a>
+          <a href="#ali">阿栗</a>
           <a href="#interface">界面</a>
           <a href="#guide">使用说明</a>
           <a href="./demo.html">在线体验</a>
@@ -57,7 +58,7 @@
               <a class="btn" href="./demo.html">在线交互体验</a>
             </div>
             <p class="hero-meta">
-              <strong>Windows 10/11</strong> · v0.1.5 · 开源 · API Key 使用系统级加密
+              <strong>Windows 10/11</strong> · v0.1.6 · 开源 · API Key 使用系统级加密
             </p>
           </div>
           <div class="hero-visual">
@@ -77,6 +78,22 @@
             <p>不打断阅读心流，也不让资料散落。每个功能都围绕“原文可追溯”和“本地可掌控”设计。</p>
           </div>
           <div class="feature-grid">
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5c.7-2.2 3-3.4 4.9-2.2 1.6 1 1.9 3.1.8 4.6"/><path d="M12 5c-.7-2.2-3-3.4-4.9-2.2-1.6 1-1.9 3.1-.8 4.6"/><path d="M6.3 7.4C4.3 8.9 3 11.2 3 14c0 4.4 4 7 9 7s9-2.6 9-7c0-2.8-1.3-5.1-3.3-6.6"/><circle cx="9" cy="13.5" r="1"/><circle cx="15" cy="13.5" r="1"/><path d="M10 17c.7.5 1.3.7 2 .7s1.3-.2 2-.7"/></svg>
+              </div>
+              <h3>桌面伙伴阿栗</h3>
+              <p>一只住在桌面右下角的哈士奇，用动作回应写作、阅读与思考状态；单击聊天，双击回到主窗口，右键临时静音，状态不读取文献内容。</p>
+              <span class="feature-tag">陪伴 · 桌面伙伴</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 3.8 5.6 3.8 9S14.5 18.5 12 21c-2.5-2.5-3.8-5.6-3.8-9S9.5 5.5 12 3Z"/></svg>
+              </div>
+              <h3>多语言界面</h3>
+              <p>简体中文、繁體中文与 English 即时切换，主窗口、独立阅读面板、桌面伙伴、系统对话框与 AI 提示词同步更新，并保存到本机。</p>
+              <span class="feature-tag">i18n · 三语</span>
+            </article>
             <article class="feature reveal">
               <div class="feature-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
@@ -236,6 +253,32 @@
                 <li>提问导航条展示每个问题的位置，悬停预览、点击跳转；Ctrl + 滚轮缩放对话字号</li>
               </ul>
               <div class="note">Arbor 不替你做判断，只帮你更快找到原文依据。所有 AI 输出都建议回到 PDF 核对。</div>
+            </div>
+          </div>
+          <div class="split" id="ali" style="margin-top: 64px">
+            <div class="split-copy">
+              <div class="section-kicker">桌面伙伴</div>
+              <h2>写作与阅读时，阿栗在桌角陪你</h2>
+              <p>阿栗是 Arbor 的独立陪伴聊天角色，不读取文献上下文。它会记住你的偏好与长期习惯，回答软件使用问题，按需联网查找资料，也能把回答读给你听。</p>
+              <ul class="check-list">
+                <li>单击阿栗打开聊天小窗，双击回到主窗口，右键临时静音</li>
+                <li>每条消息后判断是否值得长期记忆；姓名、偏好、兴趣与习惯可跨会话回忆</li>
+                <li>默认按需联网；网页内容被视为不可信资料，不执行其中指令</li>
+                <li>语音默认关闭，可在阿栗设置中开启自动朗读并调整语速与音量</li>
+                <li>主对话与记忆摘要模型可独立配置，密钥同样加密保存</li>
+                <li>桌面伙伴状态只依据输入节奏与当前页面，不读取任何文献内容</li>
+              </ul>
+              <div class="note">阿栗不会假装读过你的论文；问文献内容时，它会引导你回到阅读器的「问 Agent」或「AI 对话」。</div>
+            </div>
+            <div class="split-visual">
+              <div class="window pet-window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 桌面伙伴</span></div>
+                <div class="pet-stage">
+                  <div class="pet-bubble">今天读到哪一页了？</div>
+                  <img class="pet-figure" src="./assets/screens/ali-pet.png" alt="桌面伙伴阿栗，一只戴眼镜、抱着鱼和小树的哈士奇" />
+                  <div class="pet-caption">单击聊天 · 双击回到主窗口 · 右键静音</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -462,7 +505,7 @@
             <a data-github href="https://github.com/" target="_blank" rel="noreferrer">GitHub 仓库</a>
             <a data-download href="https://github.com/" target="_blank" rel="noreferrer">最新 Release</a>
             <a href="#guide">使用说明</a>
-            <span>版本 0.1.5 · Windows 10/11</span>
+            <span>版本 0.1.6 · Windows 10/11</span>
           </div>
         </div>
         <div class="footer-bottom">

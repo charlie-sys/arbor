@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FolderPlus, Plus, X } from 'lucide-react'
 import type { Collection, DocumentMeta } from '@shared/types'
 import { cx } from '../ui'
+import { t } from '@shared/i18n'
 
 interface Props {
   doc: DocumentMeta
@@ -35,7 +36,7 @@ export default function CollectionPicker({ doc, collections, onClose, onChanged,
       setSelected((prev) => [...prev, created.id])
       setNewName('')
     } catch (err) {
-      notify(`新建分类失败：${(err as Error).message}`, 'error')
+      notify(t("新建分类失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setCreating(false)
     }
@@ -46,10 +47,10 @@ export default function CollectionPicker({ doc, collections, onClose, onChanged,
     try {
       await window.api.library.update(doc.id, { collections: selected })
       await onChanged()
-      notify(`《${doc.title}》分类已更新`, 'success')
+      notify(t("《{0}》分类已更新", [doc.title]), 'success')
       onClose()
     } catch (err) {
-      notify(`保存分类失败：${(err as Error).message}`, 'error')
+      notify(t("保存分类失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setSaving(false)
     }
@@ -60,17 +61,17 @@ export default function CollectionPicker({ doc, collections, onClose, onChanged,
       <div className="modal collection-picker">
         <div className="modal-head">
           <div>
-            <h3>归类文献</h3>
+            <h3>{t("归类文献")}</h3>
             <p className="muted">{doc.title.length > 70 ? `${doc.title.slice(0, 70)}…` : doc.title}</p>
           </div>
-          <button className="icon-btn" onClick={onClose} title="关闭">
+          <button className="icon-btn" onClick={onClose} title={t("关闭")}>
             <X size={18} />
           </button>
         </div>
 
         <div className="collection-picker-body">
           {collections.length === 0 && (
-            <div className="muted small">还没有分类，可在下方直接新建一个。</div>
+            <div className="muted small">{t("还没有分类，可在下方直接新建一个。")}</div>
           )}
           <div className="collection-picker-list">
             {collections.map((collection) => (
@@ -91,7 +92,7 @@ export default function CollectionPicker({ doc, collections, onClose, onChanged,
               <FolderPlus size={15} />
               <input
                 value={newName}
-                placeholder="新建分类名称"
+                placeholder={t("新建分类名称")}
                 onChange={(event) => setNewName(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
@@ -102,19 +103,18 @@ export default function CollectionPicker({ doc, collections, onClose, onChanged,
               />
             </div>
             <button className="btn" onClick={() => void createCollection()} disabled={!newName.trim() || creating}>
-              <Plus size={14} /> {creating ? '创建中…' : '新建并选中'}
+              <Plus size={14} /> {creating ? t("创建中…") : t("新建并选中")}
             </button>
           </div>
         </div>
 
         <div className="modal-foot">
-          <div className="muted small">已选择 {selected.length} 个分类</div>
+          <div className="muted small">{t("已选择")}{' '}{selected.length} {' '}{t("个分类")}</div>
           <div className="modal-actions">
             <button className="btn ghost" onClick={onClose}>
-              取消
-            </button>
+              {' '}{t("取消")}{' '}</button>
             <button className="btn primary" onClick={() => void save()} disabled={saving}>
-              {saving ? '保存中…' : '保存归类'}
+              {saving ? t("保存中…") : t("保存归类")}
             </button>
           </div>
         </div>

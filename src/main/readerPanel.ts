@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain, screen, shell } from 'electron'
 import path from 'path'
+import { t } from '../shared/i18n'
 import type {
   ReaderPanelOutlineState,
   ReaderPanelQuote,
@@ -103,7 +104,7 @@ export function openReaderPanel(
     height,
     minWidth: 320,
     minHeight: 360,
-    title: '阅读面板 — Arbor',
+    title: t('阅读面板 — Arbor'),
     backgroundColor: '#faf6f1',
     show: false,
     autoHideMenuBar: true,

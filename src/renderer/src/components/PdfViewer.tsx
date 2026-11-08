@@ -5,6 +5,7 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import { Loader2, TriangleAlert } from 'lucide-react'
 import { pdfOptions } from '../pdf'
 import type { Highlight, HighlightRect } from '@shared/types'
+import { t } from '@shared/i18n'
 
 export interface PdfSelection {
   text: string
@@ -209,7 +210,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
               const result: PdfOutlineItem[] = []
               for (const item of items) {
                 result.push({
-                  title: String(item.title ?? '').trim() || '未命名章节',
+                  title: String(item.title ?? '').trim() || t("未命名章节"),
                   page: await resolvePage(item.dest),
                   children: Array.isArray(item.items) && item.items.length ? await walk(item.items) : []
                 })
@@ -257,7 +258,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
         })
       } catch (err) {
         if (!cancelled) {
-          setError((err as Error).message || 'PDF 加载失败')
+          setError((err as Error).message || t("PDF 加载失败"))
           setLoading(false)
         }
       }
@@ -399,7 +400,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
       {loading && (
         <div className="pdf-overlay">
           <Loader2 size={22} className="spin" />
-          <span>正在加载 PDF…</span>
+          <span>{t("正在加载 PDF…")}</span>
         </div>
       )}
       {error && (

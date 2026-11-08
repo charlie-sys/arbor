@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var savedTheme = localStorage.getItem('zotagent-theme')
+        if (savedTheme) document.documentElement.dataset.theme = savedTheme
+        if (savedTheme === 'dark' || savedTheme === 'midnight') document.documentElement.dataset.dark = 'true'
+      } catch (error) {}
+    </script>
+    <title>Arbor Pet</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/petWindow.tsx"></script>
+  </body>
+</html>

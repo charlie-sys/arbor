@@ -7,7 +7,11 @@ scripts/demo/.generated/
 scripts/acceptance/.generated/
 *.log
 docs/*.md
+!docs/使用说明.md
 docs/progress.json
 docs/progress.lock
+docs/ali-progress.json
+docs/ali-loop.lock
+docs/ali-evidence.json
 .DS_Store
 Thumbs.db

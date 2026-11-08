@@ -5,6 +5,7 @@ import path from 'path'
 import { store } from './store'
 import { usage } from './usage'
 import { normalizePricing } from '../shared/usage'
+import { setLocale } from '../shared/i18n'
 import { streamChat, cancelChat, composeDocument, testConnection } from './llm'
 import { exportMarkdown, exportBibtex, exportLibrary, exportDocumentPackage } from './docx'
 import { extractDocumentText } from './documentText'
@@ -19,6 +20,14 @@ import { listBackups, restoreBackup, runBackup } from './backup'
 import { runAiAction } from './aiActions'
 import { exportAttachmentZip } from './attachmentExport'
 import { checkForUpdates, downloadUpdate, installUpdate, openReleasePage } from './updater'
+import { applyPetSettings, celebratePet, setPetBusy } from './pet'
+import { aliStore } from './ali/store'
+import { cancelAli, getAliState, sendAli, testAliConnection, consolidateMemory } from './ali/service'
+import { removeMemoryLines, restoreMemoryLine } from './ali/memoryOps'
+import { loadHelpSections } from './ali/help'
+import { aliMemory } from './ali/memory'
+import { createZip, readZip } from './zip'
+import type { AliEvent, AliSendRequest, AliSessionPatch } from '../shared/ali'
 import type {
   AiActionId,
   CanvasEdge,
@@ -35,6 +44,7 @@ import type {
 } from '../shared/types'
 import type { ChatEvent } from '../shared/api'
 import type { ComposeScope } from '../shared/compose'
+import { t } from '../shared/i18n'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'])
 
@@ -46,12 +56,12 @@ async function pickAttachmentFiles(
   kind: 'image' | 'file'
 ): Promise<{ sourcePath: string; name: string; kind: 'image' | 'file' }[]> {
   const result = await dialog.showOpenDialog({
-    title: kind === 'image' ? '选择要插入的图片' : '上传附件',
+    title: kind === 'image' ? t("选择要插入的图片") : t("上传附件"),
     properties: ['openFile', 'multiSelections'],
     filters:
       kind === 'image'
-        ? [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }]
-        : [{ name: '所有文件', extensions: ['*'] }]
+        ? [{ name: t("图片"), extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }]
+        : [{ name: t("所有文件"), extensions: ['*'] }]
   })
   if (result.canceled || !result.filePaths.length) return []
   return result.filePaths.map((filePath) => ({
@@ -62,10 +72,10 @@ async function pickAttachmentFiles(
 }
 
 function resolveAttachmentPath(ownerId: string, file: string): string {
-  if (!/^[0-9a-f-]{36}$/i.test(ownerId)) throw new Error('附件归属无效')
+  if (!/^[0-9a-f-]{36}$/i.test(ownerId)) throw new Error(t("附件归属无效"))
   const base = path.join(store.attachmentsDir, ownerId)
   const target = path.normalize(path.join(base, file))
-  if (!target.startsWith(base + path.sep)) throw new Error('附件路径无效')
+  if (!target.startsWith(base + path.sep)) throw new Error(t("附件路径无效"))
   return target
 }
 
@@ -82,13 +92,13 @@ export function registerIpc(): void {
 
   ipcMain.handle('library:pick-documents', async () => {
     const result = await dialog.showOpenDialog({
-      title: '导入文献',
+      title: t("导入文献"),
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: '文献文件', extensions: IMPORTABLE_EXTENSIONS },
-        { name: 'PDF 文献', extensions: ['pdf'] },
-        { name: 'Word 文档', extensions: ['docx', 'doc'] },
-        { name: 'Markdown / 文本', extensions: ['md', 'markdown', 'txt'] }
+        { name: t("文献文件"), extensions: IMPORTABLE_EXTENSIONS },
+        { name: t("PDF 文献"), extensions: ['pdf'] },
+        { name: t("Word 文档"), extensions: ['docx', 'doc'] },
+        { name: t("Markdown / 文本"), extensions: ['md', 'markdown', 'txt'] }
       ]
     })
     if (result.canceled) return []
@@ -279,8 +289,8 @@ export function registerIpc(): void {
         rects: Highlight['rects']
       }
     ) => {
-      if (!store.getDocument(input.docId)) throw new Error('文献不存在')
-      if (!Array.isArray(input.rects) || input.rects.length === 0) throw new Error('高亮区域无效')
+      if (!store.getDocument(input.docId)) throw new Error(t("文献不存在"))
+      if (!Array.isArray(input.rects) || input.rects.length === 0) throw new Error(t("高亮区域无效"))
       return store.addHighlight({
         docId: input.docId,
         page: Math.max(1, Math.round(input.page)),
@@ -380,9 +390,9 @@ export function registerIpc(): void {
 
   ipcMain.handle('inbox:apply', async (_event, payload: { inboxId: string; suggestion: InboxSuggestion }) => {
     const item = store.data.inbox.find((entry) => entry.id === payload.inboxId)
-    if (!item) throw new Error('Inbox 条目不存在')
+    if (!item) throw new Error(t("Inbox 条目不存在"))
     const { type, value } = payload.suggestion
-    if (!value.trim()) throw new Error('建议内容为空')
+    if (!value.trim()) throw new Error(t("建议内容为空"))
     let tagsPatch: string[] | undefined
     if (type === 'tag') {
       await store.addTag({ name: value.trim() })
@@ -434,7 +444,7 @@ export function registerIpc(): void {
 
   ipcMain.handle('inbox:export-zip', async (_event, inboxId: string) => {
     const item = store.data.inbox.find((entry) => entry.id === inboxId)
-    if (!item) throw new Error('Inbox 条目不存在')
+    if (!item) throw new Error(t("Inbox 条目不存在"))
     const fallback = item.content
       .split('\n')
       .map((line) => line.trim())
@@ -468,7 +478,7 @@ export function registerIpc(): void {
 
   ipcMain.handle('excerpt:export-zip', async (_event, excerptId: string) => {
     const excerpt = store.data.excerpts.find((entry) => entry.id === excerptId)
-    if (!excerpt) throw new Error('摘录不存在')
+    if (!excerpt) throw new Error(t("摘录不存在"))
     const content = [
       excerpt.source ? `> ${excerpt.source.replace(/\n/g, '\n> ')}` : '',
       excerpt.answer
@@ -477,7 +487,7 @@ export function registerIpc(): void {
       .join('\n\n')
     return exportAttachmentZip({
       ownerId: excerpt.id,
-      title: excerpt.question || excerpt.docTitle || '摘录',
+      title: excerpt.question || excerpt.docTitle || t("摘录"),
       content,
       attachments: excerpt.attachments ?? [],
       fallbackName: `${excerpt.docTitle || 'excerpt'}-p${excerpt.page ?? 1}`
@@ -509,11 +519,155 @@ export function registerIpc(): void {
     await store.deleteTask(id)
   })
 
+  ipcMain.handle('ali:get-state', () => getAliState())
+
+  ipcMain.handle('ali:session:create', () => aliStore.create())
+
+  ipcMain.handle('ali:session:update', async (_event, payload: { id: string; patch: AliSessionPatch }) => {
+    if (!payload || typeof payload.id !== 'string' || !payload.patch || typeof payload.patch !== 'object') {
+      throw new Error(t("请求参数无效"))
+    }
+    return aliStore.update(payload.id, payload.patch)
+  })
+
+  ipcMain.handle('ali:session:delete', async (_event, id: string) => {
+    if (typeof id !== 'string' || !id) throw new Error(t("请求参数无效"))
+    await aliStore.remove(id)
+  })
+
+  ipcMain.handle('ali:send', async (event, req: AliSendRequest) => {
+    const sender = event.sender
+    const finish = (): void => setPetBusy(req.requestId, false)
+    setPetBusy(req.requestId, true)
+    const emit = (payload: AliEvent): void => {
+      if (payload.type === 'done' || payload.type === 'error') {
+        finish()
+        if (payload.type === 'done') celebratePet()
+      }
+      if (!sender.isDestroyed()) sender.send('ali:event', payload)
+    }
+    void sendAli(req, emit).catch(() => finish())
+    return { ok: true }
+  })
+
+  ipcMain.handle('ali:cancel', async (_event, requestId: string) => {
+    if (typeof requestId === 'string') cancelAli(requestId)
+  })
+
+  ipcMain.handle('ali:test', () => testAliConnection())
+
+  ipcMain.handle('ali:memory:undo', async (_event, lines: string[]) => {
+    if (!Array.isArray(lines)) return 0
+    return removeMemoryLines(lines.filter((line): line is string => typeof line === 'string'))
+  })
+
+  ipcMain.handle('ali:help', () => loadHelpSections())
+
+  ipcMain.handle('ali:memory:get', () => aliMemory.getState())
+
+  ipcMain.handle('ali:memory:save', async (_event, payload: { doc: string; content: string }) => {
+    if (!payload || typeof payload.doc !== 'string' || typeof payload.content !== 'string') {
+      throw new Error(t("请求参数无效"))
+    }
+    await aliMemory.save(payload.doc, payload.content)
+    return aliMemory.getState()
+  })
+
+  ipcMain.handle('ali:memory:remove', async (_event, doc: string) => {
+    await aliMemory.deleteTopic(doc)
+  })
+
+  ipcMain.handle('ali:memory:pin', async (_event, payload: { doc: string; pinned: boolean }) => {
+    await aliMemory.setPinned(payload.doc, !!payload.pinned)
+  })
+
+  ipcMain.handle('ali:memory:clear', async () => {
+    await aliMemory.clear()
+  })
+
+  ipcMain.handle('ali:memory:consolidate', () => consolidateMemory(true))
+
+  ipcMain.handle('ali:memory:restore', async (_event, payload: { doc: 'MEMORY.md' | 'SELF.md'; line: string }) => {
+    await restoreMemoryLine(payload.doc, payload.line)
+  })
+
+  ipcMain.handle('ali:memory:export', async () => {
+    const entries: { name: string; data: Buffer }[] = []
+    const add = async (rel: string): Promise<void> => {
+      try {
+        entries.push({ name: rel.replace(/\\/g, '/'), data: await fs.readFile(path.join(aliMemory.root, rel)) })
+      } catch {
+        // missing files are skipped
+      }
+    }
+    await add('SELF.md')
+    await add('MEMORY.md')
+    for (const dir of ['topics', 'archive']) {
+      const names = await fs.readdir(path.join(aliMemory.root, dir)).catch(() => [] as string[])
+      for (const name of names) if (name.endsWith('.md')) await add(`${dir}/${name}`)
+    }
+    const zip = createZip(entries)
+    const result = await dialog.showSaveDialog({
+      title: t("导出阿栗记忆"),
+      defaultPath: path.join(app.getPath('downloads'), `阿栗记忆-${new Date().toISOString().slice(0, 10)}.zip`),
+      filters: [{ name: 'ZIP', extensions: ['zip'] }]
+    })
+    if (result.canceled || !result.filePath) return { canceled: true }
+    await fs.writeFile(result.filePath, zip)
+    return { canceled: false, filePath: result.filePath }
+  })
+
+  ipcMain.handle('ali:memory:import', async () => {
+    const result = await dialog.showOpenDialog({
+      title: t("导入阿栗记忆"),
+      properties: ['openFile'],
+      filters: [{ name: 'ZIP', extensions: ['zip'] }]
+    })
+    if (result.canceled || !result.filePaths[0]) return { canceled: true }
+    const choice = await dialog.showMessageBox({
+      type: 'question',
+      buttons: [t("合并"), t("覆盖"), t("取消")],
+      defaultId: 0,
+      cancelId: 2,
+      message: t("如何导入阿栗记忆？"),
+      detail: t("合并会保留现有内容并追加新条目；覆盖会替换同名记忆文件。")
+    })
+    if (choice.response === 2) return { canceled: true }
+    const mode = choice.response === 1 ? 'overwrite' : 'merge'
+    const entries = readZip(await fs.readFile(result.filePaths[0]))
+    let imported = 0
+    for (const entry of entries) {
+      const name = entry.name.replace(/\\/g, '/')
+      if (!/^(SELF|MEMORY)\.md$|^(topics|archive)\/[a-z0-9][a-z0-9._-]{0,80}\.md$/i.test(name)) continue
+      const target = path.normalize(path.join(aliMemory.root, name))
+      if (!target.startsWith(aliMemory.root + path.sep)) continue
+      await fs.mkdir(path.dirname(target), { recursive: true })
+      if (mode === 'merge') {
+        const incoming = entry.data.toString('utf8')
+        const existing = await fs.readFile(target, 'utf-8').catch(() => '')
+        if (existing) {
+          const additions = incoming
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith('- ') && !existing.includes(line))
+          await fs.writeFile(target, `${existing.trimEnd()}\n${additions.join('\n')}${additions.length ? '\n' : ''}`, 'utf8')
+        } else {
+          await fs.writeFile(target, incoming)
+        }
+      } else {
+        await fs.writeFile(target, entry.data)
+      }
+      imported += 1
+    }
+    return { canceled: false, imported, mode }
+  })
+
   ipcMain.handle('chat:send', async (event, req: ChatRequest) => {
     const sender = event.sender
     const send = (payload: ChatEvent): void => {
       if (!sender.isDestroyed()) sender.send('chat:event', payload)
     }
+    const finish = (): void => setPetBusy(req.requestId, false)
+    setPetBusy(req.requestId, true)
     const attachments: InboxAttachment[] = []
     void streamChat(req, {
       onDelta: (delta) => send({ requestId: req.requestId, type: 'delta', delta }),
@@ -521,8 +675,15 @@ export function registerIpc(): void {
         attachments.push(attachment)
         send({ requestId: req.requestId, type: 'attachment', attachment })
       },
-      onDone: (content) => send({ requestId: req.requestId, type: 'done', content, attachments }),
-      onError: (error) => send({ requestId: req.requestId, type: 'error', error, attachments })
+      onDone: (content) => {
+        finish()
+        celebratePet()
+        send({ requestId: req.requestId, type: 'done', content, attachments })
+      },
+      onError: (error) => {
+        finish()
+        send({ requestId: req.requestId, type: 'error', error, attachments })
+      }
     })
     return { ok: true }
   })
@@ -580,7 +741,7 @@ export function registerIpc(): void {
       const baseName =
         path.basename(payload.name || payload.file).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_') || 'attachment'
       const result = await dialog.showSaveDialog({
-        title: '保存附件',
+        title: t("保存附件"),
         defaultPath: path.join(app.getPath('downloads'), baseName)
       })
       if (result.canceled || !result.filePath) return { canceled: true }
@@ -649,13 +810,13 @@ export function registerIpc(): void {
     'translate:export-image',
     async (_event, payload: { id: string; variant: 'original' | 'translated' }) => {
       const record = store.data.translations.find((item) => item.id === payload.id)
-      if (!record) throw new Error('翻译记录不存在')
+      if (!record) throw new Error(t("翻译记录不存在"))
       const file = payload.variant === 'translated' ? record.translatedImageFile : record.imageFile
-      if (!file) throw new Error('该记录没有可导出的图片')
+      if (!file) throw new Error(t("该记录没有可导出的图片"))
       const result = await dialog.showSaveDialog({
-        title: '保存翻译截图',
-        defaultPath: path.join(app.getPath('pictures'), `截图翻译-${record.id.slice(0, 8)}.png`),
-        filters: [{ name: 'PNG 图片', extensions: ['png'] }]
+        title: t("保存翻译截图"),
+        defaultPath: path.join(app.getPath('pictures'), t("截图翻译-{0}.png", [record.id.slice(0, 8)])),
+        filters: [{ name: t("PNG 图片"), extensions: ['png'] }]
       })
       if (result.canceled || !result.filePath) return { canceled: true }
       await fs.copyFile(path.join(store.translationsDir, file), result.filePath)
@@ -675,7 +836,11 @@ export function registerIpc(): void {
     if (clean.usagePricing) {
       clean.usagePricing = normalizePricing(clean.usagePricing as never)
     }
-    return store.updateSettings(clean as never)
+    const updated = await store.updateSettings(clean as never)
+    setLocale(updated.language)
+    applyPetSettings({ enabled: updated.petEnabled, bubbles: updated.petBubbles })
+    broadcast('settings:changed', updated)
+    return updated
   })
 
   ipcMain.handle('settings:test', async () => {

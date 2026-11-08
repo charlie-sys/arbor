@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: zotfile:; connect-src 'self' http: https: ws: wss:; font-src 'self' data:;"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var savedTheme = localStorage.getItem('zotagent-theme')
+        var savedDark = savedTheme === 'dark' || savedTheme === 'midnight'
+        if (savedTheme) document.documentElement.dataset.theme = savedTheme
+        if (savedDark) document.documentElement.dataset.dark = 'true'
+      } catch (error) {}
+    </script>
+    <title>阿栗 — Arbor</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/aliChat.tsx"></script>
+  </body>
+</html>

@@ -4,6 +4,7 @@ import type { ChatSession, LibraryData } from '@shared/types'
 import ChatThread from './ChatThread'
 import ComposeModal from './ComposeModal'
 import { cx, formatTime } from '../ui'
+import { t } from '@shared/i18n'
 
 interface Props {
   data: LibraryData
@@ -49,20 +50,20 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
       setShowNew(false)
       setSelectedDocs([])
     } catch (err) {
-      notify(`创建对话失败：${(err as Error).message}`, 'error')
+      notify(t("创建对话失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setCreating(false)
     }
   }
 
   const deleteChat = async (chat: ChatSession): Promise<void> => {
-    if (!window.confirm('删除这个对话？')) return
+    if (!window.confirm(t("删除这个对话？"))) return
     try {
       await window.api.chats.remove(chat.id)
       await onChanged()
-      notify('对话已删除', 'success')
+      notify(t("对话已删除"), 'success')
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -75,21 +76,19 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
       <aside className="chat-sessions">
         <div className="sessions-head">
           <div>
-            <div className="sessions-title">对话</div>
-            <div className="muted small">{chats.length} 个会话</div>
+            <div className="sessions-title">{t("对话")}</div>
+            <div className="muted small">{chats.length} {' '}{t("个会话")}</div>
           </div>
           <button className="btn primary small" onClick={() => setShowNew(true)}>
-            <Plus size={14} /> 新建
-          </button>
+            <Plus size={14} /> {' '}{t("新建")}{' '}</button>
         </div>
         <div className="sessions-list">
           {chats.length === 0 && (
             <div className="sessions-empty">
               <MessagesSquare size={22} />
-              <span>还没有对话</span>
+              <span>{t("还没有对话")}</span>
               <button className="btn ghost small" onClick={() => setShowNew(true)}>
-                新建对话
-              </button>
+                {' '}{t("新建对话")}{' '}</button>
             </div>
           )}
           {chats.map((chat) => (
@@ -100,12 +99,12 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
             >
               <div className="session-title">{chat.title}</div>
               <div className="session-meta">
-                <span>{chat.docIds.length ? `${chat.docIds.length} 篇文献` : '未引用文献'}</span>
+                <span>{chat.docIds.length ? t("{0} 篇文献", [chat.docIds.length]) : t("未引用文献")}</span>
                 <span>{formatTime(chat.updatedAt)}</span>
               </div>
               <button
                 className="icon-btn tiny session-delete"
-                title="删除对话"
+                title={t("删除对话")}
                 onClick={(event) => {
                   event.stopPropagation()
                   void deleteChat(chat)
@@ -126,25 +125,22 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
                 <h2>{activeChat.title}</h2>
                 <div className="chat-doc-chips">
                   {docs.map((doc) => (
-                    <button key={doc.id} className="doc-chip" onClick={() => onOpenDoc(doc.id)} title="打开文献">
+                    <button key={doc.id} className="doc-chip" onClick={() => onOpenDoc(doc.id)} title={t("打开文献")}>
                       <FileText size={12} />
                       {doc.title.length > 28 ? `${doc.title.slice(0, 28)}…` : doc.title}
                     </button>
                   ))}
-                  {!docs.length && <span className="muted small">未引用文献（一般对话）</span>}
+                  {!docs.length && <span className="muted small">{t("未引用文献（一般对话）")}</span>}
                 </div>
               </div>
               <button className="btn ghost small" onClick={() => setComposeChat(activeChat)}>
-                <Sparkles size={14} /> 整理为文档
-              </button>
+                <Sparkles size={14} /> {' '}{t("整理为文档")}{' '}</button>
             </header>
 
             {!data.settings.apiKey && (
               <div className="notice">
-                尚未配置模型 API，Agent 暂时无法回答。
-                <button className="link-btn" onClick={onOpenSettings}>
-                  去设置
-                </button>
+                {' '}{t("尚未配置模型 API，Agent 暂时无法回答。")}{' '}<button className="link-btn" onClick={onOpenSettings}>
+                  {' '}{t("去设置")}{' '}</button>
               </div>
             )}
           </>
@@ -153,11 +149,10 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
             <div className="empty-icon">
               <MessagesSquare size={28} />
             </div>
-            <h2>开始一次研究对话</h2>
-            <p className="muted">选择一个已有对话，或新建对话并勾选要引用的文献。</p>
+            <h2>{t("开始一次研究对话")}</h2>
+            <p className="muted">{t("选择一个已有对话，或新建对话并勾选要引用的文献。")}</p>
             <button className="btn primary" onClick={() => setShowNew(true)}>
-              <Plus size={16} /> 新建对话
-            </button>
+              <Plus size={16} /> {' '}{t("新建对话")}{' '}</button>
           </div>
         )}
 
@@ -187,35 +182,34 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
           <div className="modal new-chat-modal">
             <div className="modal-head">
               <div>
-                <h3>新建对话</h3>
-                <p className="muted">勾选需要引用的文献；不勾选则进行不引用文献的普通对话。</p>
+                <h3>{t("新建对话")}</h3>
+                <p className="muted">{t("勾选需要引用的文献；不勾选则进行不引用文献的普通对话。")}</p>
               </div>
-              <button className="icon-btn" onClick={() => setShowNew(false)} title="关闭">
+              <button className="icon-btn" onClick={() => setShowNew(false)} title={t("关闭")}>
                 <X size={18} />
               </button>
             </div>
             <div className="doc-picker">
-              {data.documents.length === 0 && <div className="muted">文献库为空，可直接创建普通对话。</div>}
+              {data.documents.length === 0 && <div className="muted">{t("文献库为空，可直接创建普通对话。")}</div>}
               {data.documents.map((doc) => (
                 <label key={doc.id} className={cx('doc-pick-item', selectedDocs.includes(doc.id) && 'checked')}>
                   <input type="checkbox" checked={selectedDocs.includes(doc.id)} onChange={() => toggleDoc(doc.id)} />
                   <div>
                     <div className="doc-pick-title">{doc.title}</div>
                     <div className="muted small">
-                      {[doc.authors, doc.year].filter(Boolean).join(' · ') || '未填写元数据'}
+                      {[doc.authors, doc.year].filter(Boolean).join(' · ') || t("未填写元数据")}
                     </div>
                   </div>
                 </label>
               ))}
             </div>
             <div className="modal-foot">
-              <div className="muted small">已选择 {selectedDocs.length} 篇</div>
+              <div className="muted small">{t("已选择")}{' '}{selectedDocs.length} {' '}{t("篇")}</div>
               <div className="modal-actions">
                 <button className="btn ghost" onClick={() => setShowNew(false)}>
-                  取消
-                </button>
+                  {' '}{t("取消")}{' '}</button>
                 <button className="btn primary" onClick={() => void createChat()} disabled={creating}>
-                  {creating ? '创建中…' : '创建对话'}
+                  {creating ? t("创建中…") : t("创建对话")}
                 </button>
               </div>
             </div>

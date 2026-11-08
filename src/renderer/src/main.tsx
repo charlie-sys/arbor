@@ -5,6 +5,16 @@ import DetachedPanel from './DetachedPanel'
 import type { ReaderPanelTab } from '@shared/api'
 import './styles.css'
 import './themes.css'
+import './ali.css'
+import { getLocale, localeFromStored, localeTag, setLocale, t } from '@shared/i18n'
+
+try {
+  setLocale(localeFromStored(window.localStorage.getItem('arbor-locale')))
+} catch {
+  /* 首次启动时使用简体中文，数据加载后按设置纠正 */
+}
+document.documentElement.lang = localeTag(getLocale())
+document.title = t('Arbor — 文献阅读与 AI 研究工坊')
 
 const params = new URLSearchParams(window.location.search)
 const docId = params.get('docId')

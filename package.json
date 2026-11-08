@@ -1,12 +1,13 @@
 {
   "name": "arbor-desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Arbor — 文献阅读、知识整理与 AI 研究工坊",
   "author": "Arbor",
   "main": "./out/main/index.js",
   "private": true,
   "scripts": {
     "prepare:pdfjs": "node scripts/prepare-pdfjs.mjs",
+    "pet:render": "node scripts/render-pet.mjs",
     "predev": "npm run prepare:pdfjs",
     "dev": "electron-vite dev",
     "prebuild": "npm run prepare:pdfjs",
@@ -19,11 +20,22 @@
     "progress:verify": "node scripts/progress.mjs verify",
     "progress:block": "node scripts/progress.mjs block",
     "progress:reset": "node scripts/progress.mjs reset",
-    "progress:status": "node scripts/progress.mjs status"
+    "progress:status": "node scripts/progress.mjs status",
+    "ali:sync": "node scripts/ali-loop.mjs sync",
+    "ali:audit": "node scripts/ali-loop.mjs audit",
+    "ali:next": "node scripts/ali-loop.mjs next",
+    "ali:verify": "node scripts/ali-loop.mjs verify",
+    "ali:block": "node scripts/ali-loop.mjs block",
+    "ali:reset": "node scripts/ali-loop.mjs reset",
+    "ali:status": "node scripts/ali-loop.mjs status",
+    "ali:lock": "node scripts/ali-loop.mjs lock",
+    "ali:unlock": "node scripts/ali-loop.mjs unlock",
+    "ali:doctor": "node scripts/ali-loop.mjs doctor"
   },
   "dependencies": {
     "docx": "^9.5.0",
     "mammoth": "^1.13.0",
+    "opencc-js": "^1.4.2",
     "word-extractor": "^1.0.4",
     "xlsx": "^0.18.5"
   },
@@ -44,6 +56,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "sharp": "^0.33.5",
     "typescript": "^5.9.0",
     "vite": "^7.1.0"
   },
@@ -57,6 +70,7 @@
     },
     "files": [
       "out/**/*",
+      "docs/使用说明.md",
       "package.json"
     ],
     "win": {

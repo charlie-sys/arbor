@@ -21,6 +21,7 @@ import type { InboxAttachment, InboxItem, InboxKind, InboxSuggestion } from '@sh
 import { formatTime, cx, Markdown } from '../ui'
 import { useUnsavedChanges } from '../unsaved'
 import MarkdownEditorModal from './MarkdownEditorModal'
+import { t } from '@shared/i18n'
 
 const KIND_LABEL: Record<InboxKind, string> = {
   text: '文本',
@@ -73,16 +74,16 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
 
   const runSuggest = async (): Promise<void> => {
     if (!active.length) {
-      notify('灵感收集里还没有待整理内容', 'info')
+      notify(t("灵感收集里还没有待整理内容"), 'info')
       return
     }
     setSuggesting(true)
     try {
       const result = await window.api.inbox.suggest()
       setSuggestions(result)
-      notify(result.length ? `AI 给出 ${result.length} 条归类建议，请逐条确认` : 'AI 没有给出新的归类建议', result.length ? 'success' : 'info')
+      notify(result.length ? t("AI 给出 {0} 条归类建议，请逐条确认", [result.length]) : t("AI 没有给出新的归类建议"), result.length ? 'success' : 'info')
     } catch (err) {
-      notify(`AI 整理失败：${(err as Error).message}`, 'error')
+      notify(t("AI 整理失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setSuggesting(false)
     }
@@ -93,9 +94,9 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
       await window.api.inbox.apply(suggestion.inboxId, suggestion)
       setSuggestions((prev) => prev.filter((entry) => entry !== suggestion))
       await onChanged()
-      notify(`已写入${SUGGESTION_LABEL[suggestion.type]}「${suggestion.value}」`, 'success')
+      notify(t("已写入{0}「{1}」", [t(SUGGESTION_LABEL[suggestion.type]), suggestion.value]), 'success')
     } catch (err) {
-      notify(`采纳建议失败：${(err as Error).message}`, 'error')
+      notify(t("采纳建议失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -105,18 +106,18 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
       setSuggestions((prev) => prev.filter((entry) => entry.inboxId !== item.id))
       await onChanged()
     } catch (err) {
-      notify(`操作失败：${(err as Error).message}`, 'error')
+      notify(t("操作失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const removeItem = async (item: InboxItem): Promise<void> => {
-    if (!window.confirm('删除这条捕获内容？')) return
+    if (!window.confirm(t("删除这条捕获内容？"))) return
     try {
       await window.api.inbox.remove(item.id)
       setSuggestions((prev) => prev.filter((entry) => entry.inboxId !== item.id))
       await onChanged()
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -125,9 +126,9 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
       await window.api.tasks.add({ title: item.title || item.content.slice(0, 80), docId: item.docId, inboxId: item.id })
       await window.api.inbox.update(item.id, { archived: true })
       await onChanged()
-      notify('已转为任务', 'success')
+      notify(t("已转为任务"), 'success')
     } catch (err) {
-      notify(`转为任务失败：${(err as Error).message}`, 'error')
+      notify(t("转为任务失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -164,7 +165,7 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
 
   const closeEditor = (): void => {
     if (inboxEditorDirty) {
-      notify('灵感收集有未保存的修改，请先保存', 'info')
+      notify(t("灵感收集有未保存的修改，请先保存"), 'info')
       return
     }
     setEditing(null)
@@ -173,7 +174,7 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
   const persistEditor = async (): Promise<boolean> => {
     if (!editing) return false
     if (!draftContent.trim()) {
-      notify('内容不能为空', 'error')
+      notify(t("内容不能为空"), 'error')
       return false
     }
     try {
@@ -181,7 +182,7 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
       await onChanged()
       return true
     } catch (err) {
-      notify(`保存失败：${(err as Error).message}`, 'error')
+      notify(t("保存失败：{0}", [(err as Error).message]), 'error')
       return false
     }
   }
@@ -189,7 +190,7 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
   const saveEditor = async (): Promise<void> => {
     if (!(await persistEditor())) return
     setEditing(null)
-    notify('灵感收集已更新', 'success')
+    notify(t("灵感收集已更新"), 'success')
   }
 
   const uploadAttachments = async (kind: 'image' | 'file'): Promise<void> => {
@@ -200,15 +201,15 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
       setEditing((prev) =>
         prev ? { ...prev, attachments: [...(prev.attachments ?? []), ...added] } : prev
       )
-      notify(`已上传 ${added.length} 个文件`, 'success')
+      notify(t("已上传 {0} 个文件", [added.length]), 'success')
     } catch (err) {
-      notify(`上传失败：${(err as Error).message}`, 'error')
+      notify(t("上传失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const removeAttachment = async (attachment: InboxAttachment): Promise<void> => {
     if (!editing) return
-    if (!window.confirm(`删除附件「${attachment.name}」？`)) return
+    if (!window.confirm(t("删除附件「{0}」？", [attachment.name]))) return
     try {
       await window.api.inbox.removeAttachment(editing.id, attachment.id)
       setEditing((prev) =>
@@ -216,9 +217,9 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
           ? { ...prev, attachments: (prev.attachments ?? []).filter((entry) => entry.id !== attachment.id) }
           : prev
       )
-      notify('附件已删除', 'success')
+      notify(t("附件已删除"), 'success')
     } catch (err) {
-      notify(`删除附件失败：${(err as Error).message}`, 'error')
+      notify(t("删除附件失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -238,9 +239,9 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
     if (!(await persistEditor())) return
     try {
       const result = await window.api.inbox.exportZip(editing.id)
-      if (!result.canceled && result.filePath) notify(`已导出：${result.filePath}`, 'success')
+      if (!result.canceled && result.filePath) notify(t("已导出：{0}", [result.filePath]), 'success')
     } catch (err) {
-      notify(`导出失败：${(err as Error).message}`, 'error')
+      notify(t("导出失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -265,54 +266,50 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
     <div className="view inbox-view">
       <header className="view-head">
         <div>
-          <h1>灵感收集</h1>
-          <p className="muted">快速捕获文本、链接、摘录与待办；Ctrl+N 可从任意页面唤起。</p>
+          <h1>{t("灵感收集")}</h1>
+          <p className="muted">{t("快速捕获文本、链接、摘录与待办；Ctrl+N 可从任意页面唤起。")}</p>
         </div>
         <div className="inbox-head-actions">
           <button className="btn ghost" onClick={() => void runSuggest()} disabled={suggesting || !active.length}>
-            <Sparkles size={15} /> {suggesting ? '整理中…' : 'AI 整理'}
+            <Sparkles size={15} /> {suggesting ? t("整理中…") : t("AI 整理")}
           </button>
           <button className="btn primary" onClick={onCapture}>
-            <Plus size={15} /> 快速捕获
-          </button>
+            <Plus size={15} /> {' '}{t("快速捕获")}{' '}</button>
         </div>
       </header>
 
       <div className="inbox-tabs">
         <button className={cx('chip-button', !showArchived && 'active')} onClick={() => setShowArchived(false)}>
-          待处理 {active.length}
+          {' '}{t("待处理")}{' '}{active.length}
         </button>
         <button className={cx('chip-button', showArchived && 'active')} onClick={() => setShowArchived(true)}>
-          已归档 {archived.length}
+          {' '}{t("已归档")}{' '}{archived.length}
         </button>
       </div>
 
       {suggestions.length > 0 && (
         <section className="card inbox-suggest-card">
           <h2>
-            <Sparkles size={15} /> AI 归类建议（确认后才会写入）
-          </h2>
+            <Sparkles size={15} /> {' '}{t("AI 归类建议（确认后才会写入）")}{' '}</h2>
           <div className="suggest-list">
             {suggestions.map((suggestion, index) => {
               const source = items.find((item) => item.id === suggestion.inboxId)
               return (
                 <div key={`${suggestion.inboxId}-${suggestion.type}-${suggestion.value}-${index}`} className="suggest-item">
                   <div className="suggest-main">
-                    <span className="inbox-kind">{SUGGESTION_LABEL[suggestion.type]}</span>
+                    <span className="inbox-kind">{t(SUGGESTION_LABEL[suggestion.type])}</span>
                     <strong>{suggestion.value}</strong>
                     {source && <span className="muted small">· {source.content.slice(0, 40)}</span>}
                     {suggestion.reason && <div className="muted small">{suggestion.reason}</div>}
                   </div>
                   <div className="suggest-actions">
                     <button className="btn small primary" onClick={() => void acceptSuggestion(suggestion)}>
-                      <Check size={13} /> 采纳
-                    </button>
+                      <Check size={13} /> {' '}{t("采纳")}{' '}</button>
                     <button
                       className="btn small ghost"
                       onClick={() => setSuggestions((prev) => prev.filter((entry) => entry !== suggestion))}
                     >
-                      忽略
-                    </button>
+                      {' '}{t("忽略")}{' '}</button>
                   </div>
                 </div>
               )
@@ -326,22 +323,21 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
           <div className="empty-icon">
             <Inbox size={26} />
           </div>
-          <h2>{showArchived ? '还没有归档内容' : '灵感收集是空的'}</h2>
+          <h2>{showArchived ? t("还没有归档内容") : t("灵感收集是空的")}</h2>
           <p className="muted">
-            {showArchived ? '归档后的内容会出现在这里。' : '按 Ctrl+N 快速捕获想法、链接或待办。'}
+            {showArchived ? t("归档后的内容会出现在这里。") : t("按 Ctrl+N 快速捕获想法、链接或待办。")}
           </p>
           {!showArchived && (
             <button className="btn primary" onClick={onCapture}>
-              <Plus size={15} /> 快速捕获
-            </button>
+              <Plus size={15} /> {' '}{t("快速捕获")}{' '}</button>
           )}
         </div>
       ) : (
         <div className="inbox-list">
           {visible.map((item) => (
-            <article key={item.id} className="inbox-item" onClick={() => openEditor(item)} title="点击编辑内容">
+            <article key={item.id} className="inbox-item" onClick={() => openEditor(item)} title={t("点击编辑内容")}>
               <div className="inbox-item-head">
-                <span className={`inbox-kind kind-${item.kind}`}>{KIND_LABEL[item.kind]}</span>
+                <span className={`inbox-kind kind-${item.kind}`}>{t(KIND_LABEL[item.kind])}</span>
                 {item.title && <span className="inbox-title">{item.title}</span>}
                 <span className="muted small">{formatTime(item.createdAt)}</span>
               </div>
@@ -373,21 +369,18 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
                 <div className="inbox-actions">
                   {!item.archived && item.kind !== 'todo' && (
                     <button className="link-btn" onClick={() => void convertToTask(item)}>
-                      转为任务
-                    </button>
+                      {' '}{t("转为任务")}{' '}</button>
                   )}
                   <button className="link-btn" onClick={() => void toggleArchive(item)}>
                     {item.archived ? (
                       <>
-                        <RotateCcw size={12} /> 恢复
-                      </>
+                        <RotateCcw size={12} /> {' '}{t("恢复")}{' '}</>
                     ) : (
                       <>
-                        <Archive size={12} /> 归档
-                      </>
+                        <Archive size={12} /> {' '}{t("归档")}{' '}</>
                     )}
                   </button>
-                  <button className="icon-btn tiny" title="删除" onClick={() => void removeItem(item)}>
+                  <button className="icon-btn tiny" title={t("删除")} onClick={() => void removeItem(item)}>
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -400,7 +393,7 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
       {editing && (
         <MarkdownEditorModal
           key={editing.id}
-          heading="编辑灵感内容"
+          heading={t("编辑灵感内容")}
           initialTitle={editing.title}
           initialContent={editing.content}
           attachments={editing.attachments ?? []}
@@ -410,12 +403,12 @@ export default function InboxView({ items, onCapture, onChanged, notify }: Inbox
           onRemoveAttachment={(attachmentId) => window.api.inbox.removeAttachment(editing.id, attachmentId)}
           onExportZip={async () => {
             const result = await window.api.inbox.exportZip(editing.id)
-            if (!result.canceled && result.filePath) notify(`已导出：${result.filePath}`, 'success')
+            if (!result.canceled && result.filePath) notify(t("已导出：{0}", [result.filePath]), 'success')
           }}
           onSave={async (title, content) => {
             await window.api.inbox.update(editing.id, { title, content })
             await onChanged()
-            notify('灵感收集已更新', 'success')
+            notify(t("灵感收集已更新"), 'success')
             return true
           }}
           onClose={() => setEditing(null)}
@@ -442,7 +435,7 @@ export function QuickCapture({ onClose, onSaved, notify }: QuickCaptureProps): R
   useUnsavedChanges('quick-capture', quickDraftDirty)
   const closeCapture = (): void => {
     if (quickDraftDirty) {
-      notify('有未保存的捕获内容，请先保存', 'info')
+      notify(t("有未保存的捕获内容，请先保存"), 'info')
       return
     }
     onClose()
@@ -451,7 +444,7 @@ export function QuickCapture({ onClose, onSaved, notify }: QuickCaptureProps): R
   const submit = async (): Promise<void> => {
     const text = content.trim()
     if (!text) {
-      notify('请输入捕获内容', 'error')
+      notify(t("请输入捕获内容"), 'error')
       return
     }
     setSaving(true)
@@ -465,10 +458,10 @@ export function QuickCapture({ onClose, onSaved, notify }: QuickCaptureProps): R
         due: kind === 'todo' ? due || undefined : undefined
       })
       await onSaved()
-      notify(kind === 'todo' ? '已捕获待办并创建任务' : '已存入灵感收集', 'success')
+      notify(kind === 'todo' ? t("已捕获待办并创建任务") : t("已存入灵感收集"), 'success')
       onClose()
     } catch (err) {
-      notify(`捕获失败：${(err as Error).message}`, 'error')
+      notify(t("捕获失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setSaving(false)
     }
@@ -490,10 +483,10 @@ export function QuickCapture({ onClose, onSaved, notify }: QuickCaptureProps): R
       >
         <div className="modal-head">
           <div>
-            <h3>快速捕获</h3>
-            <p className="muted">内容会保存到灵感收集；待办同时创建任务。</p>
+            <h3>{t("快速捕获")}</h3>
+            <p className="muted">{t("内容会保存到灵感收集；待办同时创建任务。")}</p>
           </div>
-          <button className="icon-btn" title="关闭" onClick={closeCapture}>
+          <button className="icon-btn" title={t("关闭")} onClick={closeCapture}>
             <X size={16} />
           </button>
         </div>
@@ -505,39 +498,38 @@ export function QuickCapture({ onClose, onSaved, notify }: QuickCaptureProps): R
                 className={cx('chip-button', kind === value && 'active')}
                 onClick={() => setKind(value)}
               >
-                {KIND_LABEL[value]}
+                {t(KIND_LABEL[value])}
               </button>
             ))}
           </div>
           <label className="field">
-            <span>内容 *</span>
+            <span>{t("内容 *")}</span>
             <textarea
               autoFocus
               rows={5}
               value={content}
-              placeholder={kind === 'link' ? '粘贴链接或补充说明' : kind === 'todo' ? '要完成的事情' : '记录想法、摘录或要点…'}
+              placeholder={kind === 'link' ? t("粘贴链接或补充说明") : kind === 'todo' ? t("要完成的事情") : t("记录想法、摘录或要点…")}
               onChange={(event) => setContent(event.target.value)}
             />
           </label>
           <label className="field">
-            <span>标题（可选）</span>
-            <input value={title} placeholder="给这条内容一个标题" onChange={(event) => setTitle(event.target.value)} />
+            <span>{t("标题（可选）")}</span>
+            <input value={title} placeholder={t("给这条内容一个标题")} onChange={(event) => setTitle(event.target.value)} />
           </label>
           {kind === 'todo' && (
             <label className="field">
-              <span>截止日期（可选）</span>
+              <span>{t("截止日期（可选）")}</span>
               <input type="date" value={due} onChange={(event) => setDue(event.target.value)} />
             </label>
           )}
-          <div className="hint">Ctrl + Enter 保存，Esc 关闭。</div>
+          <div className="hint">{t("Ctrl + Enter 保存，Esc 关闭。")}</div>
         </div>
         <div className="modal-foot">
           <div className="modal-actions">
             <button className="btn ghost" onClick={closeCapture}>
-              取消
-            </button>
+              {' '}{t("取消")}{' '}</button>
             <button className="btn primary" disabled={saving} onClick={() => void submit()}>
-              {saving ? '保存中…' : '保存到灵感收集'}
+              {saving ? t("保存中…") : t("保存到灵感收集")}
             </button>
           </div>
         </div>

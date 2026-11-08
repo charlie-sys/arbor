@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Pin, PinOff, X } from 'lucide-react'
 import type { ReaderPanelQuote, ReaderPanelTab } from '@shared/api'
 import type { LibraryData } from '@shared/types'
@@ -6,6 +6,7 @@ import ReaderSidePanel from './components/ReaderSidePanel'
 import type { PdfOutlineItem } from './components/PdfViewer'
 import { cx } from './ui'
 import { applyTheme, readTheme } from './themes'
+import { getLocale, localeTag, setLocale, subscribeLocale, t } from '@shared/i18n'
 
 interface Props {
   docId: string
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function DetachedPanel({ docId, tab: initialTab }: Props): React.JSX.Element {
+  const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [data, setData] = useState<LibraryData | null>(null)
   const [tab, setTab] = useState<ReaderPanelTab>(initialTab)
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
@@ -34,10 +36,19 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
   const reload = useCallback(async (): Promise<void> => {
     const state = await window.api.library.getState()
     setData(state)
+    setLocale(state.settings.language)
   }, [])
 
   useEffect(() => {
-    document.title = '阅读面板 — Arbor'
+    document.documentElement.lang = localeTag(locale)
+    document.title = t('阅读面板 — Arbor')
+  }, [locale])
+
+  useEffect(() => {
+    return window.api.events.onSettingsChanged((next) => setLocale(next.language))
+  }, [])
+
+  useEffect(() => {
     applyTheme(readTheme())
     const onStorage = (event: StorageEvent): void => {
       if (event.key === 'zotagent-theme') applyTheme(readTheme())
@@ -68,7 +79,7 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
         setOutlineLoaded(payload.outlineLoaded)
         setFallbackToc(payload.fallbackToc)
       }),
-      window.api.events.onReaderPanelBlockClose(() => notify('有未保存的修改，请先保存')),
+      window.api.events.onReaderPanelBlockClose(() => notify(t("有未保存的修改，请先保存"))),
       window.api.events.onReaderPanelPinned((value) => setPinned(value))
     ]
     return () => {
@@ -99,24 +110,24 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
   const doc = data?.documents.find((item) => item.id === docId)
 
   if (!doc || !data) {
-    return <div className="panel-window panel-window-loading">正在加载阅读面板…</div>
+    return <div className="panel-window panel-window-loading">{t("正在加载阅读面板…")}</div>
   }
 
   return (
     <div className="panel-window">
       <header className="panel-window-head">
         <div className="panel-window-title" title={doc.title}>
-          <span className="panel-window-label">阅读面板</span>
+          <span className="panel-window-label">{t("阅读面板")}</span>
           <span className="panel-window-doc">{doc.title}</span>
         </div>
         <button
           className={cx('icon-btn', pinned && 'active')}
-          title={pinned ? '取消置顶' : '置顶窗口'}
+          title={pinned ? t("取消置顶") : t("置顶窗口")}
           onClick={() => void togglePin()}
         >
           {pinned ? <PinOff size={15} /> : <Pin size={15} />}
         </button>
-        <button className="icon-btn" title="收回面板" onClick={() => void window.api.readerPanel.close()}>
+        <button className="icon-btn" title={t("收回面板")} onClick={() => void window.api.readerPanel.close()}>
           <X size={15} />
         </button>
       </header>

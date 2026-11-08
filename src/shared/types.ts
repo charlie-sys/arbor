@@ -1,3 +1,6 @@
+import type { Locale } from './i18n'
+import type { AliSettings } from './ali'
+
 export interface TokenPrice {
   // 每百万 token 单价
   input: number
@@ -11,6 +14,7 @@ export interface UsagePricing {
 }
 
 export interface AppSettings {
+  language: Locale
   apiBaseUrl: string
   apiKey: string
   chatModel: string
@@ -20,9 +24,12 @@ export interface AppSettings {
   maxContextChars: number
   systemPrompt: string
   usagePricing: UsagePricing
+  petEnabled: boolean
+  petBubbles: boolean
+  ali: AliSettings
 }
 
-export type UsageKind = 'chat' | 'compose' | 'translate' | 'action' | 'plan' | 'topic' | 'inbox' | 'test'
+export type UsageKind = 'chat' | 'compose' | 'translate' | 'action' | 'plan' | 'topic' | 'inbox' | 'test' | 'ali' | 'ali-memory'
 
 export interface UsageRecord {
   id: string

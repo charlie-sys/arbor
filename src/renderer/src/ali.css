@@ -1,0 +1,528 @@
+.ali-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ali-avatar {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+.ali-avatar.large {
+  width: 64px;
+  height: 64px;
+}
+
+.ali-head-text {
+  min-width: 0;
+}
+
+.ali-head-text h2 {
+  margin: 0;
+  max-width: 52vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ali-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 30px 8px;
+}
+
+.ali-suggestions-title {
+  font-size: 12px;
+  color: var(--text-faintest);
+}
+
+.ali-suggestions .suggestion {
+  text-align: left;
+}
+
+.ali-memory-undo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  max-width: 90%;
+  padding: 7px 11px;
+  border: 1px solid var(--border-accent-soft);
+  background: var(--accent-soft);
+  color: var(--text-soft);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.ali-memory-undo .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ali-source-badge {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-accent-soft);
+  border-radius: var(--pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ali-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.ali-tool-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  font-size: 11.5px;
+}
+
+.ali-tool-dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.ali-tool-dot.error {
+  background: var(--danger-dot);
+}
+
+.ali-tool-name {
+  font-weight: 600;
+}
+
+.ali-tool-summary {
+  color: var(--text-faintest);
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.ali-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--border-soft);
+}
+
+.ali-source-link {
+  color: var(--accent-strong);
+  font-size: 11.5px;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ali-source-link:hover {
+  text-decoration: underline;
+}
+
+.ali-search-status {
+  color: var(--accent-strong);
+}
+
+.ali-speak {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 8px;
+  margin-left: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ali-speak:hover {
+  background: var(--surface-hover);
+}
+
+.ali-voice-settings {
+  width: min(600px, 94vw);
+  max-height: 88vh;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.5rem;
+}
+
+.ali-voice-body {
+  padding: 4px 24px 10px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.ali-voice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--border-soft);
+  font-size: 12.5px;
+}
+
+.ali-voice-row > span {
+  flex: 0 0 auto;
+  min-width: 7.2em;
+}
+
+.ali-voice-row select,
+.ali-voice-row input[type='range'],
+.ali-voice-row input[type='text'],
+.ali-voice-row input[type='password'] {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+.ali-voice-row select,
+.ali-voice-row input[type='text'],
+.ali-voice-row input[type='password'] {
+  height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.ali-voice-row select:focus,
+.ali-voice-row input[type='text']:focus,
+.ali-voice-row input[type='password']:focus {
+  outline: none;
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.ali-voice-row input[type='range'] {
+  accent-color: var(--accent);
+}
+
+.ali-voice-settings .hint {
+  margin: 4px 0 8px;
+}
+
+.ali-voice-settings .modal-head {
+  padding-bottom: 12px;
+}
+
+.ali-voice-settings .modal-foot {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+@media (max-width: 560px) {
+  .ali-voice-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .ali-voice-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ali-voice-row > span {
+    min-width: 0;
+  }
+
+  .ali-voice-row select,
+  .ali-voice-row input[type='range'],
+  .ali-voice-row input[type='text'],
+  .ali-voice-row input[type='password'] {
+    width: 100%;
+  }
+}
+
+.ali-voice-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 2px;
+  font-size: 12.5px;
+}
+
+.ali-help-modal {
+  width: min(720px, 92vw);
+  max-height: 82vh;
+}
+
+.ali-help-body {
+  overflow-y: auto;
+  padding: 4px 2px 8px;
+  max-height: 60vh;
+}
+
+.ali-memory-panel {
+  width: min(860px, 94vw);
+  max-height: 88vh;
+}
+
+.ali-memory-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-soft);
+  padding: 0 2px;
+}
+
+.ali-memory-tab {
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.ali-memory-tab.active {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+}
+
+.ali-memory-usage {
+  display: flex;
+  gap: 18px;
+  padding: 8px 2px;
+  font-size: 11px;
+  color: var(--text-faintest);
+  font-variant-numeric: tabular-nums;
+}
+
+.ali-memory-editor {
+  width: 100%;
+  min-height: 150px;
+  max-height: 22vh;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  font-family: inherit;
+  outline: none;
+}
+
+.ali-memory-preview {
+  max-height: 24vh;
+  overflow-y: auto;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.ali-topic-list,
+.ali-archive-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 0;
+}
+
+.ali-topic-item,
+.ali-archive-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.ali-topic-item:hover,
+.ali-topic-item.active {
+  background: var(--accent-soft);
+  border-color: var(--border-accent-soft);
+}
+
+.ali-topic-title {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.ali-topic-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.ali-topic-actions .active {
+  color: var(--accent-strong);
+}
+
+.ali-archive-item {
+  cursor: default;
+  font-size: 12px;
+}
+
+.ali-memory-foot {
+  gap: 10px;
+}
+
+.ali-memory-tools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ali-memory-tools .danger {
+  color: var(--danger-text);
+}
+
+.ali-view .chat-messages .notice {
+  margin: 4px 0;
+}
+
+@media (max-width: 900px) {
+  .ali-view {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .ali-head-text h2 {
+    max-width: 40vw;
+  }
+}
+
+.ali-chat-window {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.ali-chat-toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+}
+
+.ali-view.compact {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ali-compact-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 12px 9px;
+}
+
+.ali-compact-head .ali-head {
+  gap: 8px;
+}
+
+.ali-compact-head .ali-head-text h2 {
+  max-width: none;
+}
+
+.ali-compact-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ali-compact-toolbar select {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.ali-compact-toolbar .icon-btn,
+.ali-compact-toolbar .btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .ali-view {
+    grid-template-columns: 156px minmax(0, 1fr);
+  }
+
+  .ali-view .sessions-head {
+    padding: 14px 10px 8px;
+  }
+
+  .ali-view .sessions-title {
+    font-size: 15px;
+  }
+
+  .ali-view .session-item {
+    padding: 8px 9px;
+  }
+
+  .ali-view .chat-head {
+    padding: 12px 14px 9px;
+  }
+
+  .ali-view .ali-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ali-view .ali-head-text h2 {
+    font-size: 14px;
+    max-width: 32vw;
+  }
+
+  .ali-view .composer {
+    padding: 8px;
+  }
+}
+
+@media (max-height: 620px) {
+  .ali-view .chat-head {
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+
+  .ali-view .composer textarea {
+    min-height: 46px;
+    max-height: 90px;
+  }
+}

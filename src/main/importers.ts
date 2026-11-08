@@ -2,6 +2,7 @@ import { promises as fs } from 'fs'
 import { dialog } from 'electron'
 import { store, uid } from './store'
 import type { DocumentMeta, ImportResult, ImportSummary } from '../shared/types'
+import { t } from '../shared/i18n'
 
 interface BibEntry {
   type: string
@@ -104,7 +105,7 @@ function entryToDocument(entry: BibEntry, now: number): DocumentMeta {
     .filter(Boolean)
   return {
     id: uid(),
-    title: fields.title || entry.key || '未命名文献',
+    title: fields.title || entry.key || t("未命名文献"),
     authors: splitAuthors(fields.author || fields.editor || ''),
     year: (fields.year || fields.date || '').slice(0, 4),
     journal,
@@ -120,13 +121,13 @@ function entryToDocument(entry: BibEntry, now: number): DocumentMeta {
     starred: false,
     readingStatus: 'unread',
     lastPage: 1,
-    notes: `导入自 BibTeX（@${entry.type}）`
+    notes: t("导入自 BibTeX（@{0}）", [entry.type])
   }
 }
 
 export async function importBibtexText(raw: string): Promise<ImportSummary> {
   const entries = parseBibtex(raw)
-  if (!entries.length) throw new Error('未在文件中找到 BibTeX 条目')
+  if (!entries.length) throw new Error(t("未在文件中找到 BibTeX 条目"))
   const summary: ImportSummary = { kind: 'bibtex', documentsAdded: 0, documentsMerged: 0, excerptsAdded: 0, skipped: 0 }
   const now = Date.now()
   for (const entry of entries) {
@@ -177,20 +178,20 @@ export async function importReadwiseText(raw: string): Promise<ImportSummary> {
   try {
     parsed = JSON.parse(raw)
   } catch {
-    throw new Error('Readwise 导出不是有效 JSON')
+    throw new Error(t("Readwise 导出不是有效 JSON"))
   }
   const books = Array.isArray(parsed)
     ? parsed
     : parsed && typeof parsed === 'object' && Array.isArray((parsed as { books?: unknown }).books)
       ? ((parsed as { books: unknown[] }).books as unknown[])
       : []
-  if (!books.length) throw new Error('未在文件中找到 Readwise 书籍或高亮')
+  if (!books.length) throw new Error(t("未在文件中找到 Readwise 书籍或高亮"))
 
   const summary: ImportSummary = { kind: 'readwise', documentsAdded: 0, documentsMerged: 0, excerptsAdded: 0, skipped: 0 }
   const now = Date.now()
   for (const item of books) {
     const book = (item ?? {}) as RawBook
-    const title = asText(book.title) || '未命名书籍'
+    const title = asText(book.title) || t("未命名书籍")
     const doc = store.data.documents.find((candidate) => normalizeTitle(candidate.title) === normalizeTitle(title))
     const highlights = Array.isArray(book.highlights) ? (book.highlights as RawHighlight[]) : []
     for (const rawHighlight of highlights) {
@@ -200,7 +201,7 @@ export async function importReadwiseText(raw: string): Promise<ImportSummary> {
         continue
       }
       const note = asText(rawHighlight?.note)
-      const answer = note ? `${text}\n\n笔记：${note}` : text
+      const answer = note ? t("{0}\n\n笔记：{1}", [text, note]) : text
       const duplicate = store.data.excerpts.some(
         (excerpt) => normalizeTitle(excerpt.docTitle) === normalizeTitle(title) && excerpt.answer.startsWith(text)
       )
@@ -231,11 +232,11 @@ export async function importReadwiseText(raw: string): Promise<ImportSummary> {
 
 export async function importBibtexDialog(): Promise<ImportResult> {
   const picked = await dialog.showOpenDialog({
-    title: '导入 BibTeX（Zotero 导出）',
+    title: t("导入 BibTeX（Zotero 导出）"),
     properties: ['openFile'],
     filters: [
       { name: 'BibTeX', extensions: ['bib', 'bibtex'] },
-      { name: '所有文件', extensions: ['*'] }
+      { name: t("所有文件"), extensions: ['*'] }
     ]
   })
   if (picked.canceled || !picked.filePaths.length) return { canceled: true }
@@ -245,11 +246,11 @@ export async function importBibtexDialog(): Promise<ImportResult> {
 
 export async function importReadwiseDialog(): Promise<ImportResult> {
   const picked = await dialog.showOpenDialog({
-    title: '导入 Readwise 高亮',
+    title: t("导入 Readwise 高亮"),
     properties: ['openFile'],
     filters: [
       { name: 'Readwise JSON', extensions: ['json'] },
-      { name: '所有文件', extensions: ['*'] }
+      { name: t("所有文件"), extensions: ['*'] }
     ]
   })
   if (picked.canceled || !picked.filePaths.length) return { canceled: true }

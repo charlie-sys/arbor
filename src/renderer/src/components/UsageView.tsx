@@ -4,6 +4,7 @@ import type { ActiveUsage, UsageKind, UsageRecord } from '@shared/types'
 import { cacheHitRate } from '@shared/usage'
 import { cx } from '../ui'
 import './UsageView.css'
+import { localeTag, t } from '@shared/i18n'
 
 type RangeId = '24h' | '7d' | '30d' | '90d' | 'all'
 
@@ -44,7 +45,9 @@ const KIND_LABEL: Record<UsageKind, string> = {
   plan: '阅读计划',
   topic: '主题问题',
   inbox: '灵感整理',
-  test: '连接测试'
+  test: '连接测试',
+  ali: '阿栗对话',
+  'ali-memory': '阿栗记忆'
 }
 
 const KIND_COLORS = [
@@ -136,16 +139,16 @@ function formatTick(ts: number, hourly: boolean): string {
 
 function formatFullTick(ts: number, hourly: boolean, stepMs: number): string {
   const date = new Date(ts)
-  const day = date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  const day = date.toLocaleDateString(localeTag(), { month: '2-digit', day: '2-digit' })
   if (hourly) {
     const end = new Date(ts + stepMs)
     return `${day} ${String(date.getHours()).padStart(2, '0')}:00–${String(end.getHours()).padStart(2, '0')}:00`
   }
-  return stepMs >= 7 * DAY ? `${day} 起一周` : day
+  return stepMs >= 7 * DAY ? t("{0} 起一周", [day]) : day
 }
 
 function formatClock(ts: number): string {
-  return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Date(ts).toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 function niceCeil(value: number): number {
@@ -327,37 +330,37 @@ function TrendChart({
           {metric === 'tokens' ? (
             <>
               <div className="tip-row">
-                <span>输入</span>
+                <span>{t("输入")}</span>
                 <b>{formatTokens(hovered.input)}</b>
               </div>
               <div className="tip-row">
-                <span>输出</span>
+                <span>{t("输出")}</span>
                 <b>{formatTokens(hovered.output)}</b>
               </div>
               <div className="tip-row">
-                <span>合计</span>
+                <span>{t("合计")}</span>
                 <b>{formatTokens(hovered.input + hovered.output)}</b>
               </div>
             </>
           ) : (
             <>
               <div className="tip-row">
-                <span>缓存命中率</span>
+                <span>{t("缓存命中率")}</span>
                 <b>{hovered.cacheKnown && hovered.cacheInput > 0 ? `${rateOf(hovered).toFixed(1)}%` : '—'}</b>
               </div>
               <div className="tip-row">
-                <span>命中 Token</span>
+                <span>{t("命中 Token")}</span>
                 <b>{hovered.cacheKnown ? formatTokens(hovered.cached) : '—'}</b>
               </div>
               <div className="tip-row">
-                <span>输入</span>
+                <span>{t("输入")}</span>
                 <b>{formatTokens(hovered.input)}</b>
               </div>
             </>
           )}
           <div className="tip-row">
-            <span>请求</span>
-            <b>{hovered.requests} 次</b>
+            <span>{t("请求")}</span>
+            <b>{hovered.requests} {' '}{t("次")}</b>
           </div>
         </div>
       )}
@@ -409,16 +412,16 @@ function KindDonut({ items, totalRequests }: { items: KindItem[]; totalRequests:
         </svg>
         <div className="usage-donut-center">
           <strong>{totalRequests}</strong>
-          <span>次调用</span>
+          <span>{t("次调用")}</span>
         </div>
       </div>
       <div className="usage-kind-list">
         {items.map((item) => (
           <div className="usage-kind-row" key={item.kind}>
             <i style={{ background: item.color }} />
-            <span>{item.label}</span>
+            <span>{t(item.label)}</span>
             <b>
-              {item.requests} 次 · {totalRequests ? Math.round((item.requests / totalRequests) * 100) : 0}%
+              {item.requests} {' '}{t("次 ·")}{' '}{totalRequests ? Math.round((item.requests / totalRequests) * 100) : 0}%
             </b>
           </div>
         ))}
@@ -438,7 +441,7 @@ function formatRecentTime(ts: number): string {
     date.getFullYear() === now.getFullYear() &&
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate()
-  if (sameDay) return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  if (sameDay) return date.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(
     date.getMinutes()
   ).padStart(2, '0')}`
@@ -554,7 +557,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
     const kinds = new Map<UsageKind, { requests: number; tokens: number }>()
     for (const record of records) {
       if (record.createdAt < stats.range.start || record.createdAt > stats.now) continue
-      const modelKey = record.model.trim() || '未命名模型'
+      const modelKey = record.model.trim() || t("未命名模型")
       const model = models.get(modelKey) ?? {
         model: modelKey,
         input: 0,
@@ -612,13 +615,13 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
   }, [breakdown.kindList])
 
   const clearRecords = async (): Promise<void> => {
-    if (!window.confirm('清空全部用量记录？该操作不可恢复。')) return
+    if (!window.confirm(t("清空全部用量记录？该操作不可恢复。"))) return
     setClearing(true)
     try {
       await window.api.usage.clear()
-      notify('已清空用量记录', 'success')
+      notify(t("已清空用量记录"), 'success')
     } catch (err) {
-      notify(`清空失败：${(err as Error).message}`, 'error')
+      notify(t("清空失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setClearing(false)
     }
@@ -635,7 +638,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
     const percent = ((current - previous) / previous) * 100
     if (!Number.isFinite(percent)) return null
     return {
-      text: `较上期 ${percent >= 0 ? '+' : ''}${percent.toFixed(1)}%`,
+      text: t("较上期 {0}{1}%", [percent >= 0 ? '+' : '', percent.toFixed(1)]),
       dir: percent > 0.5 ? 'up' : percent < -0.5 ? 'down' : 'flat'
     }
   }
@@ -647,7 +650,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
     const diff = current - previous
     if (!Number.isFinite(diff)) return null
     return {
-      text: `较上期 ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}pp`,
+      text: t("较上期 {0}{1}pp", [diff >= 0 ? '+' : '', diff.toFixed(1)]),
       dir: diff > 0.5 ? 'up' : diff < -0.5 ? 'down' : 'flat'
     }
   }
@@ -663,11 +666,11 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
     <div className="view usage-view">
       <header className="view-head usage-head">
         <div>
-          <h1>用量仪表盘</h1>
-          <p className="muted">实时统计输入 / 输出 Token、缓存命中率与调用趋势；数据来自服务端返回的 usage。</p>
+          <h1>{t("用量仪表盘")}</h1>
+          <p className="muted">{t("实时统计输入 / 输出 Token、缓存命中率与调用趋势；数据来自服务端返回的 usage。")}</p>
         </div>
         <div className="view-head-actions">
-          <div className="usage-range" role="tablist" aria-label="时间跨度">
+          <div className="usage-range" role="tablist" aria-label={t("时间跨度")}>
             {RANGES.map((range) => (
               <button
                 key={range.id}
@@ -676,18 +679,16 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
                 className={cx(rangeId === range.id && 'active')}
                 onClick={() => setRangeId(range.id)}
               >
-                {range.label}
+                {t(range.label)}
               </button>
             ))}
           </div>
-          <button className="btn ghost" onClick={() => void refreshSnapshot()} title="刷新用量数据">
+          <button className="btn ghost" onClick={() => void refreshSnapshot()} title={t("刷新用量数据")}>
             <RefreshCw size={15} />
-            刷新
-          </button>
+            {' '}{t("刷新")}{' '}</button>
           <button className="btn ghost" onClick={() => void clearRecords()} disabled={clearing}>
             {clearing ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
-            清空记录
-          </button>
+            {' '}{t("清空记录")}{' '}</button>
         </div>
       </header>
 
@@ -696,65 +697,64 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
         <Activity size={14} />
         {active.length > 0 ? (
           <span>
-            <strong>{active.length}</strong> 个请求正在生成 · 已输出约 {formatTokens(liveTokens)} tokens
+            <strong>{active.length}</strong> {' '}{t("个请求正在生成 · 已输出约")}{' '}{formatTokens(liveTokens)} tokens
           </span>
         ) : (
-          <span>实时监测中 · 新的模型调用会自动计入</span>
+          <span>{t("实时监测中 · 新的模型调用会自动计入")}</span>
         )}
         <span className="usage-live-time">
-          {lastUpdated ? `更新于 ${formatClock(lastUpdated)}` : loading ? '正在加载…' : '暂无数据'}
+          {lastUpdated ? t("更新于 {0}", [formatClock(lastUpdated)]) : loading ? t("正在加载…") : t("暂无数据")}
         </span>
       </div>
 
       {loading ? (
         <div className="usage-empty">
           <Loader2 size={20} className="spin" />
-          <span className="muted">正在加载用量数据…</span>
+          <span className="muted">{t("正在加载用量数据…")}</span>
         </div>
       ) : records.length === 0 ? (
         <div className="usage-empty">
           <div className="empty-icon">
             <BarChart3 size={26} />
           </div>
-          <h2>还没有用量记录</h2>
-          <p>完成一次 AI 对话、文档生成或截图翻译后，输入 / 输出 Token 与缓存命中会自动出现在这里，并实时更新。</p>
+          <h2>{t("还没有用量记录")}</h2>
+          <p>{t("完成一次 AI 对话、文档生成或截图翻译后，输入 / 输出 Token 与缓存命中会自动出现在这里，并实时更新。")}</p>
           <button className="btn ghost" onClick={() => void refreshSnapshot()}>
             <RefreshCw size={15} />
-            刷新
-          </button>
+            {' '}{t("刷新")}{' '}</button>
         </div>
       ) : (
         <>
           <div className="usage-kpis">
             <div className="usage-kpi">
               <div className="usage-kpi-head">
-                <span>输入 Token</span>
+                <span>{t("输入 Token")}</span>
                 <span className="usage-kpi-icon">
                   <ArrowDownCircle size={16} />
                 </span>
               </div>
               <div className="usage-kpi-value">{formatTokens(totals.input)}</div>
               <div className="usage-kpi-sub">
-                占总 Token {inputShare.toFixed(1)}%{totals.cacheKnown ? ` · 命中 ${formatTokens(totals.cached)}` : ''}
+                {' '}{t("占总 Token")}{' '}{inputShare.toFixed(1)}%{totals.cacheKnown ? t(" · 命中 {0}", [formatTokens(totals.cached)]) : ''}
                 {inputDelta && <span className={cx('usage-delta', inputDelta.dir)}> · {inputDelta.text}</span>}
               </div>
             </div>
             <div className="usage-kpi">
               <div className="usage-kpi-head">
-                <span>输出 Token</span>
+                <span>{t("输出 Token")}</span>
                 <span className="usage-kpi-icon">
                   <ArrowUpCircle size={16} />
                 </span>
               </div>
               <div className="usage-kpi-value">{formatTokens(totals.output)}</div>
               <div className="usage-kpi-sub">
-                占总 Token {outputShare.toFixed(1)}% · 合计 {formatTokens(totalTokens)}
+                {' '}{t("占总 Token")}{' '}{outputShare.toFixed(1)}{t("% · 合计")}{' '}{formatTokens(totalTokens)}
                 {outputDelta && <span className={cx('usage-delta', outputDelta.dir)}> · {outputDelta.text}</span>}
               </div>
             </div>
             <div className="usage-kpi">
               <div className="usage-kpi-head">
-                <span>缓存命中率</span>
+                <span>{t("缓存命中率")}</span>
                 <span className="usage-kpi-icon">
                   <Database size={16} />
                 </span>
@@ -762,22 +762,21 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
               <div className="usage-kpi-value">{formatPercent(overallCacheRate)}</div>
               <div className="usage-kpi-sub">
                 {totals.cacheKnown
-                  ? `命中 ${formatTokens(totals.cached)} / 可统计输入 ${formatTokens(totals.cacheInput)} · 整体命中率`
-                  : '服务端未返回缓存明细'}
+                  ? t("命中 {0} / 可统计输入 {1} · 整体命中率", [formatTokens(totals.cached), formatTokens(totals.cacheInput)])
+                  : t("服务端未返回缓存明细")}
                 {cacheDelta && <span className={cx('usage-delta', cacheDelta.dir)}> · {cacheDelta.text}</span>}
               </div>
             </div>
             <div className="usage-kpi">
               <div className="usage-kpi-head">
-                <span>调用次数</span>
+                <span>{t("调用次数")}</span>
                 <span className="usage-kpi-icon">
                   <MessageSquare size={16} />
                 </span>
               </div>
-              <div className="usage-kpi-value">{totals.requests.toLocaleString('zh-CN')}</div>
+              <div className="usage-kpi-value">{totals.requests.toLocaleString(localeTag())}</div>
               <div className="usage-kpi-sub">
-                对话 {chatCalls} 次 · 其他 {Math.max(0, totals.requests - chatCalls)} 次
-                {requestDelta && <span className={cx('usage-delta', requestDelta.dir)}> · {requestDelta.text}</span>}
+                {' '}{t("对话")}{' '}{chatCalls} {' '}{t("次 · 其他")}{' '}{Math.max(0, totals.requests - chatCalls)} {' '}{t("次")}{' '}{requestDelta && <span className={cx('usage-delta', requestDelta.dir)}> · {requestDelta.text}</span>}
               </div>
             </div>
           </div>
@@ -785,16 +784,14 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
           <div className="usage-grid">
             <section className="usage-card">
               <div className="usage-card-head">
-                <h2>Token 用量趋势</h2>
+                <h2>{t("Token 用量趋势")}</h2>
                 <div className="usage-legend">
                   <span>
                     <i style={{ background: 'var(--accent)' }} />
-                    输入
-                  </span>
+                    {' '}{t("输入")}{' '}</span>
                   <span>
                     <i style={{ background: 'var(--secondary)' }} />
-                    输出
-                  </span>
+                    {' '}{t("输出")}{' '}</span>
                 </div>
               </div>
               <TrendChart
@@ -806,9 +803,9 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
             </section>
             <section className="usage-card">
               <div className="usage-card-head">
-                <h2>缓存命中趋势</h2>
+                <h2>{t("缓存命中趋势")}</h2>
                 <div className="usage-legend">
-                  <span>整体 {formatPercent(overallCacheRate)}</span>
+                  <span>{t("整体")}{' '}{formatPercent(overallCacheRate)}</span>
                 </div>
               </div>
               {totals.cacheKnown ? (
@@ -819,7 +816,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
                   stepMs={stats.range.stepMs}
                 />
               ) : (
-                <div className="usage-chart-empty">服务端未返回缓存命中数据</div>
+                <div className="usage-chart-empty">{t("服务端未返回缓存命中数据")}</div>
               )}
             </section>
           </div>
@@ -827,11 +824,11 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
           <div className="usage-bottom">
             <section className="usage-card">
               <div className="usage-card-head">
-                <h2>模型用量</h2>
-                <span className="muted small">输入 / 输出 Token</span>
+                <h2>{t("模型用量")}</h2>
+                <span className="muted small">{t("输入 / 输出 Token")}</span>
               </div>
               {breakdown.modelList.length === 0 ? (
-                <div className="usage-chart-empty">当前时间跨度内暂无调用</div>
+                <div className="usage-chart-empty">{t("当前时间跨度内暂无调用")}</div>
               ) : (
                 breakdown.modelList.map((model) => {
                   const rate =
@@ -841,17 +838,15 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
                       <div className="usage-model-line">
                         <code title={model.model}>{model.model}</code>
                         <span>
-                          {formatTokens(model.input)} 输入 · {formatTokens(model.output)} 输出
-                        </span>
+                          {formatTokens(model.input)} {' '}{t("输入 ·")}{' '}{formatTokens(model.output)} {' '}{t("输出")}{' '}</span>
                       </div>
                       <div className="usage-model-bar">
                         <i className="in" style={{ width: `${(model.input / modelMax) * 100}%` }} />
                         <i className="out" style={{ width: `${(model.output / modelMax) * 100}%` }} />
                       </div>
                       <div className="usage-model-meta">
-                        缓存命中 {formatPercent(rate)}
-                        {model.cacheKnown ? ` · 命中 ${formatTokens(model.cached)}` : ''} · {model.requests} 次调用
-                      </div>
+                        {' '}{t("缓存命中")}{' '}{formatPercent(rate)}
+                        {model.cacheKnown ? t(" · 命中 {0}", [formatTokens(model.cached)]) : ''} · {model.requests} {' '}{t("次调用")}{' '}</div>
                     </div>
                   )
                 })
@@ -860,11 +855,11 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
 
             <section className="usage-card">
               <div className="usage-card-head">
-                <h2>调用构成</h2>
-                <span className="muted small">按调用次数</span>
+                <h2>{t("调用构成")}</h2>
+                <span className="muted small">{t("按调用次数")}</span>
               </div>
               {breakdown.kindList.length === 0 ? (
-                <div className="usage-chart-empty">当前时间跨度内暂无调用</div>
+                <div className="usage-chart-empty">{t("当前时间跨度内暂无调用")}</div>
               ) : (
                 <KindDonut items={breakdown.kindList} totalRequests={totals.requests} />
               )}
@@ -873,21 +868,21 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
 
           <section className="usage-card">
             <div className="usage-card-head">
-              <h2>最近调用</h2>
-              <span className="muted small">最多显示所选跨度内的 12 条</span>
+              <h2>{t("最近调用")}</h2>
+              <span className="muted small">{t("最多显示所选跨度内的 12 条")}</span>
             </div>
             {recent.length === 0 ? (
-              <div className="usage-chart-empty">当前时间跨度内暂无调用</div>
+              <div className="usage-chart-empty">{t("当前时间跨度内暂无调用")}</div>
             ) : (
               <div className="usage-table-wrap">
                 <div className="usage-table">
                   <div className="usage-row head">
-                    <span>时间</span>
-                    <span>类型</span>
-                    <span>模型</span>
-                    <span className="num">输入</span>
-                    <span className="num">输出</span>
-                    <span className="num">缓存命中</span>
+                    <span>{t("时间")}</span>
+                    <span>{t("类型")}</span>
+                    <span>{t("模型")}</span>
+                    <span className="num">{t("输入")}</span>
+                    <span className="num">{t("输出")}</span>
+                    <span className="num">{t("缓存命中")}</span>
                   </div>
                   {recent.map((record) => (
                     <div className="usage-row" key={record.id}>
@@ -895,7 +890,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
                       <span>
                         <span className="usage-kind-chip">
                           <i style={{ background: kindColors.get(record.kind) ?? KIND_COLORS[0] }} />
-                          {KIND_LABEL[record.kind]}
+                          {t(KIND_LABEL[record.kind])}
                         </span>
                       </span>
                       <span className="model" title={record.model}>
@@ -903,7 +898,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
                       </span>
                       <span className="num">
                         {record.estimated && (
-                          <span className="usage-est" title="服务端未返回精确用量，此处为本地估算">
+                          <span className="usage-est" title={t("服务端未返回精确用量，此处为本地估算")}>
                             ~
                           </span>
                         )}

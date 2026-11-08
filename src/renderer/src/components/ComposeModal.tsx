@@ -3,6 +3,7 @@ import { Copy, FileDown, FileText, FolderOpen, ListTree, Loader2, Sparkles, X } 
 import type { ChatSession, Excerpt } from '@shared/types'
 import { defaultComposeOutline } from '@shared/compose'
 import { Markdown } from '../ui'
+import { isDefaultChatTitle, t } from '@shared/i18n'
 
 interface Props {
   chat: ChatSession
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export default function ComposeModal({ chat, onClose, notify }: Props): React.JSX.Element {
-  const defaultTitle = chat.title && chat.title !== '新的对话' ? `${chat.title} · 阅读整理` : '文献阅读整理'
+  const defaultTitle = chat.title && !isDefaultChatTitle(chat.title) ? t("{0} · 阅读整理", [chat.title]) : t("文献阅读整理")
   const [title, setTitle] = useState(defaultTitle)
   const [instruction, setInstruction] = useState('')
   const [outline, setOutline] = useState(defaultComposeOutline)
@@ -62,7 +63,7 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
 
   const generate = async (): Promise<void> => {
     if (!hasSource) {
-      setError('请至少勾选一项非空内容（对话记录、文献笔记或摘录）')
+      setError(t("请至少勾选一项非空内容（对话记录、文献笔记或摘录）"))
       return
     }
     setGenerating(true)
@@ -77,7 +78,7 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
       )
       setMarkdown(result)
     } catch (err) {
-      setError((err as Error).message || '生成失败')
+      setError((err as Error).message || t("生成失败"))
     } finally {
       setGenerating(false)
     }
@@ -89,10 +90,10 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
       const result = await window.api.documents.exportMarkdown(title.trim() || defaultTitle, markdown, format)
       if (!result.canceled && result.filePath) {
         setExportedPath(result.filePath)
-        notify(`已导出：${result.filePath}`, 'success')
+        notify(t("已导出：{0}", [result.filePath]), 'success')
       }
     } catch (err) {
-      notify(`导出失败：${(err as Error).message}`, 'error')
+      notify(t("导出失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -101,16 +102,16 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
     try {
       await window.api.app.showInFolder(exportedPath)
     } catch (err) {
-      notify(`无法打开文件夹：${(err as Error).message}`, 'error')
+      notify(t("无法打开文件夹：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const copy = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(markdown)
-      notify('已复制 Markdown 全文', 'success')
+      notify(t("已复制 Markdown 全文"), 'success')
     } catch {
-      notify('复制失败', 'error')
+      notify(t("复制失败"), 'error')
     }
   }
 
@@ -119,27 +120,26 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
       <div className="modal compose-modal">
         <div className="modal-head">
           <div>
-            <h3>整理问答与文献，生成文档</h3>
-            <p className="muted">勾选要纳入的对话、文献笔记与摘录，Agent 会生成结构化的阅读整理文档。</p>
+            <h3>{t("整理问答与文献，生成文档")}</h3>
+            <p className="muted">{t("勾选要纳入的对话、文献笔记与摘录，Agent 会生成结构化的阅读整理文档。")}</p>
           </div>
-          <button className="icon-btn" onClick={onClose} disabled={generating} title="关闭">
+          <button className="icon-btn" onClick={onClose} disabled={generating} title={t("关闭")}>
             <X size={18} />
           </button>
         </div>
 
         <div className="compose-body">
           <label className="field">
-            <span>文档标题</span>
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：Transformer 综述阅读笔记" />
+            <span>{t("文档标题")}</span>
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("例如：Transformer 综述阅读笔记")} />
           </label>
 
           <div className="field">
-            <span>生成范围</span>
+            <span>{t("生成范围")}</span>
             <div className="scope-options">
               <label className="check-item">
                 <input type="checkbox" checked={includeChat} onChange={(event) => setIncludeChat(event.target.checked)} />
-                对话记录
-              </label>
+                {' '}{t("对话记录")}{' '}</label>
               <label className="check-item">
                 <input
                   type="checkbox"
@@ -147,7 +147,7 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
                   onChange={(event) => setIncludeNotes(event.target.checked)}
                   disabled={!hasNotes}
                 />
-                文献笔记{!hasNotes && <span className="muted small">（对话关联文献暂无笔记）</span>}
+                {' '}{t("文献笔记")}{!hasNotes && <span className="muted small">{t("（对话关联文献暂无笔记）")}</span>}
               </label>
               <label className="check-item">
                 <input
@@ -156,18 +156,18 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
                   onChange={(event) => setIncludeExcerpts(event.target.checked)}
                   disabled={!excerpts.length}
                 />
-                摘录{excerpts.length ? `（已选 ${selectedIds.length}/${excerpts.length}）` : '（暂无）'}
+                {' '}{t("摘录")}{excerpts.length ? t("（已选 {0}/{1}）", [selectedIds.length, excerpts.length]) : t("（暂无）")}
               </label>
             </div>
             {includeExcerpts && excerpts.length > 0 && (
               <div className="excerpt-picker">
                 <div className="excerpt-picker-head">
-                  <span className="muted small">勾选要纳入文档的摘录</span>
+                  <span className="muted small">{t("勾选要纳入文档的摘录")}</span>
                   <button
                     className="link-btn"
                     onClick={() => setSelectedIds(selectedIds.length ? [] : excerpts.map((item) => item.id))}
                   >
-                    {selectedIds.length ? '全不选' : '全选'}
+                    {selectedIds.length ? t("全不选") : t("全选")}
                   </button>
                 </div>
                 {excerpts.map((item) => (
@@ -175,25 +175,25 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
                     <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleExcerpt(item.id)} />
                     <span className="excerpt-option-text">
                       <span className="excerpt-option-title">
-                        《{item.docTitle}》{item.page ? ` 第 ${item.page} 页` : ''}
-                        {item.docMissing && <span className="muted small">（来源已删除）</span>}
+                        《{item.docTitle}》{item.page ? t(" 第 {0} 页", [item.page]) : ''}
+                        {item.docMissing && <span className="muted small">{t("（来源已删除）")}</span>}
                       </span>
                       <span className="muted small excerpt-option-preview">
-                        {item.question.trim() || item.answer.trim() || item.source || '空摘录'}
+                        {item.question.trim() || item.answer.trim() || item.source || t("空摘录")}
                       </span>
                     </span>
                   </label>
                 ))}
               </div>
             )}
-            {!hasSource && <div className="scope-warning">至少勾选一项非空内容才能生成。</div>}
+            {!hasSource && <div className="scope-warning">{t("至少勾选一项非空内容才能生成。")}</div>}
           </div>
 
           <div className="field">
             <div className="field-head">
-              <span>章节结构（可调整）</span>
+              <span>{t("章节结构（可调整）")}</span>
               <button className="link-btn" onClick={() => setShowOutline((value) => !value)}>
-                <ListTree size={13} /> {showOutline ? '收起' : '编辑'}
+                <ListTree size={13} /> {showOutline ? t("收起") : t("编辑")}
               </button>
             </div>
             {showOutline ? (
@@ -201,7 +201,7 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
                 rows={7}
                 value={outline}
                 onChange={(event) => setOutline(event.target.value)}
-                placeholder="每行一个 Markdown 标题，例如：## 一、研究背景"
+                placeholder={t("每行一个 Markdown 标题，例如：## 一、研究背景")}
               />
             ) : (
               <div className="outline-summary muted small">{outline}</div>
@@ -209,26 +209,26 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
           </div>
 
           <label className="field">
-            <span>额外要求（可选）</span>
+            <span>{t("额外要求（可选）")}</span>
             <textarea
               rows={2}
               value={instruction}
               onChange={(event) => setInstruction(event.target.value)}
-              placeholder="例如：重点整理实验部分；用表格对比不同方法；面向组会汇报。"
+              placeholder={t("例如：重点整理实验部分；用表格对比不同方法；面向组会汇报。")}
             />
           </label>
 
           {!markdown && (
             <button className="btn primary generate-btn" onClick={() => void generate()} disabled={generating || !hasSource}>
               {generating ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />}
-              {generating ? '正在梳理素材与撰写文档…' : '生成整理文档'}
+              {generating ? t("正在梳理素材与撰写文档…") : t("生成整理文档")}
             </button>
           )}
 
           {generating && !markdown && (
             <div className="generate-progress">
               <div className="progress-line" />
-              <span>正在检索相关原文片段、归纳问答与摘录并撰写文档，通常需要 10–60 秒。</span>
+              <span>{t("正在检索相关原文片段、归纳问答与摘录并撰写文档，通常需要 10–60 秒。")}</span>
             </div>
           )}
 
@@ -237,17 +237,15 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
           {markdown && (
             <div className="compose-preview">
               <div className="preview-head">
-                <div className="preview-title">文档预览</div>
+                <div className="preview-title">{t("文档预览")}</div>
                 <div className="preview-actions">
                   <button className="btn ghost small" onClick={() => setEditing((value) => !value)}>
-                    <FileText size={14} /> {editing ? '预览' : '编辑'}
+                    <FileText size={14} /> {editing ? t("预览") : t("编辑")}
                   </button>
                   <button className="btn ghost small" onClick={() => void generate()} disabled={generating || !hasSource}>
-                    {generating ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />} 重新生成
-                  </button>
+                    {generating ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />} {' '}{t("重新生成")}{' '}</button>
                   <button className="btn ghost small" onClick={() => void copy()}>
-                    <Copy size={14} /> 复制
-                  </button>
+                    <Copy size={14} /> {' '}{t("复制")}{' '}</button>
                 </div>
               </div>
               {editing ? (
@@ -265,25 +263,21 @@ export default function ComposeModal({ chat, onClose, notify }: Props): React.JS
           <div className="muted small export-path">
             {exportedPath ? (
               <>
-                已导出：{exportedPath}
+                {' '}{t("已导出：")}{exportedPath}
                 <button className="link-btn" onClick={() => void reveal()}>
-                  <FolderOpen size={13} /> 在文件夹中显示
-                </button>
+                  <FolderOpen size={13} /> {' '}{t("在文件夹中显示")}{' '}</button>
               </>
             ) : (
-              '文档可在导出前直接编辑'
+              t("文档可在导出前直接编辑")
             )}
           </div>
           <div className="modal-actions">
             <button className="btn ghost" onClick={onClose} disabled={generating}>
-              关闭
-            </button>
+              {' '}{t("关闭")}{' '}</button>
             <button className="btn" onClick={() => void exportDoc('md')} disabled={!markdown || generating}>
-              <FileText size={15} /> 导出 Markdown
-            </button>
+              <FileText size={15} /> {' '}{t("导出 Markdown")}{' '}</button>
             <button className="btn primary" onClick={() => void exportDoc('docx')} disabled={!markdown || generating}>
-              <FileDown size={15} /> 导出 Word
-            </button>
+              <FileDown size={15} /> {' '}{t("导出 Word")}{' '}</button>
           </div>
         </div>
       </div>

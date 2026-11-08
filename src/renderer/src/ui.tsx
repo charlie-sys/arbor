@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import { localeTag } from '@shared/i18n'
 
 export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ')
@@ -14,16 +15,16 @@ export function formatTime(timestamp: number): string {
   const now = new Date()
   const sameDay = date.toDateString() === now.toDateString()
   if (sameDay) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' })
   }
   if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+    return date.toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' })
   }
-  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
+  return date.toLocaleDateString(localeTag(), { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 export function formatFullDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString(localeTag(), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

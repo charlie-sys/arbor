@@ -27,6 +27,7 @@ import PaneResizer from './PaneResizer'
 import ReaderSidePanel from './ReaderSidePanel'
 import { useUnsavedChanges } from '../unsaved'
 import { cx, formatTime, Markdown } from '../ui'
+import { t } from '@shared/i18n'
 
 interface Props {
   doc: DocumentMeta
@@ -182,7 +183,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
       const state = await window.api.readerPanel.open(doc.id, nextTab, activeChatId)
       if (state.open) setDetached(true)
     } catch (err) {
-      notify(`打开独立面板失败：${(err as Error).message}`, 'error')
+      notify(t("打开独立面板失败：{0}", [(err as Error).message]), 'error')
     }
   }
   const docHighlights = useMemo(
@@ -201,7 +202,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
 
   const closeHighlightEditor = (): void => {
     if (highlightEditorDirty) {
-      notify('高亮批注有未保存的修改，请先保存', 'info')
+      notify(t("高亮批注有未保存的修改，请先保存"), 'info')
       return
     }
     setEditor(null)
@@ -308,7 +309,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
       try {
         await window.api.readerPanel.quote(doc.id, text, pageNumber)
       } catch (err) {
-        notify(`发送引用失败：${(err as Error).message}`, 'error')
+        notify(t("发送引用失败：{0}", [(err as Error).message]), 'error')
       }
       return
     }
@@ -334,16 +335,16 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
 
   const saveSelectionAsNote = async (): Promise<void> => {
     if (!selection) return
-    const segment = `> 第 ${selection.page} 页：${selection.text}\n`
+    const segment = t("> 第 {0} 页：{1}\n", [selection.page, selection.text])
     const base = doc.notes.trim()
     const next = base ? `${base}\n\n${segment}` : segment
     setPanel('notes')
     try {
       await window.api.library.update(doc.id, { notes: next })
-      notify('已保存为笔记', 'success')
+      notify(t("已保存为笔记"), 'success')
       await onChanged()
     } catch (err) {
-      notify(`保存笔记失败：${(err as Error).message}`, 'error')
+      notify(t("保存笔记失败：{0}", [(err as Error).message]), 'error')
     }
     window.getSelection()?.removeAllRanges()
     setSelection(null)
@@ -352,7 +353,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   const copySelection = async (): Promise<void> => {
     if (!selection) return
     await navigator.clipboard.writeText(selection.text).catch(() => undefined)
-    notify('已复制原文', 'success')
+    notify(t("已复制原文"), 'success')
     window.getSelection()?.removeAllRanges()
     setSelection(null)
   }
@@ -372,7 +373,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   const addHighlight = async (color: HighlightColor): Promise<void> => {
     if (!selection) return
     if (!selection.rects.length) {
-      notify('未能定位选区位置，请重新选择文字后再高亮', 'error')
+      notify(t("未能定位选区位置，请重新选择文字后再高亮"), 'error')
       return
     }
     try {
@@ -385,9 +386,9 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
       })
       await onChanged()
       flashHighlight(highlight.id)
-      notify('已添加高亮', 'success')
+      notify(t("已添加高亮"), 'success')
     } catch (err) {
-      notify(`添加高亮失败：${(err as Error).message}`, 'error')
+      notify(t("添加高亮失败：{0}", [(err as Error).message]), 'error')
     }
     window.getSelection()?.removeAllRanges()
     setSelection(null)
@@ -395,7 +396,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
 
   const openHighlightEditor = (highlight: Highlight, position: { left: number; top: number }): void => {
     if (highlightEditorDirty) {
-      notify('高亮批注有未保存的修改，请先保存', 'info')
+      notify(t("高亮批注有未保存的修改，请先保存"), 'info')
       return
     }
     const width = 288
@@ -416,21 +417,21 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
       await window.api.highlights.update(editor.id, { color: draftColor, note: draftNote })
       await onChanged()
       setEditor(null)
-      notify('高亮已更新', 'success')
+      notify(t("高亮已更新"), 'success')
     } catch (err) {
-      notify(`更新高亮失败：${(err as Error).message}`, 'error')
+      notify(t("更新高亮失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const removeHighlight = async (id: string): Promise<void> => {
-    if (!window.confirm('删除这条高亮？')) return
+    if (!window.confirm(t("删除这条高亮？"))) return
     try {
       await window.api.highlights.remove(id)
       await onChanged()
       if (editor?.id === id) setEditor(null)
-      notify('已删除高亮', 'success')
+      notify(t("已删除高亮"), 'success')
     } catch (err) {
-      notify(`删除高亮失败：${(err as Error).message}`, 'error')
+      notify(t("删除高亮失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -449,16 +450,16 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   return (
     <div className="reader-view">
       <div className="reader-toolbar">
-        <button className="icon-btn" title="返回文献库" onClick={onBack}>
+        <button className="icon-btn" title={t("返回文献库")} onClick={onBack}>
           <ArrowLeft size={18} />
         </button>
         <div className="reader-title" title={doc.title}>
           {doc.title}
-          {doc.pageCount === 0 && <span className="warn-tag">未提取文本</span>}
+          {doc.pageCount === 0 && <span className="warn-tag">{t("未提取文本")}</span>}
         </div>
 
         <div className="page-controls">
-          <button className="icon-btn" onClick={() => pdfRef.current?.prevPage()} title="上一页">
+          <button className="icon-btn" onClick={() => pdfRef.current?.prevPage()} title={t("上一页")}>
             <ChevronLeft size={17} />
           </button>
           <input
@@ -472,31 +473,29 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             }}
           />
           <span className="page-total">/ {pageCount || doc.pageCount || '-'}</span>
-          <button className="icon-btn" onClick={() => pdfRef.current?.nextPage()} title="下一页">
+          <button className="icon-btn" onClick={() => pdfRef.current?.nextPage()} title={t("下一页")}>
             <ChevronRight size={17} />
           </button>
         </div>
 
-        <div className="zoom-controls" title="Ctrl + 鼠标滚轮可缩放">
-          <button className="icon-btn" onClick={() => pdfRef.current?.zoomOut()} title="缩小">
+        <div className="zoom-controls" title={t("Ctrl + 鼠标滚轮可缩放")}>
+          <button className="icon-btn" onClick={() => pdfRef.current?.zoomOut()} title={t("缩小")}>
             <ZoomOut size={17} />
           </button>
-          <button className="icon-btn" onClick={() => pdfRef.current?.zoomIn()} title="放大">
+          <button className="icon-btn" onClick={() => pdfRef.current?.zoomIn()} title={t("放大")}>
             <ZoomIn size={17} />
           </button>
-          <button className="icon-btn" onClick={() => pdfRef.current?.fitWidth()} title="适应宽度">
+          <button className="icon-btn" onClick={() => pdfRef.current?.fitWidth()} title={t("适应宽度")}>
             <Maximize size={16} />
           </button>
         </div>
 
         {!translation && hasTranslation && (
-          <button className="btn ghost small" onClick={onRestoreTranslation} title="重新显示翻译面板">
-            <ScanLine size={15} /> 显示翻译
-          </button>
+          <button className="btn ghost small" onClick={onRestoreTranslation} title={t("重新显示翻译面板")}>
+            <ScanLine size={15} /> {' '}{t("显示翻译")}{' '}</button>
         )}
         <button className="btn ghost small" onClick={() => void window.api.translate.start()} disabled={translateBusy}>
-          <ScanLine size={15} /> 截图翻译
-        </button>
+          <ScanLine size={15} /> {' '}{t("截图翻译")}{' '}</button>
       </div>
 
       {resumePrompt && (
@@ -507,8 +506,8 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           <div className="modal resume-modal">
             <div className="modal-head">
               <div>
-                <h3>继续阅读？</h3>
-                <p className="muted">上次读到第 {startPage} 页。默认继续阅读。</p>
+                <h3>{t("继续阅读？")}</h3>
+                <p className="muted">{t("上次读到第")}{' '}{startPage} {' '}{t("页。默认继续阅读。")}</p>
               </div>
             </div>
             <div className="modal-foot" style={{ justifyContent: 'flex-end' }}>
@@ -521,11 +520,9 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
                     setResumePrompt(false)
                   }}
                 >
-                  从头开始
-                </button>
+                  {' '}{t("从头开始")}{' '}</button>
                 <button className="btn primary" autoFocus onClick={() => setResumePrompt(false)}>
-                  继续阅读（第 {startPage} 页）
-                </button>
+                  {' '}{t("继续阅读（第")}{' '}{startPage} {' '}{t("页）")}{' '}</button>
               </div>
             </div>
           </div>
@@ -537,14 +534,13 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           <aside className="translation-drawer" style={{ width: effectiveTranslationWidth }}>
             <div className="translation-drawer-head">
               <div>
-                <strong>截图翻译</strong>
+                <strong>{t("截图翻译")}</strong>
                 <div className="muted small">{formatTime(translation.createdAt)}</div>
               </div>
               <div className="translation-drawer-head-actions">
                 <button className="btn ghost small" onClick={onCloseTranslation}>
-                  收起
-                </button>
-                <button className="icon-btn" title="隐藏翻译面板" onClick={onCloseTranslation}>
+                  {' '}{t("收起")}{' '}</button>
+                <button className="icon-btn" title={t("隐藏翻译面板")} onClick={onCloseTranslation}>
                   <X size={15} />
                 </button>
               </div>
@@ -555,20 +551,18 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
                   className={cx('chip-button', translationImageMode === 'original' && 'active')}
                   onClick={() => setTranslationImageMode('original')}
                 >
-                  原图
-                </button>
+                  {' '}{t("原图")}{' '}</button>
                 <button
                   className={cx('chip-button', translationImageMode === 'translated' && 'active')}
                   onClick={() => setTranslationImageMode('translated')}
                   disabled={!translation.translatedImageFile}
                 >
-                  译文图
-                </button>
+                  {' '}{t("译文图")}{' '}</button>
               </div>
               <img
                 className="translation-drawer-image"
                 src={`zotfile://translations/${translationImageFile}`}
-                alt={translationImageMode === 'translated' ? '译文截图' : '截图原文'}
+                alt={translationImageMode === 'translated' ? t("译文截图") : t("截图原文")}
               />
               <div className="translation-drawer-text">
                 <Markdown>{translation.structured || translation.plain}</Markdown>
@@ -576,8 +570,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             </div>
             <div className="translation-drawer-foot">
               <button className="link-btn" onClick={onOpenTranslations}>
-                在翻译栏目查看
-              </button>
+                {' '}{t("在翻译栏目查看")}{' '}</button>
             </div>
           </aside>
         )}
@@ -585,14 +578,14 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           <PaneResizer
             value={effectiveTranslationWidth}
             onChange={setTranslationWidth}
-            label="调整翻译面板宽度"
+            label={t("调整翻译面板宽度")}
           />
         )}
         <div className="reader-pdf">
           {!doc.fileName ? (
             <div className="empty-state" style={{ margin: 'auto' }}>
-              <h2>这是一条外部导入的文献记录</h2>
-              <p className="muted">尚未关联原始文件。你仍可查看右侧的文献信息、摘录与 AI 对话。</p>
+              <h2>{t("这是一条外部导入的文献记录")}</h2>
+              <p className="muted">{t("尚未关联原始文件。你仍可查看右侧的文献信息、摘录与 AI 对话。")}</p>
             </div>
           ) : docFormat === 'pdf' ? (
           <PdfViewer
@@ -652,7 +645,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
               value={effectivePanelWidth}
               onChange={setPanelWidth}
               invert
-              label="调整右侧栏宽度"
+              label={t("调整右侧栏宽度")}
             />
             <aside className="reader-panel" style={{ width: effectivePanelWidth }}>
               <ReaderSidePanel
@@ -686,44 +679,41 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
 
       {selection && (
         <div className="selection-toolbar" style={{ top: toolbarTop, left: toolbarLeft }}>
-          <div className="hl-swatches" title="高亮选中文字">
+          <div className="hl-swatches" title={t("高亮选中文字")}>
             {HIGHLIGHT_COLORS.map((color) => (
               <button
                 key={color.value}
                 className={`hl-swatch hl-${color.value}`}
-                title={`高亮（${color.label}）`}
+                title={t("高亮（{0}）", [t(color.label)])}
                 onClick={() => void addHighlight(color.value)}
               />
             ))}
           </div>
           <span className="toolbar-divider" />
           <button onClick={() => void askAgent()}>
-            <Sparkles size={14} /> 问 Agent
-          </button>
+            <Sparkles size={14} /> {' '}{t("问 Agent")}{' '}</button>
           <div className="selection-action-wrap">
-            <button title="AI 动作：翻译、摘要、解释公式、对比文献" onClick={() => setAiActionMenuOpen((open) => !open)}>
-              <Sparkles size={14} /> AI 动作 <ChevronDown size={14} />
+            <button title={t("AI 动作：翻译、摘要、解释公式、对比文献")} onClick={() => setAiActionMenuOpen((open) => !open)}>
+              <Sparkles size={14} /> {' '}{t("AI 动作")}{' '}<ChevronDown size={14} />
             </button>
             {aiActionMenuOpen && (
               <div className="selection-action-menu">
                 {AI_ACTIONS.map((action) => (
-                  <button key={action.id} onClick={() => startAiAction(action.id)} title={action.hint}>
-                    <span>{action.label}</span>
-                    <span className="muted">{action.hint}</span>
+                  <button key={action.id} onClick={() => startAiAction(action.id)} title={t(action.hint)}>
+                    <span>{t(action.label)}</span>
+                    <span className="muted">{t(action.hint)}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
           <button onClick={() => void saveSelectionAsNote()}>
-            <StickyNote size={14} /> 存为笔记
-          </button>
+            <StickyNote size={14} /> {' '}{t("存为笔记")}{' '}</button>
           <button onClick={() => void copySelection()}>
-            <Copy size={14} /> 复制
-          </button>
+            <Copy size={14} /> {' '}{t("复制")}{' '}</button>
           <button
             className="close"
-            title="取消"
+            title={t("取消")}
             onClick={() => {
               window.getSelection()?.removeAllRanges()
               setSelection(null)
@@ -738,9 +728,8 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
         <div className="highlight-editor" style={{ top: editor.top, left: editor.left }}>
           <div className="highlight-editor-head">
             <span>
-              <Highlighter size={13} /> 第 {editingHighlight.page} 页高亮
-            </span>
-            <button className="icon-btn tiny" title="关闭" onClick={closeHighlightEditor}>
+              <Highlighter size={13} /> {' '}{t("第")}{' '}{editingHighlight.page} {' '}{t("页高亮")}{' '}</span>
+            <button className="icon-btn tiny" title={t("关闭")} onClick={closeHighlightEditor}>
               <X size={13} />
             </button>
           </div>
@@ -750,7 +739,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
               <button
                 key={color.value}
                 className={cx('hl-swatch', `hl-${color.value}`, draftColor === color.value && 'active')}
-                title={`改为${color.label}色`}
+                title={t("改为{0}色", [t(color.label)])}
                 onClick={() => setDraftColor(color.value)}
               />
             ))}
@@ -758,17 +747,15 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           <textarea
             rows={3}
             className="highlight-note-input"
-            placeholder="添加批注…"
+            placeholder={t("添加批注…")}
             value={draftNote}
             onChange={(event) => setDraftNote(event.target.value)}
           />
           <div className="highlight-editor-actions">
             <button className="btn ghost small danger" onClick={() => void removeHighlight(editingHighlight.id)}>
-              <Trash2 size={13} /> 删除
-            </button>
+              <Trash2 size={13} /> {' '}{t("删除")}{' '}</button>
             <button className="btn primary small" onClick={() => void saveHighlightEditor()}>
-              <Save size={13} /> 保存
-            </button>
+              <Save size={13} /> {' '}{t("保存")}{' '}</button>
           </div>
         </div>
       )}

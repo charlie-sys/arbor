@@ -1,5 +1,6 @@
 import type { Property, PropertyValue } from '@shared/types'
 import './properties.css'
+import { t } from '@shared/i18n'
 
 interface Props {
   property: Property
@@ -50,7 +51,7 @@ export default function PropertyCell({ property, value, onChange }: Props): Reac
     }
     return (
       <details className="prop-multi" onClick={stop}>
-        <summary>{selected.length ? selected.map((id) => optionName(property, id)).join('、') : '—'}</summary>
+        <summary>{selected.length ? selected.map((id) => optionName(property, id)).join(t('、')) : '—'}</summary>
         <div className="prop-multi-menu">
           {(property.options ?? []).map((option) => (
             <label key={option.id}>
@@ -62,7 +63,7 @@ export default function PropertyCell({ property, value, onChange }: Props): Reac
               {option.name}
             </label>
           ))}
-          {(property.options ?? []).length === 0 && <span className="muted small">未配置选项</span>}
+          {(property.options ?? []).length === 0 && <span className="muted small">{t("未配置选项")}</span>}
         </div>
       </details>
     )

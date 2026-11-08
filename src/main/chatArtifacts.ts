@@ -1,5 +1,6 @@
 import path from 'path'
 import type { InboxAttachment } from '../shared/types'
+import { t } from '../shared/i18n'
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024
 const MAX_FILES = 8
@@ -227,7 +228,7 @@ export class ChatArtifactParser {
         const attachment = await this.save(name, data, kind)
         this.sink.onAttachment(attachment)
       } catch (err) {
-        this.emit(`\n\n> 附件 ${name} 保存失败：${(err as Error).message}\n`)
+        this.emit(t("\n\n> 附件 {0} 保存失败：{1}\n", [name, (err as Error).message]))
       }
     })
   }
@@ -299,9 +300,5 @@ export class ChatArtifactParser {
 }
 
 export function chatArtifactPrompt(): string {
-  return `交付文件：当需要给用户返回图片、图表、PDF、表格或其他文件时，在正文之后使用文件块，文件内容用 Base64（单文件不超过 20MB，一次最多 8 个）：
-\`\`\`zotagent-file name="figure.png" mime="image/png"
-<文件的 Base64 内容>
-\`\`\`
-纯文本文件也可以写成 \`\`\`zotagent-file name="notes.md" encoding="text"\`\`\` 后直接跟正文。不要在正文里粘贴单独的 Base64 或 data URI；普通回答仍使用 Markdown。`
+  return t("交付文件：当需要给用户返回图片、图表、PDF、表格或其他文件时，在正文之后使用文件块，文件内容用 Base64（单文件不超过 20MB，一次最多 8 个）： ```zotagent-file name=\"figure.png\" mime=\"image/png\" <文件的 Base64 内容> ``` 纯文本文件也可以写成 ```zotagent-file name=\"notes.md\" encoding=\"text\"``` 后直接跟正文。不要在正文里粘贴单独的 Base64 或 data URI；普通回答仍使用 Markdown。")
 }

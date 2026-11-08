@@ -3,6 +3,7 @@ import { Loader2, TriangleAlert } from 'lucide-react'
 import type { Highlight, HighlightRect } from '@shared/types'
 import type { PdfOutlineItem, PdfSelection, PdfViewerHandle } from './PdfViewer'
 import { Markdown } from '../ui'
+import { t } from '@shared/i18n'
 
 interface Props {
   docId: string
@@ -75,7 +76,7 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
       .then((result) => {
         if (cancelled) return
         if (!result.length) {
-          setError('尚未提取到正文')
+          setError(t("尚未提取到正文"))
           callbacks.current.onPagesLoaded(0)
           callbacks.current.onOutline([])
           return
@@ -87,7 +88,7 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
         goToPage(pendingPageRef.current ?? (props.initialPage || 1))
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message || '读取正文失败')
+        if (!cancelled) setError(err.message || t("读取正文失败"))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -227,7 +228,7 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
       {loading && (
         <div className="pdf-overlay">
           <Loader2 size={22} className="spin" />
-          <span>正在加载正文…</span>
+          <span>{t("正在加载正文…")}</span>
         </div>
       )}
       {error && (

@@ -22,6 +22,14 @@ import type {
   ActiveUsage
 } from '../shared/types'
 import type { ComposeScope } from '../shared/compose'
+import type { AliEvent, AliSendRequest, AliSessionPatch } from '../shared/ali'
+import type {
+  PetRuntimeConfig,
+  PetSettings,
+  PetSignal,
+  PetSnapshot,
+  PetState
+} from '../shared/pet'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
@@ -171,6 +179,29 @@ const api: ZotAgentApi = {
     compose: (chatId: string, title: string, extraInstruction: string, scope?: ComposeScope, outline?: string) =>
       ipcRenderer.invoke('agent:compose', { chatId, title, extraInstruction, scope, outline })
   },
+  ali: {
+    getState: () => ipcRenderer.invoke('ali:get-state'),
+    createSession: () => ipcRenderer.invoke('ali:session:create'),
+    updateSession: (id: string, patch: AliSessionPatch) =>
+      ipcRenderer.invoke('ali:session:update', { id, patch }),
+    deleteSession: (id: string) => ipcRenderer.invoke('ali:session:delete', id),
+    send: (req: AliSendRequest) => ipcRenderer.invoke('ali:send', req),
+    cancel: (requestId: string) => ipcRenderer.invoke('ali:cancel', requestId),
+    test: () => ipcRenderer.invoke('ali:test'),
+    undoMemory: (lines: string[]) => ipcRenderer.invoke('ali:memory:undo', lines),
+    help: () => ipcRenderer.invoke('ali:help'),
+    memory: {
+      get: () => ipcRenderer.invoke('ali:memory:get'),
+      save: (doc: string, content: string) => ipcRenderer.invoke('ali:memory:save', { doc, content }),
+      remove: (doc: string) => ipcRenderer.invoke('ali:memory:remove', doc),
+      pin: (doc: string, pinned: boolean) => ipcRenderer.invoke('ali:memory:pin', { doc, pinned }),
+      clear: () => ipcRenderer.invoke('ali:memory:clear'),
+      consolidate: () => ipcRenderer.invoke('ali:memory:consolidate'),
+      restore: (doc: string, line: string) => ipcRenderer.invoke('ali:memory:restore', { doc, line }),
+      export: () => ipcRenderer.invoke('ali:memory:export'),
+      import: () => ipcRenderer.invoke('ali:memory:import')
+    }
+  },
   actions: {
     run: (input: { action: AiActionId; text: string; page?: number; docId?: string; targetDocId?: string }) =>
       ipcRenderer.invoke('ai-action:run', input)
@@ -235,6 +266,7 @@ const api: ZotAgentApi = {
   },
   events: {
     onChat: (cb) => subscribe<ChatEvent>('chat:event', cb),
+    onAli: (cb) => subscribe<AliEvent>('ali:event', cb),
     onTranslate: (cb) => subscribe<TranslateEvent>('translate:event', cb),
     onRenderRequest: (cb) => subscribe<RenderRequest>('translate:render-request', cb),
     onReaderPanelClosed: (cb) => subscribe('reader-panel:closed', cb),
@@ -249,11 +281,40 @@ const api: ZotAgentApi = {
     onReaderPanelPinned: (cb) => subscribe('reader-panel:pinned', cb),
     onUpdateProgress: (cb) => subscribe<UpdateProgress>('update:progress', cb),
     onUsageRecorded: (cb) => subscribe<UsageRecordedEvent>('usage:recorded', cb),
-    onUsageLive: (cb) => subscribe<ActiveUsage[]>('usage:live', cb)
+    onUsageLive: (cb) => subscribe<ActiveUsage[]>('usage:live', cb),
+    onSettingsChanged: (cb) => subscribe<AppSettings>('settings:changed', cb)
   },
   overlay: {
     select: (rect) => ipcRenderer.invoke('capture:selection', rect),
     cancel: () => ipcRenderer.invoke('capture:cancel')
+  },
+  pet: {
+    signal: (signal: PetSignal) => ipcRenderer.send('pet:signal', signal),
+    getState: (): Promise<PetSnapshot> => ipcRenderer.invoke('pet:get-state'),
+    getConfig: (): Promise<PetRuntimeConfig> => ipcRenderer.invoke('pet:get-config'),
+    setEnabled: (enabled: boolean): Promise<PetRuntimeConfig> =>
+      ipcRenderer.invoke('pet:set-enabled', enabled),
+    applySettings: (patch: Partial<PetSettings>) => ipcRenderer.send('pet:apply-settings', patch),
+    celebrate: () => ipcRenderer.send('pet:celebrate'),
+    setTheme: (theme: string) => ipcRenderer.send('pet:theme', theme),
+    menu: () => ipcRenderer.send('pet:menu'),
+    openMain: () => ipcRenderer.send('pet:open-main'),
+    openSettings: () => ipcRenderer.send('pet:open-settings'),
+    openAli: () => ipcRenderer.send('pet:open-ali'),
+    openAliChat: () => ipcRenderer.send('pet:open-ali-chat'),
+    debugForce: (state: PetState | null) => ipcRenderer.send('pet:debug-force', state),
+    window: {
+      bounds: () => ipcRenderer.invoke('pet:window-bounds'),
+      move: (x: number, y: number) => ipcRenderer.send('pet:window-move', { x, y }),
+      ignoreMouse: (ignore: boolean) => ipcRenderer.send('pet:mouse-ignore', ignore),
+      reset: () => ipcRenderer.invoke('pet:window-reset')
+    },
+    onState: (cb: (snapshot: PetSnapshot) => void) => subscribe('pet:state', cb),
+    onTheme: (cb: (theme: string) => void) => subscribe('pet:theme', cb),
+    onConfig: (cb: (config: PetRuntimeConfig) => void) => subscribe('pet:config', cb),
+    onSettingsChanged: (cb: (settings: PetSettings) => void) => subscribe('pet:settings-changed', cb),
+    onOpenSettings: (cb: () => void) => subscribe('pet:open-settings', cb),
+    onOpenAli: (cb: () => void) => subscribe('pet:open-ali', cb)
   }
 }
 

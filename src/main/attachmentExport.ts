@@ -4,6 +4,7 @@ import path from 'path'
 import { store } from './store'
 import { createZip } from './zip'
 import type { InboxAttachment } from '../shared/types'
+import { t } from '../shared/i18n'
 
 export async function exportAttachmentZip(options: {
   ownerId: string
@@ -21,9 +22,9 @@ export async function exportAttachmentZip(options: {
   }
   const title = (options.title.trim() || options.fallbackName || 'note').replace(/[\\/:*?"<>|]/g, '_')
   const result = await dialog.showSaveDialog({
-    title: '导出为 ZIP',
+    title: t("导出为 ZIP"),
     defaultPath: path.join(app.getPath('documents'), `${title || options.fallbackName || 'note'}.zip`),
-    filters: [{ name: 'ZIP 压缩包', extensions: ['zip'] }]
+    filters: [{ name: t("ZIP 压缩包"), extensions: ['zip'] }]
   })
   if (result.canceled || !result.filePath) return { canceled: true }
 

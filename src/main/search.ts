@@ -1,5 +1,6 @@
 import { store } from './store'
 import type { SearchResult } from '../shared/types'
+import { t } from '../shared/i18n'
 
 function normalize(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
@@ -30,7 +31,7 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
         id: `doc:${doc.id}`,
         type: 'document',
         title: doc.title,
-        snippet: [doc.authors, doc.year].filter(Boolean).join(' · ') || '最近打开的文献',
+        snippet: [doc.authors, doc.year].filter(Boolean).join(' · ') || t("最近打开的文献"),
         docId: doc.id,
         page: doc.lastPage || 1,
         updatedAt: doc.updatedAt
@@ -41,8 +42,8 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
       .map<SearchResult>((chat) => ({
         id: `chat:${chat.id}`,
         type: 'chat',
-        title: chat.title || '新的对话',
-        snippet: chat.messages.length ? normalize(chat.messages[chat.messages.length - 1].content).slice(0, 80) : '空对话',
+        title: chat.title || t("新的对话"),
+        snippet: chat.messages.length ? normalize(chat.messages[chat.messages.length - 1].content).slice(0, 80) : t("空对话"),
         chatId: chat.id,
         updatedAt: chat.updatedAt
       }))
@@ -58,7 +59,7 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
       results.push({
         id: `note:${doc.id}`,
         type: 'note',
-        title: `《${doc.title}》笔记`,
+        title: t("《{0}》笔记", [doc.title]),
         snippet: snippet(doc.notes, query),
         docId: doc.id,
         updatedAt: doc.updatedAt
@@ -92,8 +93,8 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
       results.push({
         id: `chat:${chat.id}`,
         type: 'chat',
-        title: chat.title || '新的对话',
-        snippet: `${chat.messages.length} 条消息`,
+        title: chat.title || t("新的对话"),
+        snippet: t("{0} 条消息", [chat.messages.length]),
         chatId: chat.id,
         updatedAt: chat.updatedAt
       })
@@ -106,8 +107,8 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
       results.push({
         id: `msg:${chat.id}:${message.id}`,
         type: 'message',
-        title: chat.title || '新的对话',
-        snippet: `${message.role === 'user' ? '你' : '助手'}：${snippet(message.content, query)}`,
+        title: chat.title || t("新的对话"),
+        snippet: t("{0}：{1}", [message.role === 'user' ? '你' : '助手', snippet(message.content, query)]),
         chatId: chat.id,
         updatedAt: message.createdAt
       })
@@ -120,7 +121,7 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
     results.push({
       id: `excerpt:${excerpt.id}`,
       type: 'excerpt',
-      title: `《${excerpt.docTitle}》${excerpt.page ? ` 第 ${excerpt.page} 页` : ''}`,
+      title: t("《{0}》{1}", [excerpt.docTitle, excerpt.page ? ` 第 ${excerpt.page} 页` : '']),
       snippet: snippet(body, query),
       docId: excerpt.docId ?? undefined,
       page: excerpt.page,
@@ -135,7 +136,7 @@ export async function globalSearch(rawQuery: string, limit = 40): Promise<Search
       id: `collection:${collection.id}`,
       type: 'collection',
       title: collection.name,
-      snippet: '分类',
+      snippet: t("分类"),
       collectionId: collection.id,
       updatedAt: collection.createdAt
     })

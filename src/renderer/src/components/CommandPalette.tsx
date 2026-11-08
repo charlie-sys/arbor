@@ -3,6 +3,7 @@ import { Check, FileText, Folder, Loader2, MessageSquare, Palette, Quote, Search
 import type { SearchResult, SearchResultType } from '@shared/types'
 import { THEMES } from '../themes'
 import type { ThemeId } from '../themes'
+import { t } from '@shared/i18n'
 
 export interface PaletteCommand {
   id: string
@@ -82,7 +83,7 @@ export default function CommandPalette({
           setSelected(0)
         })
         .catch((err: Error) => {
-          if (alive) notify(`搜索失败：${err.message}`, 'error')
+          if (alive) notify(t("搜索失败：{0}", [err.message]), 'error')
         })
         .finally(() => {
           if (alive) setLoading(false)
@@ -106,7 +107,7 @@ export default function CommandPalette({
     const keyword = promptValue.trim().toLowerCase()
     if (!keyword) return THEMES
     return THEMES.filter((theme) =>
-      `${theme.name} ${theme.latin} ${theme.description}`.toLowerCase().includes(keyword)
+      `${t(theme.name)} ${theme.name} ${theme.latin} ${t(theme.description)}`.toLowerCase().includes(keyword)
     )
   }, [promptValue])
 
@@ -151,14 +152,14 @@ export default function CommandPalette({
   const submitPrompt = async (): Promise<void> => {
     const name = promptValue.trim()
     if (!name) {
-      notify('分类名称不能为空', 'error')
+      notify(t("分类名称不能为空"), 'error')
       return
     }
     try {
       await onCreateCollection(name)
       onClose()
     } catch (err) {
-      notify(`创建分类失败：${(err as Error).message}`, 'error')
+      notify(t("创建分类失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -244,12 +245,12 @@ export default function CommandPalette({
             }}
             placeholder={
               promptKind === 'theme'
-                ? '搜索主题，↑↓ 浏览，回车应用'
+                ? t("搜索主题，↑↓ 浏览，回车应用")
                 : promptKind
-                  ? '输入分类名称，回车创建'
+                  ? t("输入分类名称，回车创建")
                   : mode === 'search'
-                    ? '搜索文献、全文、对话、笔记、摘录、分类…'
-                    : '输入命令，例如：导入、分类、设置…'
+                    ? t("搜索文献、全文、对话、笔记、摘录、分类…")
+                    : t("输入命令，例如：导入、分类、设置…")
             }
             autoFocus
           />
@@ -259,7 +260,7 @@ export default function CommandPalette({
 
         {promptKind === 'theme' ? (
           <div className="palette-list">
-            <div className="palette-section">界面主题</div>
+            <div className="palette-section">{t("界面主题")}</div>
             {filteredThemes.map((theme, index) => (
               <button
                 key={theme.id}
@@ -274,15 +275,15 @@ export default function CommandPalette({
                 </span>
                 <span className="palette-item-main">
                   <span className="palette-item-title">
-                    {theme.name}
+                    {t(theme.name)}
                     <span className="theme-latin">{theme.latin}</span>
                     {theme.id === themeId && <Check size={14} className="theme-check" />}
                   </span>
-                  <span className="palette-item-sub">{theme.description}</span>
+                  <span className="palette-item-sub">{t(theme.description)}</span>
                 </span>
               </button>
             ))}
-            {!filteredThemes.length && <div className="palette-empty">没有匹配的主题</div>}
+            {!filteredThemes.length && <div className="palette-empty">{t("没有匹配的主题")}</div>}
           </div>
         ) : promptKind ? (
           <div className="palette-list">
@@ -291,14 +292,14 @@ export default function CommandPalette({
                 <Folder size={15} />
               </span>
               <span className="palette-item-main">
-                <span className="palette-item-title">创建分类「{promptValue.trim() || '…'}」</span>
-                <span className="palette-item-sub">回车确认，Esc 返回</span>
+                <span className="palette-item-title">{t("创建分类「")}{promptValue.trim() || '…'}」</span>
+                <span className="palette-item-sub">{t("回车确认，Esc 返回")}</span>
               </span>
             </button>
           </div>
         ) : (
           <div className="palette-list">
-            {mode === 'search' && !query.trim() && <div className="palette-section">最近文献与对话</div>}
+            {mode === 'search' && !query.trim() && <div className="palette-section">{t("最近文献与对话")}</div>}
             {mode === 'search' &&
               results.map((result, index) => (
                 <button
@@ -316,9 +317,9 @@ export default function CommandPalette({
                   <span className="palette-item-main">
                     <span className="palette-item-title">
                       {result.title}
-                      <span className="palette-tag">{TYPE_LABEL[result.type]}</span>
-                      {result.page ? <span className="palette-page">第 {result.page} 页</span> : null}
-                      {result.docMissing ? <span className="palette-page">来源已删除</span> : null}
+                      <span className="palette-tag">{t(TYPE_LABEL[result.type])}</span>
+                      {result.page ? <span className="palette-page">{t("第")}{' '}{result.page} {' '}{t("页")}</span> : null}
+                      {result.docMissing ? <span className="palette-page">{t("来源已删除")}</span> : null}
                     </span>
                     <span className="palette-item-sub">{result.snippet}</span>
                   </span>
@@ -342,17 +343,17 @@ export default function CommandPalette({
                 </button>
               ))}
             {!loading && !items.length && (
-              <div className="palette-empty">{mode === 'search' ? '没有找到匹配内容' : '没有匹配的命令'}</div>
+              <div className="palette-empty">{mode === 'search' ? t("没有找到匹配内容") : t("没有匹配的命令")}</div>
             )}
           </div>
         )}
 
         <div className="palette-foot">
-          <span>↑↓ 选择</span>
-          <span>{promptKind === 'theme' ? 'Enter 应用' : 'Enter 打开'}</span>
-          {mode === 'search' && !promptKind && <span>Ctrl+Enter 定位到命中页</span>}
-          <span>{promptKind ? 'Esc 返回' : 'Esc 关闭'}</span>
-          {activeResult && mode === 'search' && <span className="palette-foot-path">{TYPE_LABEL[activeResult.type]}</span>}
+          <span>{t("↑↓ 选择")}</span>
+          <span>{promptKind === 'theme' ? t("Enter 应用") : t("Enter 打开")}</span>
+          {mode === 'search' && !promptKind && <span>{t("Ctrl+Enter 定位到命中页")}</span>}
+          <span>{promptKind ? t("Esc 返回") : t("Esc 关闭")}</span>
+          {activeResult && mode === 'search' && <span className="palette-foot-path">{t(TYPE_LABEL[activeResult.type])}</span>}
         </div>
       </div>
     </div>

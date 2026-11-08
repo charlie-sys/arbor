@@ -4,6 +4,7 @@ import { dialog } from 'electron'
 import { uniqueFileName } from './uniqueFileName'
 import { createZip } from './zip'
 import { store } from './store'
+import { localeTag } from '../shared/i18n'
 import type { DocumentMeta, LibraryData } from '../shared/types'
 import {
   AlignmentType,
@@ -17,6 +18,7 @@ import {
   TextRun,
   WidthType
 } from 'docx'
+import { t } from '../shared/i18n'
 
 function inlineRuns(text: string, bold = false, italic = false): TextRun[] {
   const runs: TextRun[] = []
@@ -35,7 +37,7 @@ function inlineRuns(text: string, bold = false, italic = false): TextRun[] {
     } else if (/^\[[^\]]+\]\([^)]+\)$/.test(part)) {
       const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
       if (match) {
-        runs.push(new TextRun({ text: `${match[1]}（${match[2]}）`, color: '2563EB', underline: {}, font: 'Times New Roman' }))
+        runs.push(new TextRun({ text: t('{0}（{1}）', [match[1], match[2]]), color: '2563EB', underline: {}, font: 'Times New Roman' }))
       }
     } else {
       runs.push(new TextRun({ text: part, bold, italics: italic, font: 'Times New Roman' }))
@@ -255,7 +257,7 @@ export function markdownToDocx(markdown: string, title: string, metaLine?: strin
   return new Document({
     creator: 'Arbor',
     title,
-    description: '由 Arbor 根据文献与问答整理生成',
+    description: t("由 Arbor 根据文献与问答整理生成"),
     styles: {
       default: {
         document: {
@@ -279,7 +281,7 @@ export function markdownToDocx(markdown: string, title: string, metaLine?: strin
 }
 
 function safeFileName(name: string): string {
-  return name.replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 80) || '未命名文档'
+  return name.replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 80) || t("未命名文档")
 }
 
 export async function exportMarkdown(
@@ -289,11 +291,11 @@ export async function exportMarkdown(
 ): Promise<{ canceled: boolean; filePath?: string }> {
   const extension = format === 'docx' ? 'docx' : 'md'
   const result = await dialog.showSaveDialog({
-    title: format === 'docx' ? '导出 Word 文档' : '导出 Markdown',
+    title: format === 'docx' ? t("导出 Word 文档") : t("导出 Markdown"),
     defaultPath: path.join(process.env.USERPROFILE || '', 'Documents', `${safeFileName(title)}.${extension}`),
     filters:
       format === 'docx'
-        ? [{ name: 'Word 文档', extensions: ['docx'] }]
+        ? [{ name: t("Word 文档"), extensions: ['docx'] }]
         : [{ name: 'Markdown', extensions: ['md'] }]
   })
   if (result.canceled || !result.filePath) return { canceled: true }
@@ -305,7 +307,7 @@ export async function exportMarkdown(
     return { canceled: false, filePath }
   }
 
-  const metaLine = `生成时间：${new Date().toLocaleString('zh-CN')} · Arbor`
+  const metaLine = t("生成时间：{0} · Arbor", [new Date().toLocaleString(localeTag())])
   const doc = markdownToDocx(markdown, title, metaLine)
   const buffer = await Packer.toBuffer(doc)
   await fs.writeFile(filePath, buffer)
@@ -350,60 +352,60 @@ function collectionNames(data: LibraryData, doc: DocumentMeta): string {
   return doc.collections
     .map((id) => data.collections.find((collection) => collection.id === id)?.name ?? '')
     .filter(Boolean)
-    .join('、')
+    .join(t('、'))
 }
 
 function docMetaLines(data: LibraryData, doc: DocumentMeta): string[] {
   return [
-    doc.authors ? `- 作者：${doc.authors}` : '',
-    doc.year ? `- 年份：${doc.year}` : '',
-    doc.journal ? `- 期刊：${doc.journal}` : '',
-    doc.doi ? `- DOI：${doc.doi}` : '',
-    doc.url ? `- 链接：${doc.url}` : '',
-    doc.tags.length ? `- 标签：${doc.tags.join('、')}` : '',
-    doc.collections.length ? `- 分类：${collectionNames(data, doc)}` : ''
+    doc.authors ? t("- 作者：{0}", [doc.authors]) : '',
+    doc.year ? t("- 年份：{0}", [doc.year]) : '',
+    doc.journal ? t("- 期刊：{0}", [doc.journal]) : '',
+    doc.doi ? t('- DOI：{0}', [doc.doi]) : '',
+    doc.url ? t("- 链接：{0}", [doc.url]) : '',
+    doc.tags.length ? t("- 标签：{0}", [doc.tags.join(t('、'))]) : '',
+    doc.collections.length ? t("- 分类：{0}", [collectionNames(data, doc)]) : ''
   ].filter(Boolean)
 }
 
 function docNotesMarkdown(data: LibraryData, doc: DocumentMeta): string {
   return [
-    `# ${doc.title} · 笔记`,
+    t("# {0} · 笔记", [doc.title]),
     '',
-    `导出时间：${new Date().toLocaleString('zh-CN')}`,
+    t("导出时间：{0}", [new Date().toLocaleString(localeTag())]),
     '',
     ...docMetaLines(data, doc),
     '',
-    '## 摘要',
+    t("## 摘要"),
     '',
-    doc.abstract || '（无摘要）',
+    doc.abstract || t("（无摘要）"),
     '',
-    '## 个人笔记',
+    t("## 个人笔记"),
     '',
-    doc.notes || '（无笔记）'
+    doc.notes || t("（无笔记）")
   ].join('\n')
 }
 
 function docExcerptsMarkdown(data: LibraryData, doc: DocumentMeta): string {
   const excerpts = data.excerpts.filter((excerpt) => excerpt.docId === doc.id)
-  const lines = [`# ${doc.title} · 摘录`, '', `共 ${excerpts.length} 条`, '']
-  if (!excerpts.length) lines.push('（无摘录）')
+  const lines = [t("# {0} · 摘录", [doc.title]), '', t("共 {0} 条", [excerpts.length]), '']
+  if (!excerpts.length) lines.push(t("（无摘录）"))
   for (const excerpt of excerpts) {
-    lines.push(`## ${excerpt.page ? `第 ${excerpt.page} 页` : '无页码'} · ${excerpt.source}`)
-    if (excerpt.question) lines.push(`> 问题：${excerpt.question}`, '')
-    lines.push(excerpt.answer || '（无内容）', '')
+    lines.push(t("## {0} · {1}", [excerpt.page ? `第 ${excerpt.page} 页` : '无页码', excerpt.source]))
+    if (excerpt.question) lines.push(t("> 问题：{0}", [excerpt.question]), '')
+    lines.push(excerpt.answer || t("（无内容）"), '')
   }
   return lines.join('\n')
 }
 
 function docChatsMarkdown(data: LibraryData, doc: DocumentMeta): string {
   const chats = data.chats.filter((chat) => chat.docIds.includes(doc.id))
-  const lines = [`# ${doc.title} · 对话`, '', `共 ${chats.length} 组对话`, '']
-  if (!chats.length) lines.push('（无对话）')
+  const lines = [t("# {0} · 对话", [doc.title]), '', t("共 {0} 组对话", [chats.length]), '']
+  if (!chats.length) lines.push(t("（无对话）"))
   for (const chat of chats) {
-    lines.push(`## ${chat.title || '新的对话'}`, '')
+    lines.push(t("## {0}", [chat.title || t('新的对话')]), '')
     for (const message of chat.messages) {
-      const role = message.role === 'user' ? '用户' : message.role === 'assistant' ? 'Arbor' : '系统'
-      lines.push(`### ${role}`, '', message.content || '（空）', '')
+      const role = message.role === 'user' ? t("用户") : message.role === 'assistant' ? 'Arbor' : t("系统")
+      lines.push(`### ${role}`, '', message.content || t("（空）"), '')
     }
   }
   return lines.join('\n')
@@ -412,41 +414,41 @@ function docChatsMarkdown(data: LibraryData, doc: DocumentMeta): string {
 export function buildLibraryMarkdown(): string {
   const data = store.data
   const lines = [
-    '# Arbor 文献库导出',
+    t("# Arbor 文献库导出"),
     '',
-    `导出时间：${new Date().toLocaleString('zh-CN')}`,
+    t("导出时间：{0}", [new Date().toLocaleString(localeTag())]),
     '',
-    `- 文献：${data.documents.length} 篇`,
-    `- 摘录：${data.excerpts.length} 条`,
-    `- 对话：${data.chats.length} 组`,
+    t("- 文献：{0} 篇", [data.documents.length]),
+    t("- 摘录：{0} 条", [data.excerpts.length]),
+    t("- 对话：{0} 组", [data.chats.length]),
     '',
-    '## 文献'
+    t("## 文献")
   ]
   for (const doc of data.documents) {
     lines.push('', `### ${doc.title}`, '', ...docMetaLines(data, doc))
     if (doc.abstract) lines.push('', `> ${doc.abstract.replace(/\s+/g, ' ')}`)
-    if (doc.notes) lines.push('', '**个人笔记**', '', doc.notes)
+    if (doc.notes) lines.push('', t("**个人笔记**"), '', doc.notes)
   }
   const excerpts = data.excerpts
-  lines.push('', '## 摘录与笔记', '')
-  if (!excerpts.length) lines.push('（无摘录）')
+  lines.push('', t("## 摘录与笔记"), '')
+  if (!excerpts.length) lines.push(t("（无摘录）"))
   for (const excerpt of excerpts) {
     lines.push(
-      `### ${excerpt.docTitle}${excerpt.page ? ` · 第 ${excerpt.page} 页` : ''}`,
+      t("### {0}{1}", [excerpt.docTitle, excerpt.page ? ` · 第 ${excerpt.page} 页` : '']),
       '',
-      excerpt.question ? `> 问题：${excerpt.question}` : '',
+      excerpt.question ? t("> 问题：{0}", [excerpt.question]) : '',
       excerpt.question ? '' : '',
-      excerpt.answer || '（无内容）',
+      excerpt.answer || t("（无内容）"),
       ''
     )
   }
-  lines.push('## 对话', '')
-  if (!data.chats.length) lines.push('（无对话）')
+  lines.push(t("## 对话"), '')
+  if (!data.chats.length) lines.push(t("（无对话）"))
   for (const chat of data.chats) {
-    lines.push(`### ${chat.title || '新的对话'}`, '')
+    lines.push(t("### {0}", [chat.title || t('新的对话')]), '')
     for (const message of chat.messages) {
-      const role = message.role === 'user' ? '用户' : message.role === 'assistant' ? 'Arbor' : '系统'
-      lines.push(`**${role}**：${message.content || '（空）'}`, '')
+      const role = message.role === 'user' ? t("用户") : message.role === 'assistant' ? 'Arbor' : t("系统")
+      lines.push(t("**{0}**：{1}", [role, message.content || '（空）']), '')
     }
   }
   return lines.join('\n')
@@ -471,19 +473,19 @@ export async function exportBibtex(): Promise<{ canceled: boolean; filePath?: st
 export async function exportLibrary(format: 'md' | 'zip'): Promise<{ canceled: boolean; filePath?: string }> {
   const markdown = buildLibraryMarkdown()
   if (format === 'md') {
-    return saveAs(`Arbor-文献库-${new Date().toISOString().slice(0, 10)}.md`, 'Markdown', ['md'], markdown)
+    return saveAs(t("Arbor-文献库-{0}.md", [new Date().toISOString().slice(0, 10)]), 'Markdown', ['md'], markdown)
   }
   const bibtex = buildBibtex(store.data.documents)
   const zip = createZip([
     { name: 'library.md', data: Buffer.from(markdown, 'utf-8') },
     { name: 'library.bib', data: Buffer.from(bibtex, 'utf-8') }
   ])
-  return saveAs(`Arbor-文献库-${new Date().toISOString().slice(0, 10)}.zip`, 'ZIP 压缩包', ['zip'], zip)
+  return saveAs(t("Arbor-文献库-{0}.zip", [new Date().toISOString().slice(0, 10)]), t("ZIP 压缩包"), ['zip'], zip)
 }
 
 export async function exportDocumentPackage(docId: string): Promise<{ canceled: boolean; filePath?: string }> {
   const doc = store.getDocument(docId)
-  if (!doc) throw new Error('文献不存在')
+  if (!doc) throw new Error(t("文献不存在"))
   const data = store.data
   const entries = [
     { name: 'notes.md', data: Buffer.from(docNotesMarkdown(data, doc), 'utf-8') },
@@ -522,5 +524,5 @@ export async function exportDocumentPackage(docId: string): Promise<{ canceled: 
   } catch {
     // 原始文件缺失时仍导出笔记与摘录
   }
-  return saveAs(`${safeFileName(doc.title)}-文献包.zip`, '文献包', ['zip'], createZip(entries))
+  return saveAs(t("{0}-文献包.zip", [safeFileName(doc.title)]), t("文献包"), ['zip'], createZip(entries))
 }

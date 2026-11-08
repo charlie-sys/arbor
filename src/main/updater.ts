@@ -9,6 +9,7 @@ import type {
   UpdateInstallResult,
   UpdateProgress
 } from '../shared/api'
+import { t } from '../shared/i18n'
 
 const OWNER = 'charlie-sys'
 const REPO = 'arbor'
@@ -75,9 +76,9 @@ export function compareVersions(a: string, b: string): number {
 
 function describeError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
-  if (/abort|timed? ?out/i.test(message)) return '连接 GitHub 超时，请稍后重试'
+  if (/abort|timed? ?out/i.test(message)) return t("连接 GitHub 超时，请稍后重试")
   if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|fetch failed|network/i.test(message)) {
-    return '无法连接 GitHub，请检查网络或代理设置'
+    return t("无法连接 GitHub，请检查网络或代理设置")
   }
   return message
 }
@@ -135,7 +136,7 @@ function emptyInfo(currentVersion: string, error?: string): UpdateInfo {
 
 function parseRelease(currentVersion: string, release: GithubRelease): UpdateInfo {
   const tag = typeof release.tag_name === 'string' ? release.tag_name : ''
-  if (!tag) throw new Error('GitHub 发布信息缺少版本号')
+  if (!tag) throw new Error(t("GitHub 发布信息缺少版本号"))
   const latestVersion = normalizeVersion(tag)
   const assets = Array.isArray(release.assets) ? (release.assets as GithubAsset[]) : []
   const exeAssets = assets.filter(
@@ -183,14 +184,14 @@ async function fetchLatestRelease(currentVersion: string): Promise<UpdateInfo> {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT)
   })
 
-  if (response.status === 404) throw new Error('GitHub 上还没有发布任何版本')
+  if (response.status === 404) throw new Error(t("GitHub 上还没有发布任何版本"))
   if (response.status === 403 || response.status === 429) {
-    throw new Error('GitHub 接口访问受限（可能触发频率限制），请稍后重试')
+    throw new Error(t("GitHub 接口访问受限（可能触发频率限制），请稍后重试"))
   }
-  if (!response.ok) throw new Error(`GitHub 返回 HTTP ${response.status}`)
+  if (!response.ok) throw new Error(t("GitHub 返回 HTTP {0}", [response.status]))
 
   const release = (await response.json()) as GithubRelease
-  if (release.draft === true) throw new Error('最新版本尚未正式发布')
+  if (release.draft === true) throw new Error(t("最新版本尚未正式发布"))
   return parseRelease(currentVersion, release)
 }
 
@@ -216,24 +217,24 @@ export function checkForUpdates(force = false): Promise<UpdateInfo> {
 }
 
 export async function downloadUpdate(): Promise<UpdateDownloadResult> {
-  if (downloading) return { ok: false, message: '更新包正在下载中，请稍候' }
+  if (downloading) return { ok: false, message: t("更新包正在下载中，请稍候") }
   if (pendingInstaller && existsSync(pendingInstaller.filePath)) {
     emitProgress({
       phase: 'ready',
       percent: 100,
       received: 0,
       total: 0,
-      message: `v${pendingInstaller.version} 已下载，可立即安装`
+      message: t("v{0} 已下载，可立即安装", [pendingInstaller.version])
     })
     return { ok: true, filePath: pendingInstaller.filePath, version: pendingInstaller.version }
   }
 
   const info = await checkForUpdates(true)
   if (info.error) return { ok: false, message: info.error }
-  if (!info.hasUpdate) return { ok: false, message: '当前已经是最新版本' }
+  if (!info.hasUpdate) return { ok: false, message: t("当前已经是最新版本") }
   if (!info.asset) {
     await openReleasePage()
-    return { ok: false, message: '该版本未提供 Windows 安装包，已打开 GitHub 发布页' }
+    return { ok: false, message: t("该版本未提供 Windows 安装包，已打开 GitHub 发布页") }
   }
 
   const total = info.asset.size
@@ -258,7 +259,7 @@ export async function downloadUpdate(): Promise<UpdateDownloadResult> {
       signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT)
     })
     if (!response.ok || !response.body) {
-      throw new Error(`下载安装包失败（HTTP ${response.status}）`)
+      throw new Error(t("下载安装包失败（HTTP {0}）", [response.status]))
     }
 
     const stream = createWriteStream(filePath)
@@ -290,7 +291,7 @@ export async function downloadUpdate(): Promise<UpdateDownloadResult> {
     }
 
     if (total > 0 && received !== total) {
-      throw new Error('安装包不完整，请重试')
+      throw new Error(t("安装包不完整，请重试"))
     }
 
     emitProgress({ phase: 'verifying', percent: 100, received, total })
@@ -298,7 +299,7 @@ export async function downloadUpdate(): Promise<UpdateDownloadResult> {
     if (expected) {
       const actual = hash.digest('hex')
       if (actual.toLowerCase() !== expected.toLowerCase()) {
-        throw new Error('安装包校验失败，文件可能已损坏，请重试')
+        throw new Error(t("安装包校验失败，文件可能已损坏，请重试"))
       }
     }
 
@@ -308,7 +309,7 @@ export async function downloadUpdate(): Promise<UpdateDownloadResult> {
       percent: 100,
       received,
       total,
-      message: `Arbor v${info.latestVersion} 已下载完成`
+      message: t("Arbor v{0} 已下载完成", [info.latestVersion])
     })
     return { ok: true, filePath, version: info.latestVersion }
   } catch (error) {
@@ -323,24 +324,24 @@ export async function downloadUpdate(): Promise<UpdateDownloadResult> {
 }
 
 export async function installUpdate(): Promise<UpdateInstallResult> {
-  if (!pendingInstaller) return { ok: false, message: '尚未下载更新安装包' }
+  if (!pendingInstaller) return { ok: false, message: t("尚未下载更新安装包") }
   if (!existsSync(pendingInstaller.filePath)) {
     pendingInstaller = null
-    return { ok: false, message: '更新安装包已不存在，请重新下载' }
+    return { ok: false, message: t("更新安装包已不存在，请重新下载") }
   }
 
   const choice = await dialog.showMessageBox({
     type: 'question',
-    title: '安装 Arbor 更新',
-    message: `Arbor v${pendingInstaller.version} 已下载完成`,
-    detail: '点击“立即安装并重启”会关闭 Arbor 并启动安装向导；安装完成后可重新打开应用。',
-    buttons: ['立即安装并重启', '稍后'],
+    title: t("安装 Arbor 更新"),
+    message: t("Arbor v{0} 已下载完成", [pendingInstaller.version]),
+    detail: t("点击“立即安装并重启”会关闭 Arbor 并启动安装向导；安装完成后可重新打开应用。"),
+    buttons: [t("立即安装并重启"), t("稍后")],
     defaultId: 0,
     cancelId: 1,
     noLink: true
   })
   if (choice.response !== 0) {
-    return { ok: false, message: '已取消安装，安装包已保留，可稍后再次安装' }
+    return { ok: false, message: t("已取消安装，安装包已保留，可稍后再次安装") }
   }
 
   emitProgress({
@@ -348,14 +349,14 @@ export async function installUpdate(): Promise<UpdateInstallResult> {
     percent: 100,
     received: 0,
     total: 0,
-    message: '正在启动安装程序…'
+    message: t("正在启动安装程序…")
   })
   const error = await shell.openPath(pendingInstaller.filePath)
   if (error) {
-    return { ok: false, message: `启动安装程序失败：${error}` }
+    return { ok: false, message: t("启动安装程序失败：{0}", [error]) }
   }
   setTimeout(() => app.quit(), 300)
-  return { ok: true, message: '正在启动安装程序' }
+  return { ok: true, message: t("正在启动安装程序") }
 }
 
 export async function openReleasePage(): Promise<void> {

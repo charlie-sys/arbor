@@ -4,6 +4,7 @@ import type { AiActionId, DocumentMeta } from '@shared/types'
 import { aiActionMeta } from '@shared/aiActions'
 import { Markdown } from '../ui'
 import './AiActionPanel.css'
+import { t } from '@shared/i18n'
 
 interface Props {
   action: AiActionId
@@ -38,7 +39,7 @@ export default function AiActionPanel({
 
   const run = useCallback(async (): Promise<void> => {
     if (action === 'compare' && !targetDocId) {
-      setError('请选择要对比的文献')
+      setError(t("请选择要对比的文献"))
       return
     }
     setBusy(true)
@@ -55,7 +56,7 @@ export default function AiActionPanel({
       })
       setResult(output.content)
     } catch (err) {
-      setError((err as Error).message || '生成失败')
+      setError((err as Error).message || t("生成失败"))
     } finally {
       setBusy(false)
     }
@@ -69,9 +70,9 @@ export default function AiActionPanel({
   const copy = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(result)
-      notify('已复制结果', 'success')
+      notify(t("已复制结果"), 'success')
     } catch {
-      notify('复制失败', 'error')
+      notify(t("复制失败"), 'error')
     }
   }
 
@@ -81,15 +82,15 @@ export default function AiActionPanel({
       await window.api.excerpts.add({
         docId,
         page: selection.page,
-        source: `AI·${meta.label}`,
+        source: `AI·${t(meta.label)}`,
         question: selection.text,
         answer: result
       })
       setSaved(true)
-      notify('已存为摘录', 'success')
+      notify(t("已存为摘录"), 'success')
       await onSaved()
     } catch (err) {
-      notify(`保存摘录失败：${(err as Error).message}`, 'error')
+      notify(t("保存摘录失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -97,10 +98,10 @@ export default function AiActionPanel({
     <aside className="ai-action-panel">
       <div className="ai-action-head">
         <span className="ai-action-title">
-          <Sparkles size={14} /> {meta.label}
-          <span className="muted">· 第 {selection.page} 页</span>
+          <Sparkles size={14} /> {t(meta.label)}
+          <span className="muted">{t("· 第")}{' '}{selection.page} {' '}{t("页")}</span>
         </span>
-        <button className="icon-btn tiny" title="关闭" onClick={onClose}>
+        <button className="icon-btn tiny" title={t("关闭")} onClick={onClose}>
           <X size={14} />
         </button>
       </div>
@@ -121,11 +122,11 @@ export default function AiActionPanel({
                 ))}
               </select>
               <button className="btn primary small" disabled={busy} onClick={() => void run()}>
-                {busy ? '对比中…' : '开始对比'}
+                {busy ? t("对比中…") : t("开始对比")}
               </button>
             </>
           ) : (
-            <p className="muted">文献库中只有这一篇文献，无法对比。</p>
+            <p className="muted">{t("文献库中只有这一篇文献，无法对比。")}</p>
           )}
         </div>
       )}
@@ -133,24 +134,21 @@ export default function AiActionPanel({
       <div className="ai-action-body">
         {busy && (
           <p className="muted ai-action-loading">
-            <Loader2 size={14} className="ai-spin" /> 正在生成…
-          </p>
+            <Loader2 size={14} className="ai-spin" /> {' '}{t("正在生成…")}{' '}</p>
         )}
         {error && <p className="ai-action-error">{error}</p>}
-        {!busy && !error && !result && !meta.needsTarget && <p className="muted">暂无结果。</p>}
+        {!busy && !error && !result && !meta.needsTarget && <p className="muted">{t("暂无结果。")}</p>}
         {result && <Markdown>{result}</Markdown>}
       </div>
 
       <div className="ai-action-actions">
         <button className="btn ghost small" disabled={!result} onClick={() => void copy()}>
-          <Copy size={13} /> 复制
-        </button>
+          <Copy size={13} /> {' '}{t("复制")}{' '}</button>
         <button className="btn ghost small" disabled={!result || saved} onClick={() => void saveExcerpt()}>
-          <NotebookPen size={13} /> {saved ? '已存摘录' : '存为摘录'}
+          <NotebookPen size={13} /> {saved ? t("已存摘录") : t("存为摘录")}
         </button>
         <button className="btn ghost small" onClick={() => onContinueAsk(selection.text, selection.page)}>
-          <MessageSquarePlus size={13} /> 继续追问
-        </button>
+          <MessageSquarePlus size={13} /> {' '}{t("继续追问")}{' '}</button>
       </div>
     </aside>
   )

@@ -4,6 +4,9 @@ import path from 'path'
 import crypto from 'crypto'
 import { formatFromFileName } from '../shared/documents'
 import { normalizePricing } from '../shared/usage'
+import { defaultAliSettings, normalizeAliSettings } from '../shared/ali'
+import { localeFromStored, localeFromSystemTag, t, type Locale } from '../shared/i18n'
+import { defaultSystemPrompt, isDefaultSystemPrompt } from '../shared/i18n/defaults'
 import type {
   AppSettings,
   CanvasBoard,
@@ -27,15 +30,18 @@ import type {
 } from '../shared/types'
 
 const DEFAULT_SETTINGS: AppSettings = {
+  language: 'zh-CN',
   apiBaseUrl: 'https://api.deepseek.com/v1',
   apiKey: '',
   chatModel: 'deepseek-chat',
   visionModel: '',
   temperature: 0.3,
   maxContextChars: 0,
-  systemPrompt:
-    '你是一位严谨、细致的学术研究助手。你会基于用户提供的文献原文回答问题：结论必须有原文依据；引用时注明《文献标题》第N页；原文没有的信息要明确说明"文献中未提及"，不得编造。回答使用中文，结构清晰，必要时使用 Markdown 小标题、列表和表格。',
-  usagePricing: normalizePricing()
+  systemPrompt: defaultSystemPrompt('zh-CN'),
+  usagePricing: normalizePricing(),
+  petEnabled: true,
+  petBubbles: true,
+  ali: defaultAliSettings()
 }
 
 export function uid(): string {
@@ -58,12 +64,16 @@ function emptyData(): LibraryData {
     tags: [],
     properties: [],
     savedViews: [],
-    settings: { ...DEFAULT_SETTINGS }
+    settings: { ...DEFAULT_SETTINGS, ali: defaultAliSettings() }
   }
 }
 
 interface StoredSettings extends Partial<AppSettings> {
   apiKeyEnc?: string
+  aliApiKeyEnc?: string
+  aliAuxApiKeyEnc?: string
+  aliWebApiKeyEnc?: string
+  aliGithubTokenEnc?: string
 }
 
 interface StoredData extends Omit<LibraryData, 'settings'> {
@@ -97,16 +107,33 @@ class Store {
     try {
       const raw = await fs.readFile(this.libraryFile, 'utf-8')
       const parsed = JSON.parse(raw) as StoredData
-      const settings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+      const settings: AppSettings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+      settings.ali = normalizeAliSettings(parsed.settings.ali)
+      // 旧数据没有语言字段：保留用户已有的简体中文界面，避免升级后被自动切换。
+      settings.language =
+        typeof parsed.settings.language === 'string'
+          ? localeFromStored(parsed.settings.language)
+          : 'zh-CN'
+      if (!settings.systemPrompt?.trim()) settings.systemPrompt = defaultSystemPrompt(settings.language)
       settings.usagePricing = normalizePricing(parsed.settings.usagePricing)
-      if (parsed.settings.apiKeyEnc) {
+      const decrypt = (value?: string): string => {
+        if (!value) return ''
         try {
-          settings.apiKey = safeStorage.decryptString(Buffer.from(parsed.settings.apiKeyEnc, 'base64'))
+          return safeStorage.decryptString(Buffer.from(value, 'base64'))
         } catch {
-          settings.apiKey = ''
+          return ''
         }
       }
+      if (parsed.settings.apiKeyEnc) settings.apiKey = decrypt(parsed.settings.apiKeyEnc)
+      if (parsed.settings.aliApiKeyEnc) settings.ali.apiKey = decrypt(parsed.settings.aliApiKeyEnc)
+      if (parsed.settings.aliAuxApiKeyEnc) settings.ali.auxApiKey = decrypt(parsed.settings.aliAuxApiKeyEnc)
+      if (parsed.settings.aliWebApiKeyEnc) settings.ali.webApiKey = decrypt(parsed.settings.aliWebApiKeyEnc)
+      if (parsed.settings.aliGithubTokenEnc) settings.ali.githubToken = decrypt(parsed.settings.aliGithubTokenEnc)
       delete (settings as StoredSettings).apiKeyEnc
+      delete (settings as StoredSettings).aliApiKeyEnc
+      delete (settings as StoredSettings).aliAuxApiKeyEnc
+      delete (settings as StoredSettings).aliWebApiKeyEnc
+      delete (settings as StoredSettings).aliGithubTokenEnc
       // 旧版本默认上限为 24000；现在默认不限制注入的文献上下文
       if (settings.maxContextChars === 24000) settings.maxContextChars = 0
       const documents = (parsed.documents ?? []).map((doc) => ({
@@ -142,7 +169,10 @@ class Store {
         settings
       }
     } catch {
+      const locale: Locale = localeFromSystemTag(app.getLocale())
       this.data = emptyData()
+      this.data.settings.language = locale
+      this.data.settings.systemPrompt = defaultSystemPrompt(locale)
       await this.save()
     }
   }
@@ -155,14 +185,18 @@ class Store {
   }
 
   private async writeNow(): Promise<void> {
-    const settings: StoredSettings = { ...this.data.settings }
-    if (settings.apiKey) {
-      if (safeStorage.isEncryptionAvailable()) {
-        settings.apiKeyEnc = safeStorage.encryptString(settings.apiKey).toString('base64')
-      }
-    }
+    const ali = { ...(this.data.settings.ali ?? defaultAliSettings()) }
+    const settings: StoredSettings = { ...this.data.settings, ali }
+    const encrypt = (value?: string): string | undefined =>
+      value && safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(value).toString('base64') : undefined
+    if (settings.apiKey) settings.apiKeyEnc = encrypt(settings.apiKey)
+    if (ali.apiKey) settings.aliApiKeyEnc = encrypt(ali.apiKey)
+    if (ali.auxApiKey) settings.aliAuxApiKeyEnc = encrypt(ali.auxApiKey)
+    if (ali.webApiKey) settings.aliWebApiKeyEnc = encrypt(ali.webApiKey)
+    if (ali.githubToken) settings.aliGithubTokenEnc = encrypt(ali.githubToken)
     const disk: StoredData = { ...this.data, settings }
     delete (disk.settings as StoredSettings).apiKey
+    disk.settings.ali = { ...ali, apiKey: '', auxApiKey: '', webApiKey: '', githubToken: '' }
     const tmp = `${this.libraryFile}.tmp`
     await fs.writeFile(tmp, JSON.stringify(disk, null, 2), 'utf-8')
     await fs.rename(tmp, this.libraryFile)
@@ -178,7 +212,7 @@ class Store {
 
   async addDocument(filePath: string, title: string): Promise<DocumentMeta> {
     const sourceFormat = formatFromFileName(filePath)
-    if (!sourceFormat) throw new Error('不支持的文献格式，请选择 PDF、Word、Markdown 或 TXT 文件')
+    if (!sourceFormat) throw new Error(t("不支持的文献格式，请选择 PDF、Word、Markdown 或 TXT 文件"))
     const id = uid()
     const extension = path.extname(filePath).toLowerCase() || '.pdf'
     const fileName = `${id}${extension}`
@@ -321,7 +355,7 @@ class Store {
     const excerpt: Excerpt = {
       id: uid(),
       docId: doc?.id ?? input.docId ?? null,
-      docTitle: doc?.title ?? (input.docId ? '未知文献' : '未关联文献'),
+      docTitle: doc?.title ?? (input.docId ? t("未知文献") : t("未关联文献")),
       page: input.page,
       source: input.source ?? '',
       question: input.question ?? '',
@@ -359,7 +393,7 @@ class Store {
     files: { sourcePath: string; name: string; kind: 'image' | 'file' }[]
   ): Promise<InboxAttachment[]> {
     const excerpt = this.data.excerpts.find((entry) => entry.id === excerptId)
-    if (!excerpt) throw new Error('摘录不存在')
+    if (!excerpt) throw new Error(t("摘录不存在"))
     const dir = path.join(this.attachmentsDir, excerptId)
     await fs.mkdir(dir, { recursive: true })
     const added: InboxAttachment[] = []
@@ -385,7 +419,7 @@ class Store {
 
   async removeExcerptAttachment(excerptId: string, attachmentId: string): Promise<void> {
     const excerpt = this.data.excerpts.find((entry) => entry.id === excerptId)
-    if (!excerpt) throw new Error('摘录不存在')
+    if (!excerpt) throw new Error(t("摘录不存在"))
     const attachment = (excerpt.attachments ?? []).find((entry) => entry.id === attachmentId)
     if (!attachment) return
     excerpt.attachments = (excerpt.attachments ?? []).filter((entry) => entry.id !== attachmentId)
@@ -408,7 +442,7 @@ class Store {
     due?: string
   }): Promise<InboxItem> {
     const content = input.content.trim()
-    if (!content) throw new Error('捕获内容不能为空')
+    if (!content) throw new Error(t("捕获内容不能为空"))
     const now = Date.now()
     const item: InboxItem = {
       id: uid(),
@@ -450,7 +484,7 @@ class Store {
     if (!item) return undefined
     if (patch.content !== undefined) {
       const content = patch.content.trim()
-      if (!content) throw new Error('捕获内容不能为空')
+      if (!content) throw new Error(t("捕获内容不能为空"))
       patch = { ...patch, content }
     }
     Object.assign(item, patch, { id: item.id, updatedAt: Date.now() })
@@ -474,7 +508,7 @@ class Store {
     files: { sourcePath: string; name: string; kind: 'image' | 'file' }[]
   ): Promise<InboxAttachment[]> {
     const item = this.data.inbox.find((entry) => entry.id === inboxId)
-    if (!item) throw new Error('Inbox 条目不存在')
+    if (!item) throw new Error(t("Inbox 条目不存在"))
     const dir = path.join(this.attachmentsDir, inboxId)
     await fs.mkdir(dir, { recursive: true })
     const added: InboxAttachment[] = []
@@ -500,7 +534,7 @@ class Store {
 
   async removeInboxAttachment(inboxId: string, attachmentId: string): Promise<void> {
     const item = this.data.inbox.find((entry) => entry.id === inboxId)
-    if (!item) throw new Error('Inbox 条目不存在')
+    if (!item) throw new Error(t("Inbox 条目不存在"))
     const attachment = (item.attachments ?? []).find((entry) => entry.id === attachmentId)
     if (!attachment) return
     item.attachments = (item.attachments ?? []).filter((entry) => entry.id !== attachmentId)
@@ -544,7 +578,7 @@ class Store {
     inboxId?: string
   }): Promise<TaskItem> {
     const title = input.title.trim()
-    if (!title) throw new Error('任务标题不能为空')
+    if (!title) throw new Error(t("任务标题不能为空"))
     const now = Date.now()
     const task: TaskItem = { id: uid(), title, done: false, createdAt: now, updatedAt: now }
     const due = (input.due ?? '').trim()
@@ -566,7 +600,7 @@ class Store {
     const next = { ...patch }
     if (next.title !== undefined) {
       const title = next.title.trim()
-      if (!title) throw new Error('任务标题不能为空')
+      if (!title) throw new Error(t("任务标题不能为空"))
       next.title = title
     }
     if (next.due !== undefined) {
@@ -773,9 +807,9 @@ class Store {
 
   async addResearchTopic(input: { name: string; docIds: string[] }): Promise<ResearchTopic> {
     const name = input.name.trim()
-    if (!name) throw new Error('研究主题名称不能为空')
+    if (!name) throw new Error(t("研究主题名称不能为空"))
     const docIds = [...new Set(input.docIds)].filter((id) => this.getDocument(id))
-    if (!docIds.length) throw new Error('请至少选择一篇文献')
+    if (!docIds.length) throw new Error(t("请至少选择一篇文献"))
     const now = Date.now()
     const topic: ResearchTopic = { id: uid(), name, docIds, questions: [], createdAt: now, updatedAt: now }
     this.data.researchTopics.push(topic)
@@ -803,7 +837,7 @@ class Store {
     const now = Date.now()
     const canvas: CanvasBoard = {
       id: uid(),
-      name: name.trim() || '未命名画布',
+      name: name.trim() || t("未命名画布"),
       nodes: [],
       edges: [],
       createdAt: now,
@@ -836,7 +870,7 @@ class Store {
   async createChat(docIds: string[]): Promise<ChatSession> {    const now = Date.now()
     const chat: ChatSession = {
       id: uid(),
-      title: '新的对话',
+      title: t("新的对话"),
       docIds,
       messages: [],
       createdAt: now,
@@ -931,7 +965,18 @@ class Store {
   }
 
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
-    this.data.settings = { ...this.data.settings, ...patch }
+    const prev = this.data.settings
+    const next: AppSettings = {
+      ...prev,
+      ...patch,
+      ali: normalizeAliSettings({ ...prev.ali, ...(patch.ali ?? {}) }),
+      language: patch.language ? localeFromStored(patch.language) : prev.language
+    }
+    // 默认提示词随界面语言切换；用户自定义过的提示词保持不变。
+    if (patch.language && patch.systemPrompt === undefined && isDefaultSystemPrompt(prev.systemPrompt)) {
+      next.systemPrompt = defaultSystemPrompt(next.language)
+    }
+    this.data.settings = next
     await this.save()
     return this.data.settings
   }

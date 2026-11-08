@@ -3,6 +3,7 @@ import { BookOpen, Download, Link2, Maximize2, Minus, Plus, Trash2 } from 'lucid
 import type { CanvasEdge, CanvasNode, CanvasNodeKind, LibraryData } from '@shared/types'
 import { cx } from '../ui'
 import CanvasNameDialog from './CanvasNameDialog'
+import { t } from '@shared/i18n'
 
 type CanvasDialog = { kind: 'create' | 'rename' | 'section'; value: string }
 
@@ -118,12 +119,12 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
       await window.api.canvases.update(board.id, { nodes: nextNodes, edges: nextEdges, ...(name ? { name } : {}) })
       await onChanged()
     } catch (err) {
-      notify(`保存画布失败：${(err as Error).message}`, 'error')
+      notify(t("保存画布失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const createBoard = (): void => {
-    setDialog({ kind: 'create', value: '研究画布' })
+    setDialog({ kind: 'create', value: t("研究画布") })
   }
 
   const renameBoard = (): void => {
@@ -141,7 +142,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
         await onChanged()
         onSelectCanvas(created.id)
       } catch (err) {
-        notify(`新建画布失败：${(err as Error).message}`, 'error')
+        notify(t("新建画布失败：{0}", [(err as Error).message]), 'error')
       }
       return
     }
@@ -154,13 +155,13 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
 
   const removeBoard = async (): Promise<void> => {
     if (!board) return
-    if (!window.confirm(`删除画布「${board.name}」？画布内容会一并删除，文献与摘录不受影响。`)) return
+    if (!window.confirm(t("删除画布「{0}」？画布内容会一并删除，文献与摘录不受影响。", [board.name]))) return
     try {
       await window.api.canvases.remove(board.id)
       await onChanged()
       onSelectCanvas(undefined)
     } catch (err) {
-      notify(`删除画布失败：${(err as Error).message}`, 'error')
+      notify(t("删除画布失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -193,7 +194,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
   const handleAdd = (value: string): void => {
     if (!value || !board) return
     if (value === '__section') {
-      setDialog({ kind: 'section', value: '新分区' })
+      setDialog({ kind: 'section', value: t("新分区") })
       return
     }
     if (value.startsWith('doc:')) {
@@ -207,7 +208,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
       if (!excerpt) return
       void addNode({
         kind: 'excerpt',
-        title: `摘录 · ${excerpt.docTitle}`,
+        title: t("摘录 · {0}", [excerpt.docTitle]),
         text: excerpt.answer.slice(0, 220),
         docId: excerpt.docId ?? undefined,
         excerptId: excerpt.id
@@ -221,7 +222,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
       if (!chat || !message) return
       void addNode({
         kind: 'chat',
-        title: `问答 · ${chat.title}`,
+        title: t("问答 · {0}", [chat.title]),
         text: message.content.slice(0, 240),
         chatId: chat.id,
         messageId: message.id,
@@ -239,7 +240,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
   }
 
   const removeEdge = async (id: string): Promise<void> => {
-    if (!window.confirm('删除这条连线？')) return
+    if (!window.confirm(t("删除这条连线？"))) return
     const next = edges.filter((edge) => edge.id !== id)
     setEdges(next)
     await persist(nodes, next)
@@ -386,7 +387,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
   const exportPng = (): void => {
     if (!board) return
     if (!nodes.length) {
-      notify('画布还没有内容', 'info')
+      notify(t("画布还没有内容"), 'info')
       return
     }
     const minX = Math.min(...nodes.map((node) => node.x)) - 40
@@ -452,19 +453,19 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
     link.download = `${board.name || 'canvas'}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
-    notify('画布已导出 PNG', 'success')
+    notify(t("画布已导出 PNG"), 'success')
   }
 
   return (
     <div className="view canvas-view" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <header className="view-head">
         <div>
-          <h1>主题画布</h1>
-          <p className="muted">文献、摘录与问答卡片，支持分区、连线、缩放、拖入文献与 PNG 导出</p>
+          <h1>{t("主题画布")}</h1>
+          <p className="muted">{t("文献、摘录与问答卡片，支持分区、连线、缩放、拖入文献与 PNG 导出")}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <select className="select" value={board?.id ?? ''} onChange={(event) => onSelectCanvas(event.target.value || undefined)}>
-            {data.canvases.length === 0 && <option value="">暂无画布</option>}
+            {data.canvases.length === 0 && <option value="">{t("暂无画布")}</option>}
             {data.canvases.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -472,17 +473,14 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
             ))}
           </select>
           <button className="btn" data-canvas-new onClick={() => void createBoard()}>
-            <Plus size={14} /> 新建画布
-          </button>
+            <Plus size={14} /> {' '}{t("新建画布")}{' '}</button>
           {board && (
             <button className="btn ghost" onClick={() => void renameBoard()}>
-              重命名
-            </button>
+              {' '}{t("重命名")}{' '}</button>
           )}
           {board && (
             <button className="btn ghost" onClick={() => void removeBoard()}>
-              <Trash2 size={14} /> 删除
-            </button>
+              <Trash2 size={14} /> {' '}{t("删除")}{' '}</button>
           )}
         </div>
       </header>
@@ -492,33 +490,32 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
           <div className="empty-icon">
             <Link2 size={28} />
           </div>
-          <h2>还没有画布</h2>
-          <p className="muted">创建画布后，可把文献、摘录与问答卡片放到同一张无限画布上；打开“文献”面板还能把文献直接拖到画布。</p>
+          <h2>{t("还没有画布")}</h2>
+          <p className="muted">{t("创建画布后，可把文献、摘录与问答卡片放到同一张无限画布上；打开“文献”面板还能把文献直接拖到画布。")}</p>
           <button className="btn primary" onClick={() => void createBoard()}>
-            <Plus size={16} /> 新建画布
-          </button>
+            <Plus size={16} /> {' '}{t("新建画布")}{' '}</button>
         </div>
       ) : (
         <>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <select className="select" data-canvas-add value="" onChange={(event) => handleAdd(event.target.value)}>
-              <option value="">＋ 添加卡片</option>
-              <option value="__section">新建分区</option>
-              <optgroup label="文献">
+              <option value="">{t("＋ 添加卡片")}</option>
+              <option value="__section">{t("新建分区")}</option>
+              <optgroup label={t("文献")}>
                 {data.documents.map((doc) => (
                   <option key={doc.id} value={`doc:${doc.id}`}>
                     {doc.title}
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="摘录">
+              <optgroup label={t("摘录")}>
                 {data.excerpts.map((excerpt) => (
                   <option key={excerpt.id} value={`excerpt:${excerpt.id}`}>
                     {excerpt.docTitle} · {excerpt.answer.slice(0, 30)}
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="问答">
+              <optgroup label={t("问答")}>
                 {data.chats.flatMap((chat) =>
                   chat.messages
                     .filter((message) => message.role === 'assistant')
@@ -535,8 +532,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
               data-canvas-docs
               onClick={() => setDocsOpen((value) => !value)}
             >
-              <BookOpen size={14} /> 文献
-            </button>
+              <BookOpen size={14} /> {' '}{t("文献")}{' '}</button>
             <button
               className={cx('btn ghost', mode === 'connect' && 'active')}
               data-canvas-connect
@@ -545,23 +541,22 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                 setConnectFrom(null)
               }}
             >
-              <Link2 size={14} /> {mode === 'connect' ? '点选两张卡片连线' : '连线'}
+              <Link2 size={14} /> {mode === 'connect' ? t("点选两张卡片连线") : t("连线")}
             </button>
-            <button className="btn ghost" title="缩小" data-canvas-zoom-out onClick={() => setVp((prev) => ({ ...prev, scale: Math.max(0.3, prev.scale / 1.2) }))}>
+            <button className="btn ghost" title={t("缩小")} data-canvas-zoom-out onClick={() => setVp((prev) => ({ ...prev, scale: Math.max(0.3, prev.scale / 1.2) }))}>
               <Minus size={14} />
             </button>
             <span className="muted small" data-canvas-zoom style={{ minWidth: 46, textAlign: 'center' }}>
               {Math.round(vp.scale * 100)}%
             </span>
-            <button className="btn ghost" title="放大" data-canvas-zoom-in onClick={() => setVp((prev) => ({ ...prev, scale: Math.min(2, prev.scale * 1.2) }))}>
+            <button className="btn ghost" title={t("放大")} data-canvas-zoom-in onClick={() => setVp((prev) => ({ ...prev, scale: Math.min(2, prev.scale * 1.2) }))}>
               <Plus size={14} />
             </button>
-            <button className="btn ghost" title="重置视图" data-canvas-zoom-reset onClick={() => setVp({ x: 60, y: 60, scale: 1 })}>
+            <button className="btn ghost" title={t("重置视图")} data-canvas-zoom-reset onClick={() => setVp({ x: 60, y: 60, scale: 1 })}>
               <Maximize2 size={14} />
             </button>
             <button className="btn" data-canvas-export onClick={exportPng}>
-              <Download size={14} /> 导出 PNG
-            </button>
+              <Download size={14} /> {' '}{t("导出 PNG")}{' '}</button>
           </div>
 
           <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 520, minWidth: 0 }}>
@@ -582,15 +577,14 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                 }}
               >
                 <div className="muted small" style={{ padding: '0 2px 4px' }}>
-                  拖拽文献到画布，或点击 + 添加
-                </div>
-                {data.documents.length === 0 && <div className="muted small">文献库为空</div>}
+                  {' '}{t("拖拽文献到画布，或点击 + 添加")}{' '}</div>
+                {data.documents.length === 0 && <div className="muted small">{t("文献库为空")}</div>}
                 {data.documents.map((doc) => (
                   <div
                     key={doc.id}
                     draggable
                     data-canvas-doc-source={doc.id}
-                    title="拖到画布"
+                    title={t("拖到画布")}
                     onDragStart={(event) => {
                       event.dataTransfer.setData('application/x-arbor-doc', doc.id)
                       event.dataTransfer.setData('text/plain', doc.id)
@@ -615,7 +609,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                         {[doc.authors, doc.year, doc.journal].filter(Boolean).join(' · ') || '—'}
                       </div>
                     </div>
-                    <button className="icon-btn tiny" title="添加到画布" onClick={() => void addDocumentCard(doc)}>
+                    <button className="icon-btn tiny" title={t("添加到画布")} onClick={() => void addDocumentCard(doc)}>
                       <Plus size={12} />
                     </button>
                   </div>
@@ -725,7 +719,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                         </strong>
                         <button
                           className="icon-btn tiny"
-                          title="删除卡片"
+                          title={t("删除卡片")}
                           style={{ opacity: 0.55 }}
                           onPointerDown={(event) => event.stopPropagation()}
                           onClick={(event) => {
@@ -749,12 +743,11 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                             onOpenDoc(node.docId as string)
                           }}
                         >
-                          打开原文
-                        </button>
+                          {' '}{t("打开原文")}{' '}</button>
                       )}
                       <div
                         data-canvas-resize
-                        title="拖动调整大小"
+                        title={t("拖动调整大小")}
                         onPointerDown={(event) => beginResize(event, node)}
                         onPointerMove={moveResize}
                         onPointerUp={endResize}
@@ -787,10 +780,10 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
       )}
       {dialog && (
         <CanvasNameDialog
-          title={dialog.kind === 'create' ? '新建画布' : dialog.kind === 'rename' ? '重命名画布' : '新建分区'}
+          title={dialog.kind === 'create' ? t("新建画布") : dialog.kind === 'rename' ? t("重命名画布") : t("新建分区")}
           initialValue={dialog.value}
-          placeholder={dialog.kind === 'section' ? '分区名称' : '画布名称'}
-          confirmLabel={dialog.kind === 'rename' ? '保存' : '创建'}
+          placeholder={dialog.kind === 'section' ? t("分区名称") : t("画布名称")}
+          confirmLabel={dialog.kind === 'rename' ? t("保存") : t("创建")}
           onCancel={() => setDialog(null)}
           onConfirm={(name) => void confirmDialog(name)}
         />

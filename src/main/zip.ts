@@ -1,3 +1,5 @@
+import { inflateRawSync } from 'zlib'
+
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256)
   for (let i = 0; i < 256; i += 1) {
@@ -90,4 +92,33 @@ export function createZip(entries: ZipEntry[]): Buffer {
   end.writeUInt16LE(0, 20)
 
   return Buffer.concat([...locals, ...centrals, end])
+}
+
+export function readZip(buffer: Buffer): ZipEntry[] {
+  const eocd = buffer.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
+  if (eocd < 0) throw new Error('不是有效的 ZIP 文件')
+  const count = buffer.readUInt16LE(eocd + 10)
+  let offset = buffer.readUInt32LE(eocd + 16)
+  const entries: ZipEntry[] = []
+  for (let index = 0; index < count; index += 1) {
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error('ZIP 中央目录损坏')
+    const method = buffer.readUInt16LE(offset + 10)
+    const compressedSize = buffer.readUInt32LE(offset + 20)
+    const nameLength = buffer.readUInt16LE(offset + 28)
+    const extraLength = buffer.readUInt16LE(offset + 30)
+    const commentLength = buffer.readUInt16LE(offset + 32)
+    const localOffset = buffer.readUInt32LE(offset + 42)
+    const name = buffer.toString('utf8', offset + 46, offset + 46 + nameLength)
+    if (buffer.readUInt32LE(localOffset) !== 0x04034b50) throw new Error('ZIP 局部文件头损坏')
+    const localNameLength = buffer.readUInt16LE(localOffset + 26)
+    const localExtraLength = buffer.readUInt16LE(localOffset + 28)
+    const start = localOffset + 30 + localNameLength + localExtraLength
+    const data = buffer.subarray(start, start + compressedSize)
+    entries.push({
+      name,
+      data: method === 8 ? inflateRawSync(data) : Buffer.from(data)
+    })
+    offset += 46 + nameLength + extraLength + commentLength
+  }
+  return entries
 }

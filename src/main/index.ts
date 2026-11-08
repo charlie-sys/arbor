@@ -9,9 +9,17 @@ import { closeReaderPanel, initReaderPanel, registerReaderPanelIpc } from './rea
 import { initCapture, startCapture } from './capture'
 import { startMcpServer } from './mcp'
 import { startBackupScheduler } from './backup'
+import { initPet } from './pet'
+import { aliStore } from './ali/store'
+import { aliMemory } from './ali/memory'
+import { setLocale, t } from '../shared/i18n'
 
 const APP_NAME = 'Arbor'
 app.setName(APP_NAME)
+
+if (process.env.ARBOR_REMOTE_DEBUG === '1') {
+  app.commandLine.appendSwitch('remote-debugging-port', '9333')
+}
 
 const userDataOverride = process.env.ARBOR_USER_DATA_DIR?.trim()
 if (userDataOverride) {
@@ -106,7 +114,7 @@ function createMainWindow(): void {
     height,
     minWidth: Math.min(1080, width),
     minHeight: Math.min(680, height),
-    title: 'Arbor — 文献阅读与 AI 研究工坊',
+    title: t('Arbor — 文献阅读与 AI 研究工坊'),
     backgroundColor: '#f3f5f9',
     show: false,
     autoHideMenuBar: true,
@@ -202,6 +210,9 @@ if (gotLock) {
 
   app.whenReady().then(async () => {
     await store.init()
+    await aliStore.init().catch((error) => console.warn('[ali] init failed', error))
+    await aliMemory.init().catch((error) => console.warn('[ali] memory init failed', error))
+    setLocale(store.data.settings.language)
     await usage.init(store.root)
     startBackupScheduler()
     void startMcpServer()
@@ -211,6 +222,7 @@ if (gotLock) {
     registerIpc()
     registerReaderPanelIpc()
     createMainWindow()
+    initPet(path.join(__dirname, '../preload/index.js'), () => mainWindow)
 
     const registered = globalShortcut.register('CommandOrControl+Shift+T', () => {
       startCapture()

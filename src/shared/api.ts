@@ -36,6 +36,15 @@ import type {
   UsageRecord
 } from './types'
 import type { ComposeScope } from './compose'
+import type { AliEvent, AliHelpSection, AliMemoryState, AliSendRequest, AliSession, AliSessionPatch, AliState, AliTestResult } from './ali'
+import type {
+  PetRuntimeConfig,
+  PetSettings,
+  PetSignal,
+  PetSnapshot,
+  PetState,
+  PetWindowBounds
+} from './pet'
 
 export interface ChatEvent {
   requestId: string
@@ -319,6 +328,28 @@ export interface ZotAgentApi {
     cancel(requestId: string): Promise<void>
     compose(chatId: string, title: string, extraInstruction: string, scope?: ComposeScope, outline?: string): Promise<string>
   }
+  ali: {
+    getState(): Promise<AliState>
+    createSession(): Promise<AliSession>
+    updateSession(id: string, patch: AliSessionPatch): Promise<AliSession | undefined>
+    deleteSession(id: string): Promise<void>
+    send(req: AliSendRequest): Promise<{ ok: boolean }>
+    cancel(requestId: string): Promise<void>
+    test(): Promise<AliTestResult>
+    undoMemory(lines: string[]): Promise<number>
+    help(): Promise<AliHelpSection[]>
+    memory: {
+      get(): Promise<AliMemoryState>
+      save(doc: string, content: string): Promise<AliMemoryState>
+      remove(doc: string): Promise<void>
+      pin(doc: string, pinned: boolean): Promise<void>
+      clear(): Promise<void>
+      consolidate(): Promise<{ applied: number; skipped: boolean }>
+      restore(doc: string, line: string): Promise<void>
+      export(): Promise<ExportResult>
+      import(): Promise<{ canceled: boolean; imported?: number; message?: string }>
+    }
+  }
   actions: {
     run(input: {
       action: AiActionId
@@ -385,6 +416,7 @@ export interface ZotAgentApi {
   }
   events: {
     onChat(cb: (event: ChatEvent) => void): () => void
+    onAli(cb: (event: AliEvent) => void): () => void
     onTranslate(cb: (event: TranslateEvent) => void): () => void
     onRenderRequest(cb: (request: RenderRequest) => void): () => void
     onReaderPanelClosed(cb: (payload: ReaderPanelClosedPayload) => void): () => void
@@ -400,10 +432,38 @@ export interface ZotAgentApi {
     onUpdateProgress(cb: (progress: UpdateProgress) => void): () => void
     onUsageRecorded(cb: (event: UsageRecordedEvent) => void): () => void
     onUsageLive(cb: (active: ActiveUsage[]) => void): () => void
+    onSettingsChanged(cb: (settings: AppSettings) => void): () => void
   }
   overlay: {
     select(rect: { x: number; y: number; width: number; height: number }): Promise<void>
     cancel(): Promise<void>
+  }
+  pet: {
+    signal(signal: PetSignal): void
+    getState(): Promise<PetSnapshot>
+    getConfig(): Promise<PetRuntimeConfig>
+    setEnabled(enabled: boolean): Promise<PetRuntimeConfig>
+    applySettings(patch: Partial<PetSettings>): void
+    celebrate(): void
+    setTheme(theme: string): void
+    menu(): void
+    openMain(): void
+    openSettings(): void
+    openAli(): void
+    openAliChat(): void
+    debugForce(state: PetState | null): void
+    window: {
+      bounds(): Promise<PetWindowBounds | null>
+      move(x: number, y: number): void
+      ignoreMouse(ignore: boolean): void
+      reset(): Promise<PetWindowBounds>
+    }
+    onState(cb: (snapshot: PetSnapshot) => void): () => void
+    onTheme(cb: (theme: string) => void): () => void
+    onConfig(cb: (config: PetRuntimeConfig) => void): () => void
+    onSettingsChanged(cb: (settings: PetSettings) => void): () => void
+    onOpenSettings(cb: () => void): () => void
+    onOpenAli(cb: () => void): () => void
   }
 }
 

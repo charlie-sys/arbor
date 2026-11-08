@@ -5,6 +5,7 @@ import { Markdown, cx, formatTime } from '../ui'
 import { formatChatUsage, useChatUsageSummary } from '../chatUsage'
 import { applyChatScale, getChatScale } from '../chatZoom'
 import ChatMinimap from './ChatMinimap'
+import { isDefaultChatTitle, localeTag, t } from '@shared/i18n'
 
 interface Quote {
   text: string
@@ -46,18 +47,18 @@ function AttachmentItem({
   const tools = (
     <span className="chat-attachment-tools">
       {attachment.kind === 'image' && (
-        <button type="button" title="预览图片" onClick={() => onPreview(attachment)}>
+        <button type="button" title={t("预览图片")} onClick={() => onPreview(attachment)}>
           <Maximize2 size={12} />
         </button>
       )}
-      <button type="button" title="用系统应用打开" onClick={() => onOpen(attachment)}>
+      <button type="button" title={t("用系统应用打开")} onClick={() => onOpen(attachment)}>
         <ExternalLink size={12} />
       </button>
-      <button type="button" title="保存到…" onClick={() => onSave(attachment)}>
+      <button type="button" title={t("保存到…")} onClick={() => onSave(attachment)}>
         <Download size={12} />
       </button>
       {onRemove && (
-        <button type="button" title="移除附件" onClick={() => onRemove(attachment)}>
+        <button type="button" title={t("移除附件")} onClick={() => onRemove(attachment)}>
           <X size={12} />
         </button>
       )}
@@ -70,7 +71,7 @@ function AttachmentItem({
         <button
           type="button"
           className="chat-attachment-thumb"
-          title={`预览 ${attachment.name}`}
+          title={t("预览 {0}", [attachment.name])}
           onClick={() => onPreview(attachment)}
         >
           <img src={url} alt={attachment.name} />
@@ -87,7 +88,7 @@ function AttachmentItem({
 
   return (
     <div className={cx('chat-file-card', inverse && 'inverse')}>
-      <button type="button" className="chat-file-main" title="打开文件" onClick={() => onOpen(attachment)}>
+      <button type="button" className="chat-file-main" title={t("打开文件")} onClick={() => onOpen(attachment)}>
         <FileText size={14} />
         <span className="chat-file-name">{attachment.name}</span>
         <span className="chat-file-size">{formatBytes(attachment.size)}</span>
@@ -124,7 +125,7 @@ const INTERRUPTED_NOTE = '回答生成已中断：切换页面后无法继续接
 function recoverInterruptedMessages(list: ChatMessage[]): ChatMessage[] {
   const last = list[list.length - 1]
   if (last && last.role === 'assistant' && !last.content.trim() && !last.error && !last.attachments?.length) {
-    return [...list.slice(0, -1), { ...last, content: INTERRUPTED_NOTE, error: true }]
+    return [...list.slice(0, -1), { ...last, content: t(INTERRUPTED_NOTE), error: true }]
   }
   return list
 }
@@ -219,7 +220,7 @@ function CitationList({
   return (
     <div className="citation-block">
       <button className="citation-toggle" onClick={() => setOpen((value) => !value)}>
-        <BookOpen size={13} /> 引用来源 · {refs.length}
+        <BookOpen size={13} /> {' '}{t("引用来源 ·")}{' '}{refs.length}
         <ChevronDown size={13} className={cx('citation-chevron', open && 'open')} />
       </button>
       {open && (
@@ -230,10 +231,10 @@ function CitationList({
               <button
                 key={`${ref.docId}-${ref.page}`}
                 className="citation-item"
-                title={doc ? `${doc.title} · 第 ${ref.page} 页` : undefined}
+                title={doc ? t("{0} · 第 {1} 页", [doc.title, ref.page]) : undefined}
                 onClick={() => onOpen?.(ref.docId, ref.page)}
               >
-                <span className="citation-title">{doc?.title ?? '未知文献'}</span>
+                <span className="citation-title">{doc?.title ?? t("未知文献")}</span>
                 <span className="citation-page">p.{ref.page}</span>
               </button>
             )
@@ -354,8 +355,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     const active = chatRef.current
     const firstUser = list.find((m) => m.role === 'user')
     const title =
-      active.title === '新的对话' && firstUser
-        ? firstUser.content.replace(/^>.*$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 30) || '新的对话'
+      isDefaultChatTitle(active.title) && firstUser
+        ? firstUser.content.replace(/^>.*$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 30) || t("新的对话")
         : active.title
     await window.api.chats.update(active.id, { messages: list, title })
     await onChangedRef.current()
@@ -373,8 +374,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       if (index !== array.length - 1 || message.role !== 'assistant') return message
       const merged = error
         ? message.content
-          ? `${message.content}\n\n> 生成中断：${error}`
-          : `请求失败：${error}`
+          ? t("{0}\n\n> 生成中断：{1}", [message.content, error])
+          : t("请求失败：{0}", [error])
         : content || message.content
       const attachments = [...(message.attachments ?? []), ...(added ?? [])].filter(
         (attachment, position, list) => list.findIndex((item) => item.id === attachment.id) === position
@@ -391,7 +392,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     try {
       await persist(finalMessages)
     } catch (err) {
-      notifyRef.current(`保存对话失败：${(err as Error).message}`, 'error')
+      notifyRef.current(t("保存对话失败：{0}", [(err as Error).message]), 'error')
     } finally {
       finalizingRef.current = false
     }
@@ -428,7 +429,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       } else if (event.type === 'done') {
         void finalizeRef.current(event.content ?? streamRef.current, undefined, event.attachments)
       } else {
-        void finalizeRef.current(streamRef.current, event.error || '请求失败', event.attachments)
+        void finalizeRef.current(streamRef.current, event.error || t("请求失败"), event.attachments)
       }
     })
     return off
@@ -454,7 +455,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       if (last?.role !== 'assistant') return
       const interrupted: ChatMessage = {
         ...last,
-        content: last.content ? `${last.content}\n\n> ${INTERRUPTED_NOTE}` : INTERRUPTED_NOTE,
+        content: last.content ? `${last.content}\n\n> ${t(INTERRUPTED_NOTE)}` : t(INTERRUPTED_NOTE),
         error: !last.content
       }
       const final = [...list.slice(0, -1), interrupted]
@@ -462,8 +463,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       const active = chatRef.current
       const firstUser = final.find((message) => message.role === 'user')
       const title =
-        active.title === '新的对话' && firstUser
-          ? firstUser.content.replace(/^>.*$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 30) || '新的对话'
+        isDefaultChatTitle(active.title) && firstUser
+          ? firstUser.content.replace(/^>.*$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 30) || t("新的对话")
           : active.title
       void window.api.chats
         .update(active.id, { messages: final, title })
@@ -476,7 +477,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   useEffect(() => {
     if (!quote) return
     const text = quote.text.replace(/\r/g, '').replace(/\n/g, '\n> ')
-    const block = quote.page ? `> 原文（第 ${quote.page} 页）：${text}\n\n` : `> 原文：${text}\n\n`
+    const block = quote.page ? t("> 原文（第 {0} 页）：{1}\n\n", [quote.page, text]) : t("> 原文：{0}\n\n", [text])
     setDraft((prev) => (prev.trim() ? `${prev}\n${block}` : block))
     setSelectionContext({ text: quote.text, page: quote.page })
     setContextMode('selection')
@@ -539,13 +540,13 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       for (const file of files) {
         const data = new Uint8Array(await file.arrayBuffer())
         const extension = file.type.split('/')[1] || 'bin'
-        const name = file.name || `粘贴文件-${Date.now()}.${extension}`
+        const name = file.name || t("粘贴文件-{0}.{1}", [Date.now(), extension])
         const attachment = await window.api.chats.saveAttachment(chat.id, name, data)
         setPendingAttachments((prev) => [...prev, attachment])
       }
-      notify('附件已添加', 'success')
+      notify(t("附件已添加"), 'success')
     } catch (err) {
-      notify(`添加附件失败：${(err as Error).message}`, 'error')
+      notify(t("添加附件失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setAttaching(false)
     }
@@ -557,10 +558,10 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       const added = await window.api.chats.pickAttachments(chat.id, 'file')
       if (added.length) {
         setPendingAttachments((prev) => [...prev, ...added])
-        notify(`已添加 ${added.length} 个附件`, 'success')
+        notify(t("已添加 {0} 个附件", [added.length]), 'success')
       }
     } catch (err) {
-      notify(`添加附件失败：${(err as Error).message}`, 'error')
+      notify(t("添加附件失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setAttaching(false)
     }
@@ -571,7 +572,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       await window.api.chats.removeAttachment(chat.id, attachment.file)
       setPendingAttachments((prev) => prev.filter((entry) => entry.id !== attachment.id))
     } catch (err) {
-      notify(`移除附件失败：${(err as Error).message}`, 'error')
+      notify(t("移除附件失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -581,18 +582,18 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const openAttachment = async (attachment: InboxAttachment): Promise<void> => {
     try {
       const result = await window.api.attachments.open(chat.id, attachment.file)
-      if (!result.ok) throw new Error(result.error || '系统没有可用于打开该附件的应用')
+      if (!result.ok) throw new Error(result.error || t("系统没有可用于打开该附件的应用"))
     } catch (err) {
-      notify(`打开附件失败：${(err as Error).message}`, 'error')
+      notify(t("打开附件失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const saveAttachmentAs = async (attachment: InboxAttachment): Promise<void> => {
     try {
       const result = await window.api.attachments.saveAs(chat.id, attachment.file, attachment.name)
-      if (!result.canceled) notify('附件已保存', 'success')
+      if (!result.canceled) notify(t("附件已保存"), 'success')
     } catch (err) {
-      notify(`保存附件失败：${(err as Error).message}`, 'error')
+      notify(t("保存附件失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -660,7 +661,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
           includeNotes: active.docIds.length > 0 && includeNotes
         }
       })
-      if (!result.ok) throw new Error('请求未能启动')
+      if (!result.ok) throw new Error(t("请求未能启动"))
     } catch (err) {
       await finalizeRef.current('', (err as Error).message)
     }
@@ -684,16 +685,16 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const copy = async (content: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(content)
-      notify('已复制到剪贴板', 'success')
+      notify(t("已复制到剪贴板"), 'success')
     } catch {
-      notify('复制失败', 'error')
+      notify(t("复制失败"), 'error')
     }
   }
 
   const appendDocNotes = async (docId: string, entry: string): Promise<void> => {
     const state = await window.api.library.getState()
     const fresh = state.documents.find((doc) => doc.id === docId)
-    if (!fresh) throw new Error('文献不存在或已被删除')
+    if (!fresh) throw new Error(t("文献不存在或已被删除"))
     const notes = fresh.notes.trim() ? `${fresh.notes.trim()}\n\n${entry}` : entry
     await window.api.library.update(docId, { notes })
     void onChangedRef.current()
@@ -709,31 +710,36 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const saveAsNote = async (answer: string, question: string, page?: number): Promise<void> => {
     const doc = docs[0]
     if (!doc) {
-      notify('当前对话未关联文献，无法存为文献笔记', 'error')
+      notify(t("当前对话未关联文献，无法存为文献笔记"), 'error')
       return
     }
-    const stamp = new Date().toLocaleString('zh-CN')
-    const entry = `## 问答记录 · ${stamp}\n\n**问：** ${question || '（未记录）'}\n\n**答：** ${answer}${page ? `\n\n来源：第 ${page} 页` : ''}`
+    const stamp = new Date().toLocaleString(localeTag())
+    const entry = t("## 问答记录 · {0}\n\n**问：** {1}\n\n**答：** {2}{3}", [
+      stamp,
+      question || t('（未记录）'),
+      answer,
+      page ? t('\n\n来源：第 {0} 页', [page]) : ''
+    ])
     try {
       await appendDocNotes(doc.id, entry)
-      notify('已存为文献笔记', 'success')
+      notify(t("已存为文献笔记"), 'success')
     } catch (err) {
-      notify(`保存笔记失败：${(err as Error).message}`, 'error')
+      notify(t("保存笔记失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const saveAsQuestion = async (question: string): Promise<void> => {
     const doc = docs[0]
     if (!doc) {
-      notify('当前对话未关联文献，无法存为问题', 'error')
+      notify(t("当前对话未关联文献，无法存为问题"), 'error')
       return
     }
-    const entry = `## 问题 · ${new Date().toLocaleString('zh-CN')}\n\n**问：** ${question}`
+    const entry = t("## 问题 · {0}\n\n**问：** {1}", [new Date().toLocaleString(localeTag()), question])
     try {
       await appendDocNotes(doc.id, entry)
-      notify('问题已存入文献笔记', 'success')
+      notify(t("问题已存入文献笔记"), 'success')
     } catch (err) {
-      notify(`保存失败：${(err as Error).message}`, 'error')
+      notify(t("保存失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -747,10 +753,10 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         question,
         answer
       })
-      notify('已存为摘录', 'success')
+      notify(t("已存为摘录"), 'success')
       void onChangedRef.current()
     } catch (err) {
-      notify(`保存摘录失败：${(err as Error).message}`, 'error')
+      notify(t("保存摘录失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -758,14 +764,14 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
 
   const hasMessages = messages.length > 0
   const suggestions = docs.length
-    ? ['这篇文献的研究问题和方法是什么？', '总结核心结论与主要贡献', '文中提到了哪些局限性？']
-    : ['帮我梳理论文阅读的方法', '如何高效整理文献笔记？', '解释一下这篇文献的关键概念']
+    ? [t("这篇文献的研究问题和方法是什么？"), t("总结核心结论与主要贡献"), t("文中提到了哪些局限性？")]
+    : [t("帮我梳理论文阅读的方法"), t("如何高效整理文献笔记？"), t("解释一下这篇文献的关键概念")]
 
   return (
     <div className={cx('chat-thread', compact && 'compact')}>
       {docs.length > 0 && (
         <div className="chat-context-bar">
-          <span className="context-label">引用文献</span>
+          <span className="context-label">{t("引用文献")}</span>
           <div className="context-chips">
             {docs.map((doc) => (
               <span className="context-chip" key={doc.id} title={doc.title}>
@@ -781,9 +787,9 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         <div className="chat-messages" ref={listRef}>
           {!hasMessages && (
             <div className="chat-empty">
-              <div className="chat-empty-title">向 AI 助手提问</div>
+              <div className="chat-empty-title">{t("向 AI 助手提问")}</div>
               <div className="chat-empty-sub">
-                {docs.length ? '回答将严格依据所选文献，并标注原文页码。' : '选择文献后可基于原文回答；也可以直接进行一般性讨论。'}
+                {docs.length ? t("回答将严格依据所选文献，并标注原文页码。") : t("选择文献后可基于原文回答；也可以直接进行一般性讨论。")}
               </div>
               <div className="suggestion-list">
                 {suggestions.map((suggestion) => (
@@ -824,7 +830,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                     <div className="msg-actions">
                       <button
                         className="icon-btn tiny"
-                        title="存为问题"
+                        title={t("存为问题")}
                         onClick={() => void saveAsQuestion(message.content)}
                       >
                         <NotebookPen size={13} />
@@ -840,8 +846,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                 <div className={cx('msg-bubble assistant-bubble', message.error && 'error')}>
                   {waiting ? (
                     <div className="typing">
-                      <Loader2 size={15} className="spin" /> 正在阅读文献并思考…
-                    </div>
+                      <Loader2 size={15} className="spin" /> {' '}{t("正在阅读文献并思考…")}{' '}</div>
                   ) : liveStreaming ? (
                     // 流式阶段先用纯文本增量渲染，避免每个分片都重新解析整段 Markdown 与 KaTeX
                     <div className="msg-streaming-text">{message.content}</div>
@@ -864,19 +869,19 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                   )}
                   {settled && (
                     <div className="msg-actions">
-                      <button className="icon-btn tiny" title="复制回答" onClick={() => void copy(message.content)}>
+                      <button className="icon-btn tiny" title={t("复制回答")} onClick={() => void copy(message.content)}>
                         <Copy size={13} />
                       </button>
                       <button
                         className="icon-btn tiny"
-                        title="存为笔记（追加到文献笔记）"
+                        title={t("存为笔记（追加到文献笔记）")}
                         onClick={() => void saveAsNote(message.content, questionFor(index), answerPage(message.content))}
                       >
                         <NotebookPen size={13} />
                       </button>
                       <button
                         className="icon-btn tiny"
-                        title="存为摘录"
+                        title={t("存为摘录")}
                         onClick={() => void saveAsExcerpt(message.content, questionFor(index), answerPage(message.content))}
                       >
                         <BookmarkPlus size={13} />
@@ -893,7 +898,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         </div>
         {zoomBadge !== null && (
           <div className="chat-zoom-badge" role="status">
-            字号 {Math.round(zoomBadge * 100)}%
+            {' '}{t("字号")}{' '}{Math.round(zoomBadge * 100)}%
           </div>
         )}
       </div>
@@ -908,12 +913,12 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       >
         {docs.length > 0 && (
           <div className="context-mode-bar">
-            <span className="context-mode-label">上下文</span>
+            <span className="context-mode-label">{t("上下文")}</span>
             {([
-              ['auto', '整篇文献'],
-              ['page', '当前页'],
-              ['selection', '选中段落'],
-              ['none', '不引用']
+              ['auto', t("整篇文献")],
+              ['page', t("当前页")],
+              ['selection', t("选中段落")],
+              ['none', t("不引用")]
             ] as const).map(([mode, label]) => (
               <button
                 key={mode}
@@ -922,12 +927,12 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                 onClick={() => setContextMode(mode)}
                 title={
                   mode === 'page'
-                    ? '仅引用当前页原文'
+                    ? t("仅引用当前页原文")
                     : mode === 'selection'
-                      ? '引用选中的原文（从阅读器选中文字后自动启用）'
+                      ? t("引用选中的原文（从阅读器选中文字后自动启用）")
                       : mode === 'none'
-                        ? '不向模型注入任何文献原文'
-                        : '按问题检索相关原文片段'
+                        ? t("不向模型注入任何文献原文")
+                        : t("按问题检索相关原文片段")
                 }
               >
                 {label}
@@ -938,10 +943,9 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
               className={cx('ctx-chip', includeNotes && 'active')}
               disabled={contextMode === 'none'}
               onClick={() => setIncludeNotes((value) => !value)}
-              title="同时注入文献笔记"
+              title={t("同时注入文献笔记")}
             >
-              笔记
-            </button>
+              {' '}{t("笔记")}{' '}</button>
           </div>
         )}
         {pendingAttachments.length > 0 && (
@@ -962,7 +966,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         <textarea
           ref={textareaRef}
           value={draft}
-          placeholder={docs.length ? '针对文献提问，Enter 发送，Shift+Enter 换行…' : '输入问题，Enter 发送，Shift+Enter 换行…'}
+          placeholder={docs.length ? t("针对文献提问，Enter 发送，Shift+Enter 换行…") : t("输入问题，Enter 发送，Shift+Enter 换行…")}
           onChange={(event) => setDraft(event.target.value)}
           onPaste={(event) => {
             const files = Array.from(event.clipboardData.files)
@@ -982,21 +986,24 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         <div className="composer-bar">
           <div className="composer-hint">
             {streaming
-              ? '正在生成回答…'
+              ? t("正在生成回答…")
               : !docs.length
-                ? '未引用文献，可直接对话'
+                ? t("未引用文献，可直接对话")
                 : contextMode === 'none'
-                  ? '上下文已关闭，不注入文献原文'
+                  ? t("上下文已关闭，不注入文献原文")
                   : contextMode === 'page'
-                    ? `仅引用第 ${selectionContext?.page ?? currentPage ?? 1} 页原文${includeNotes ? '与笔记' : ''}`
+                    ? t("仅引用第 {0} 页原文{1}", [selectionContext?.page ?? currentPage ?? 1, includeNotes ? t('与笔记') : ''])
                     : contextMode === 'selection'
-                      ? `引用选中段落${selectionContext?.page ? `（第 ${selectionContext.page} 页）` : ''}${includeNotes ? '与笔记' : ''}`
-                      : `按问题检索整篇文献${includeNotes ? '并注入笔记' : ''}`}
+                      ? t("引用选中段落{0}{1}", [
+                          selectionContext?.page ? t('（第 {0} 页）', [selectionContext.page]) : '',
+                          includeNotes ? t('与笔记') : ''
+                        ])
+                      : t("按问题检索整篇文献{0}", [includeNotes ? t('并注入笔记') : ''])}
           </div>
           <div className="composer-actions">
             <button
               className="icon-btn"
-              title="添加附件（支持粘贴、拖拽、本地上传）"
+              title={t("添加附件（支持粘贴、拖拽、本地上传）")}
               onClick={() => void uploadAttachments()}
               disabled={streaming || attaching}
             >
@@ -1004,28 +1011,25 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
             </button>
             {onCompose && hasMessages && !streaming && (
               <button className="btn ghost small" onClick={() => onCompose(chat)}>
-                <Sparkles size={14} /> 整理文档
-              </button>
+                <Sparkles size={14} /> {' '}{t("整理文档")}{' '}</button>
             )}
             {streaming ? (
               <button className="btn danger small" onClick={() => void stop()}>
-                <Square size={13} /> 停止
-              </button>
+                <Square size={13} /> {' '}{t("停止")}{' '}</button>
             ) : (
               <button
                 className="btn primary small"
                 disabled={!draft.trim() && !pendingAttachments.length}
                 onClick={() => void send()}
               >
-                <Send size={14} /> 发送
-              </button>
+                <Send size={14} /> {' '}{t("发送")}{' '}</button>
             )}
           </div>
         </div>
         {usageSummary && (
           <div
             className="chat-usage-bar"
-            title="本对话累计的首 token 延迟、输出速度、缓存命中与输入/输出 Token"
+            title={t("本对话累计的首 token 延迟、输出速度、缓存命中与输入/输出 Token")}
           >
             {formatChatUsage(usageSummary)}
           </div>
@@ -1045,12 +1049,10 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
               </span>
               <div className="attachment-lightbox-actions">
                 <button className="btn ghost small" onClick={() => void openAttachment(preview)}>
-                  <ExternalLink size={13} /> 系统打开
-                </button>
+                  <ExternalLink size={13} /> {' '}{t("系统打开")}{' '}</button>
                 <button className="btn primary small" onClick={() => void saveAttachmentAs(preview)}>
-                  <Download size={13} /> 保存
-                </button>
-                <button className="icon-btn" title="关闭预览" onClick={() => setPreview(null)}>
+                  <Download size={13} /> {' '}{t("保存")}{' '}</button>
+                <button className="icon-btn" title={t("关闭预览")} onClick={() => setPreview(null)}>
                   <X size={16} />
                 </button>
               </div>

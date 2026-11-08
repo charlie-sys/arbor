@@ -1,5 +1,6 @@
 import { store } from './store'
 import type { ChatContext } from '../shared/types'
+import { t } from '../shared/i18n'
 
 interface Chunk {
   page: number
@@ -86,8 +87,8 @@ export async function buildContext(
   const usedDocIds: string[] = []
 
   if (options?.contextMode === 'selection' && options.selection?.trim()) {
-    const selPage = options.page ? `（第 ${options.page} 页）` : ''
-    blocks.push(`===== 用户选中的原文${selPage}（最高优先级，回答必须依据此段） =====\n${options.selection.trim()}`)
+    const selPage = options.page ? t("（第 {0} 页）", [options.page]) : ''
+    blocks.push(t("===== 用户选中的原文{0}（最高优先级，回答必须依据此段） =====\n{1}", [selPage, options.selection.trim()]))
   }
 
   const pageMode = options?.contextMode === 'page' ? Math.max(1, Math.round(options.page ?? 1)) : null
@@ -97,16 +98,16 @@ export async function buildContext(
     if (!pages.length) continue
 
     const info = [doc.authors, doc.year, doc.journal].filter(Boolean).join(' · ')
-    const header = `===== 文献：《${doc.title}》${info ? `（${info}）` : ''} =====`
+    const header = t("===== 文献：《{0}》{1} =====", [doc.title, info ? t('（{0}）', [info]) : ''])
 
     if (options?.includeNotes && doc.notes.trim()) {
-      blocks.push(`${header}\n【文献笔记】\n${doc.notes.trim()}`)
+      blocks.push(t("{0}\n【文献笔记】\n{1}", [header, doc.notes.trim()]))
     }
 
     if (pageMode !== null) {
       const pageText = pages[pageMode - 1]
       if (!pageText) continue
-      blocks.push(`${header}\n[第${pageMode}页] ${normalize(pageText)}`)
+      blocks.push(t("{0}\n[第{1}页] {2}", [header, pageMode, normalize(pageText)]))
       usedDocIds.push(doc.id)
       continue
     }
@@ -136,7 +137,7 @@ export async function buildContext(
       selected = kept
     }
 
-    const body = selected.map((c) => `[第${c.page}页] ${c.text}`).join('\n')
+    const body = selected.map((c) => t("[第{0}页] {1}", [c.page, c.text])).join('\n')
     blocks.push(`${header}\n${body}`)
     usedDocIds.push(doc.id)
   }
@@ -151,8 +152,8 @@ export async function buildChatTranscript(chatId: string, limit = 40000): Promis
   for (const msg of chat.messages) {
     if (msg.role === 'system') continue
     if (msg.role === 'assistant' && msg.error) continue
-    const label = msg.role === 'user' ? '用户' : '助手'
-    lines.push(`${label}：${msg.content}`)
+    const label = msg.role === 'user' ? t("用户") : t("助手")
+    lines.push(t('{0}：{1}', [label, msg.content]))
   }
   let text = lines.join('\n\n')
   if (text.length > limit) text = text.slice(text.length - limit)

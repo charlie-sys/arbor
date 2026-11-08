@@ -235,6 +235,47 @@ button {
   }
 }
 
+.settings-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+
+.settings-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-toggle strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-toggle small {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.settings-toggle input[type='checkbox'] {
+  flex-shrink: 0;
+}
+
 /* App shell */
 .app-shell {
   display: flex;
@@ -3502,6 +3543,11 @@ html[data-dark='true'] .card-swatch {
   border-color: var(--chip-border-hover);
   background: var(--chip-bg-hover);
   color: var(--warn-text-strong);
+}
+.preset.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 .key-hint {
   display: inline-flex;

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { BarChart3, BookOpen, Inbox, Layers, MessagesSquare, PenTool, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter } from 'lucide-react'
+import { BarChart3, BookOpen, Inbox, Layers, MessagesSquare, PenTool, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter, Sparkles } from 'lucide-react'
 import type { LibraryData } from '@shared/types'
 import type { View } from '../nav'
 import { cx } from '../ui'
 import CollectionTree from './CollectionTree'
+import { t } from '@shared/i18n'
 
 interface Props {
   data: LibraryData
@@ -31,18 +32,18 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
       setAdding(false)
       await onChanged()
     } catch (err) {
-      notify(`创建分类失败：${(err as Error).message}`, 'error')
+      notify(t("创建分类失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
   const deleteSavedView = async (id: string, title: string): Promise<void> => {
-    if (!window.confirm(`删除保存视图「${title}」？`)) return
+    if (!window.confirm(t("删除保存视图「{0}」？", [title]))) return
     try {
       await window.api.views.remove(id)
       await onChanged()
       if (view.name === 'library' && view.savedViewId === id) onNavigate({ name: 'library' })
     } catch (err) {
-      notify(`删除失败：${(err as Error).message}`, 'error')
+      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
     }
   }
 
@@ -52,60 +53,64 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
         <img className="brand-mark-img" src="./arbor-logo.svg" alt="Arbor" />
         <div>
           <div className="brand-name">Arbor</div>
-          <div className="brand-sub">文献 · AI 研究工坊</div>
+          <div className="brand-sub">{t("文献 · AI 研究工坊")}</div>
         </div>
       </div>
 
       <button className="btn import-btn" onClick={onImport} disabled={!!importing}>
         {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-        {importing ? `导入中 ${importing.done}/${importing.total}` : '导入文献'}
+        {importing ? t("导入中 {0}/{1}", [importing.done, importing.total]) : t("导入文献")}
       </button>
 
       <nav className="nav">
         <button className={cx('nav-item', view.name === 'library' && 'active')} onClick={() => onNavigate({ name: 'library' })}>
           <BookOpen size={17} />
-          <span>文献库</span>
+          <span>{t("文献库")}</span>
           <span className="nav-count">{data.documents.length}</span>
         </button>
         <button className={cx('nav-item', view.name === 'chats' && 'active')} onClick={() => onNavigate({ name: 'chats' })}>
           <MessagesSquare size={17} />
-          <span>AI 对话</span>
+          <span>{t("AI 对话")}</span>
           <span className="nav-count">{data.chats.length}</span>
+        </button>
+        <button className={cx('nav-item', view.name === 'ali' && 'active')} onClick={() => onNavigate({ name: 'ali' })}>
+          <Sparkles size={17} />
+          <span>{t("阿栗")}</span>
         </button>
         <button className={cx('nav-item', view.name === 'topics' && 'active')} onClick={() => onNavigate({ name: 'topics' })}>
           <Layers size={17} />
-          <span>研究主题</span>
+          <span>{t("研究主题")}</span>
           <span className="nav-count">{data.researchTopics.length}</span>
         </button>
         <button className={cx('nav-item', view.name === 'canvas' && 'active')} onClick={() => onNavigate({ name: 'canvas' })}>
           <PenTool size={17} />
-          <span>主题画布</span>
+          <span>{t("主题画布")}</span>
           <span className="nav-count">{data.canvases.length}</span>
         </button>
         <button className={cx('nav-item', view.name === 'inbox' && 'active')} onClick={() => onNavigate({ name: 'inbox' })}>
           <Inbox size={17} />
-          <span>灵感收集</span>
+          <span>{t("灵感收集")}</span>
           <span className="nav-count">{data.inbox.filter((item) => !item.archived).length}</span>
         </button>
         <button className={cx('nav-item', view.name === 'translations' && 'active')} onClick={() => onNavigate({ name: 'translations' })}>
           <ScanLine size={17} />
-          <span>截图翻译</span>
+          <span>{t("截图翻译")}</span>
           <span className="nav-count">{data.translations.length}</span>
         </button>
         <button className={cx('nav-item', view.name === 'usage' && 'active')} onClick={() => onNavigate({ name: 'usage' })}>
           <BarChart3 size={17} />
-          <span>用量仪表盘</span>
+          <span>{t("用量仪表盘")}</span>
         </button>
         <button className={cx('nav-item', view.name === 'settings' && 'active')} onClick={() => onNavigate({ name: 'settings' })}>
           <Settings size={17} />
-          <span>设置</span>
+          <span>{t("设置")}</span>
         </button>
       </nav>
 
       <div className="collections">
         <div className="collections-head">
-          <span>分类</span>
-          <button className="icon-btn tiny" title="新建分类（支持层级）" onClick={() => setAdding(true)}>
+          <span>{t("分类")}</span>
+          <button className="icon-btn tiny" title={t("新建分类（支持层级）")} onClick={() => setAdding(true)}>
             <Plus size={14} />
           </button>
         </div>
@@ -114,7 +119,7 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
             className="collection-input"
             autoFocus
             value={name}
-            placeholder="分类名称，回车确认"
+            placeholder={t("分类名称，回车确认")}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') void submitCollection()
@@ -128,7 +133,7 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
             }}
           />
         )}
-        {data.collections.length === 0 && !adding && <div className="collections-empty">暂无分类，点击 + 新建</div>}
+        {data.collections.length === 0 && !adding && <div className="collections-empty">{t("暂无分类，点击 + 新建")}</div>}
         <CollectionTree
           collections={data.collections}
           documents={data.documents}
@@ -143,8 +148,8 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
       </div>
 
       <div className="collections">
-        <div className="collections-head">保存视图</div>
-        {data.savedViews.length === 0 && <div className="collections-empty">在文献库表格中保存当前筛选与排序</div>}
+        <div className="collections-head">{t("保存视图")}</div>
+        {data.savedViews.length === 0 && <div className="collections-empty">{t("在文献库表格中保存当前筛选与排序")}</div>}
         {data.savedViews.map((savedView) => (
           <div
             key={savedView.id}
@@ -158,7 +163,7 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
             <span className="collection-name">{savedView.name}</span>
             <button
               className="icon-btn tiny collection-delete"
-              title="删除保存视图"
+              title={t("删除保存视图")}
               onClick={(event) => {
                 event.stopPropagation()
                 void deleteSavedView(savedView.id, savedView.name)
@@ -173,9 +178,9 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
       <div className="sidebar-foot">
         <div className="shortcut">
           <Keyboard size={14} />
-          <span>截图翻译 {data.settings ? 'Ctrl + Shift + T' : ''}</span>
+          <span>{t("截图翻译")}{' '}{data.settings ? 'Ctrl + Shift + T' : ''}</span>
         </div>
-        <div className="sidebar-note">数据保存在本机，模型调用使用你配置的 API</div>
+        <div className="sidebar-note">{t("数据保存在本机，模型调用使用你配置的 API")}</div>
       </div>
     </aside>
   )
