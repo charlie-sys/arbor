@@ -3,6 +3,8 @@ import { BookmarkPlus, BookOpen, ChevronDown, Copy, Download, ExternalLink, File
 import type { ChatMessage, ChatSession, DocumentMeta, InboxAttachment } from '@shared/types'
 import { Markdown, cx, formatTime } from '../ui'
 import { formatChatUsage, useChatUsageSummary } from '../chatUsage'
+import { applyChatScale, getChatScale } from '../chatZoom'
+import ChatMinimap from './ChatMinimap'
 
 interface Quote {
   text: string
@@ -267,7 +269,10 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const [includeNotes, setIncludeNotes] = useState(false)
   const [selectionContext, setSelectionContext] = useState<{ text: string; page?: number } | null>(null)
   const [preview, setPreview] = useState<InboxAttachment | null>(null)
+  const [zoomBadge, setZoomBadge] = useState<number | null>(null)
   const usageSummary = useChatUsageSummary(chat.id)
+
+  const zoomBadgeTimerRef = useRef<number | null>(null)
 
   const messagesRef = useRef<ChatMessage[]>(chat.messages)
   const chatRef = useRef(chat)
@@ -488,6 +493,28 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [preview])
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const onWheel = (event: WheelEvent): void => {
+      if (!event.ctrlKey && !event.metaKey) return
+      if (!event.deltaY) return
+      event.preventDefault()
+      const next = applyChatScale(getChatScale() + (event.deltaY < 0 ? 0.1 : -0.1))
+      setZoomBadge(next)
+      if (zoomBadgeTimerRef.current !== null) window.clearTimeout(zoomBadgeTimerRef.current)
+      zoomBadgeTimerRef.current = window.setTimeout(() => {
+        zoomBadgeTimerRef.current = null
+        setZoomBadge(null)
+      }, 1000)
+    }
+    list.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      list.removeEventListener('wheel', onWheel)
+      if (zoomBadgeTimerRef.current !== null) window.clearTimeout(zoomBadgeTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!active) return
@@ -749,33 +776,78 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         </div>
       )}
 
-      <div className="chat-messages" ref={listRef}>
-        {!hasMessages && (
-          <div className="chat-empty">
-            <div className="chat-empty-title">向 AI 助手提问</div>
-            <div className="chat-empty-sub">
-              {docs.length ? '回答将严格依据所选文献，并标注原文页码。' : '选择文献后可基于原文回答；也可以直接进行一般性讨论。'}
+      <div className="chat-body">
+        <ChatMinimap chatId={chat.id} messages={messages} listRef={listRef} active={active} />
+        <div className="chat-messages" ref={listRef}>
+          {!hasMessages && (
+            <div className="chat-empty">
+              <div className="chat-empty-title">向 AI 助手提问</div>
+              <div className="chat-empty-sub">
+                {docs.length ? '回答将严格依据所选文献，并标注原文页码。' : '选择文献后可基于原文回答；也可以直接进行一般性讨论。'}
+              </div>
+              <div className="suggestion-list">
+                {suggestions.map((suggestion) => (
+                  <button key={suggestion} className="suggestion" onClick={() => setDraft(suggestion)}>
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="suggestion-list">
-              {suggestions.map((suggestion) => (
-                <button key={suggestion} className="suggestion" onClick={() => setDraft(suggestion)}>
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((message, index) => {
-          const isLast = index === messages.length - 1
-          const waiting = streaming && isLast && message.role === 'assistant' && !message.content
-          const liveStreaming = streaming && isLast && message.role === 'assistant' && !!message.content
-          const settled = !waiting && !liveStreaming
-          if (message.role === 'user') {
+          {messages.map((message, index) => {
+            const isLast = index === messages.length - 1
+            const waiting = streaming && isLast && message.role === 'assistant' && !message.content
+            const liveStreaming = streaming && isLast && message.role === 'assistant' && !!message.content
+            const settled = !waiting && !liveStreaming
+            if (message.role === 'user') {
+              return (
+                <div className="msg-row user" key={message.id} data-mid={message.id}>
+                  <div className="msg-bubble user-bubble">
+                    <div className="msg-user-text">{message.content}</div>
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="msg-attachments">
+                        {message.attachments.map((attachment) => (
+                          <AttachmentItem
+                            key={attachment.id}
+                            attachment={attachment}
+                            ownerId={chat.id}
+                            inverse
+                            onPreview={previewAttachment}
+                            onOpen={(item) => void openAttachment(item)}
+                            onSave={(item) => void saveAttachmentAs(item)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <div className="msg-meta">{formatTime(message.createdAt)}</div>
+                    <div className="msg-actions">
+                      <button
+                        className="icon-btn tiny"
+                        title="存为问题"
+                        onClick={() => void saveAsQuestion(message.content)}
+                      >
+                        <NotebookPen size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+            const analysis = settled ? pageRefsFor(message) : null
             return (
-              <div className="msg-row user" key={message.id}>
-                <div className="msg-bubble user-bubble">
-                  <div className="msg-user-text">{message.content}</div>
+              <div className="msg-row assistant" key={message.id} data-mid={message.id}>
+                <div className={cx('msg-bubble assistant-bubble', message.error && 'error')}>
+                  {waiting ? (
+                    <div className="typing">
+                      <Loader2 size={15} className="spin" /> 正在阅读文献并思考…
+                    </div>
+                  ) : liveStreaming ? (
+                    // 流式阶段先用纯文本增量渲染，避免每个分片都重新解析整段 Markdown 与 KaTeX
+                    <div className="msg-streaming-text">{message.content}</div>
+                  ) : (
+                    <Markdown onPageRef={handlePageRef}>{analysis?.linked ?? message.content}</Markdown>
+                  )}
                   {message.attachments && message.attachments.length > 0 && (
                     <div className="msg-attachments">
                       {message.attachments.map((attachment) => (
@@ -783,7 +855,6 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                           key={attachment.id}
                           attachment={attachment}
                           ownerId={chat.id}
-                          inverse
                           onPreview={previewAttachment}
                           onOpen={(item) => void openAttachment(item)}
                           onSave={(item) => void saveAttachmentAs(item)}
@@ -791,76 +862,40 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                       ))}
                     </div>
                   )}
-                  <div className="msg-meta">{formatTime(message.createdAt)}</div>
-                  <div className="msg-actions">
-                    <button
-                      className="icon-btn tiny"
-                      title="存为问题"
-                      onClick={() => void saveAsQuestion(message.content)}
-                    >
-                      <NotebookPen size={13} />
-                    </button>
-                  </div>
+                  {settled && (
+                    <div className="msg-actions">
+                      <button className="icon-btn tiny" title="复制回答" onClick={() => void copy(message.content)}>
+                        <Copy size={13} />
+                      </button>
+                      <button
+                        className="icon-btn tiny"
+                        title="存为笔记（追加到文献笔记）"
+                        onClick={() => void saveAsNote(message.content, questionFor(index), answerPage(message.content))}
+                      >
+                        <NotebookPen size={13} />
+                      </button>
+                      <button
+                        className="icon-btn tiny"
+                        title="存为摘录"
+                        onClick={() => void saveAsExcerpt(message.content, questionFor(index), answerPage(message.content))}
+                      >
+                        <BookmarkPlus size={13} />
+                      </button>
+                    </div>
+                  )}
+                  {settled && analysis && (
+                    <CitationList refs={analysis.refs} docs={docs} onOpen={openPage} />
+                  )}
                 </div>
               </div>
             )
-          }
-          const analysis = settled ? pageRefsFor(message) : null
-          return (
-            <div className="msg-row assistant" key={message.id}>
-              <div className={cx('msg-bubble assistant-bubble', message.error && 'error')}>
-                {waiting ? (
-                  <div className="typing">
-                    <Loader2 size={15} className="spin" /> 正在阅读文献并思考…
-                  </div>
-                ) : liveStreaming ? (
-                  // 流式阶段先用纯文本增量渲染，避免每个分片都重新解析整段 Markdown 与 KaTeX
-                  <div className="msg-streaming-text">{message.content}</div>
-                ) : (
-                  <Markdown onPageRef={handlePageRef}>{analysis?.linked ?? message.content}</Markdown>
-                )}
-                {message.attachments && message.attachments.length > 0 && (
-                  <div className="msg-attachments">
-                    {message.attachments.map((attachment) => (
-                      <AttachmentItem
-                        key={attachment.id}
-                        attachment={attachment}
-                        ownerId={chat.id}
-                        onPreview={previewAttachment}
-                        onOpen={(item) => void openAttachment(item)}
-                        onSave={(item) => void saveAttachmentAs(item)}
-                      />
-                    ))}
-                  </div>
-                )}
-                {settled && (
-                  <div className="msg-actions">
-                    <button className="icon-btn tiny" title="复制回答" onClick={() => void copy(message.content)}>
-                      <Copy size={13} />
-                    </button>
-                    <button
-                      className="icon-btn tiny"
-                      title="存为笔记（追加到文献笔记）"
-                      onClick={() => void saveAsNote(message.content, questionFor(index), answerPage(message.content))}
-                    >
-                      <NotebookPen size={13} />
-                    </button>
-                    <button
-                      className="icon-btn tiny"
-                      title="存为摘录"
-                      onClick={() => void saveAsExcerpt(message.content, questionFor(index), answerPage(message.content))}
-                    >
-                      <BookmarkPlus size={13} />
-                    </button>
-                  </div>
-                )}
-                {settled && analysis && (
-                  <CitationList refs={analysis.refs} docs={docs} onOpen={openPage} />
-                )}
-              </div>
-            </div>
-          )
-        })}
+          })}
+        </div>
+        {zoomBadge !== null && (
+          <div className="chat-zoom-badge" role="status">
+            字号 {Math.round(zoomBadge * 100)}%
+          </div>
+        )}
       </div>
 
       <div

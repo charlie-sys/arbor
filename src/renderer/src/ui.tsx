@@ -37,6 +37,17 @@ export function truncate(text: string, max: number): string {
   return `${text.slice(0, max)}…`
 }
 
+// 整行只写了一个 $...$ 的公式按展示公式排版，避免行内分式被压缩后与相邻文本挤在一起
+const standaloneInlineMath = /^([ ]{0,3})\$([^$\n]+)\$[ ]*$/gm
+
+function promoteStandaloneMath(text: string): string {
+  return text.replace(
+    standaloneInlineMath,
+    (_match, indent: string, expression: string) =>
+      `\n${indent}$$\n${indent}${expression.trim()}\n${indent}$$\n`
+  )
+}
+
 function wrapLatexEnvironments(text: string): string {
   const pattern =
     /\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|cases|matrix|pmatrix|bmatrix|vmatrix)\}[\s\S]*?\\end\{\1\}/g
@@ -61,7 +72,7 @@ function normalizeMath(text: string): string {
         .replace(/\\bm\{([^{}]*)\}/g, (_match, expression: string) => `\\boldsymbol{${expression}}`)
         .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression: string) => `\n$$\n${expression.trim()}\n$$\n`)
         .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression: string) => `$${expression.trim()}$`)
-      return wrapLatexEnvironments(converted)
+      return wrapLatexEnvironments(promoteStandaloneMath(converted))
     })
     .join('')
 }
