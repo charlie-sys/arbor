@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ZotAgentApi, ChatEvent, TranslateEvent } from '../shared/api'
+import type { ZotAgentApi, ChatEvent, TranslateEvent, UpdateProgress } from '../shared/api'
 import type {
   AiActionId,
   AppSettings,
@@ -199,10 +199,42 @@ const api: ZotAgentApi = {
   app: {
     showInFolder: (filePath: string) => ipcRenderer.invoke('app:show-in-folder', filePath)
   },
+  updates: {
+    check: (force?: boolean) => ipcRenderer.invoke('update:check', force === true),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    openRelease: () => ipcRenderer.invoke('update:open-release')
+  },
+  readerPanel: {
+    open: (docId, tab, activeChatId) => ipcRenderer.invoke('reader-panel:open', { docId, tab, activeChatId }),
+    close: () => ipcRenderer.invoke('reader-panel:close'),
+    state: () => ipcRenderer.invoke('reader-panel:state'),
+    setPinned: (pinned) => ipcRenderer.invoke('reader-panel:set-pinned', pinned),
+    setDirty: (dirty) => ipcRenderer.send('reader-panel:set-dirty', dirty),
+    setTab: (tab, activeChatId) => ipcRenderer.send('reader-panel:set-tab', { tab, activeChatId }),
+    notifyChanged: () => ipcRenderer.send('reader-panel:notify-changed'),
+    refresh: () => ipcRenderer.send('reader-panel:refresh'),
+    quote: (docId, text, page) => ipcRenderer.invoke('reader-panel:quote', { docId, text, page }),
+    ready: (docId) => ipcRenderer.send('reader-panel:ready', docId),
+    openDoc: (docId, page) => ipcRenderer.send('reader-panel:open-doc', { docId, page }),
+    sendPage: (docId, page) => ipcRenderer.send('reader-panel:send-page', { docId, page }),
+    sendOutline: (docId, state) => ipcRenderer.send('reader-panel:send-outline', { docId, ...state })
+  },
   events: {
     onChat: (cb) => subscribe<ChatEvent>('chat:event', cb),
     onTranslate: (cb) => subscribe<TranslateEvent>('translate:event', cb),
-    onRenderRequest: (cb) => subscribe<RenderRequest>('translate:render-request', cb)
+    onRenderRequest: (cb) => subscribe<RenderRequest>('translate:render-request', cb),
+    onReaderPanelClosed: (cb) => subscribe('reader-panel:closed', cb),
+    onReaderPanelQuote: (cb) => subscribe('reader-panel:quote-event', cb),
+    onReaderPanelPage: (cb) => subscribe('reader-panel:page', cb),
+    onReaderPanelOutline: (cb) => subscribe('reader-panel:outline', cb),
+    onReaderPanelDataChanged: (cb) => subscribe('reader-panel:data-changed', cb),
+    onReaderPanelRefresh: (cb) => subscribe('reader-panel:refresh', cb),
+    onReaderPanelOpenDoc: (cb) => subscribe('reader-panel:open-doc-event', cb),
+    onReaderPanelReady: (cb) => subscribe('reader-panel:ready-event', cb),
+    onReaderPanelBlockClose: (cb) => subscribe('reader-panel:block-close', cb),
+    onReaderPanelPinned: (cb) => subscribe('reader-panel:pinned', cb),
+    onUpdateProgress: (cb) => subscribe<UpdateProgress>('update:progress', cb)
   },
   overlay: {
     select: (rect) => ipcRenderer.invoke('capture:selection', rect),

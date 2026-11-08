@@ -1,13 +1,39 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, FolderOpen, Loader2, Lock, Plug, RotateCcw, Save, XCircle } from 'lucide-react'
+import {
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  FolderOpen,
+  Loader2,
+  Lock,
+  Plug,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  XCircle
+} from 'lucide-react'
 import type { AppSettings, BackupInfo } from '@shared/types'
-import type { AppInfo, TestResult } from '@shared/api'
+import type { AppInfo, TestResult, UpdateInfo, UpdateProgress } from '@shared/api'
 import { useUnsavedChanges } from '../unsaved'
+import { cx } from '../ui'
 
 interface Props {
   settings: AppSettings
   onSaved(settings: AppSettings): void
+  updateInfo: UpdateInfo | null
+  updateBusy: boolean
+  updateProgress: UpdateProgress | null
+  updateReady: boolean
+  onCheckUpdate(): Promise<void>
+  onUpdate(): Promise<void>
   notify(message: string, kind?: 'info' | 'success' | 'error'): void
+}
+
+function formatSize(bytes: number): string {
+  if (!bytes) return '—'
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${bytes} B`
 }
 
 const PRESETS = [
@@ -37,13 +63,25 @@ const PRESETS = [
   }
 ]
 
-export default function SettingsView({ settings, onSaved, notify }: Props): React.JSX.Element {
+export default function SettingsView({
+  settings,
+  onSaved,
+  updateInfo,
+  updateBusy,
+  updateProgress,
+  updateReady,
+  onCheckUpdate,
+  onUpdate,
+  notify
+}: Props): React.JSX.Element {
   const [baseUrl, setBaseUrl] = useState(settings.apiBaseUrl)
   const [apiKey, setApiKey] = useState(settings.apiKey)
   const [chatModel, setChatModel] = useState(settings.chatModel)
   const [visionModel, setVisionModel] = useState(settings.visionModel)
   const [temperature, setTemperature] = useState(String(settings.temperature))
-  const [maxContextChars, setMaxContextChars] = useState(String(settings.maxContextChars))
+  const [maxContextChars, setMaxContextChars] = useState(
+    settings.maxContextChars > 0 ? String(settings.maxContextChars) : ''
+  )
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -58,9 +96,44 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
     chatModel !== settings.chatModel ||
     visionModel !== settings.visionModel ||
     temperature !== String(settings.temperature) ||
-    maxContextChars !== String(settings.maxContextChars) ||
+    (Number(maxContextChars) || 0) !== settings.maxContextChars ||
     systemPrompt !== settings.systemPrompt
   useUnsavedChanges('settings-editor', settingsDirty)
+
+  const updatePhase = updateProgress?.phase
+  const downloadPercent =
+    updatePhase === 'downloading'
+      ? updateProgress?.percent ?? 0
+      : updatePhase && updatePhase !== 'error'
+        ? 100
+        : 0
+  const updateState = updateInfo?.error
+    ? 'bad'
+    : updateInfo?.hasUpdate
+      ? 'new'
+      : updateInfo
+        ? 'ok'
+        : 'checking'
+  const updateStatusText =
+    updateState === 'bad'
+      ? '检查失败'
+      : updateState === 'new'
+        ? '有新版本'
+        : updateState === 'ok'
+          ? '已是最新'
+          : '检查中…'
+  const updateButtonLabel =
+    updatePhase === 'downloading'
+      ? `下载中 ${downloadPercent}%`
+      : updatePhase === 'verifying'
+        ? '校验安装包…'
+        : updatePhase === 'installing'
+          ? '正在启动安装…'
+          : updateReady
+            ? `安装 v${updateInfo?.latestVersion ?? ''}`
+            : `更新到 v${updateInfo?.latestVersion ?? ''}`
+  const showProgress =
+    updateBusy && (updatePhase === 'downloading' || updatePhase === 'verifying' || updatePhase === 'installing')
 
   useEffect(() => {
     void window.api.settings.info().then(setInfo)
@@ -106,7 +179,7 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
         chatModel: chatModel.trim(),
         visionModel: visionModel.trim(),
         temperature: Number(temperature) || 0,
-        maxContextChars: Number(maxContextChars) || 24000,
+        maxContextChars: Number(maxContextChars) || 0,
         systemPrompt
       })
       onSaved(updated)
@@ -115,7 +188,7 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
       setChatModel(updated.chatModel)
       setVisionModel(updated.visionModel)
       setTemperature(String(updated.temperature))
-      setMaxContextChars(String(updated.maxContextChars))
+      setMaxContextChars(updated.maxContextChars > 0 ? String(updated.maxContextChars) : '')
       setSystemPrompt(updated.systemPrompt)
       notify('设置已保存', 'success')
     } catch (err) {
@@ -217,12 +290,14 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
               <span>文献上下文上限（字符）</span>
               <input
                 type="number"
-                min={4000}
+                min={0}
                 max={200000}
                 step={1000}
+                placeholder="留空表示不限制"
                 value={maxContextChars}
                 onChange={(event) => setMaxContextChars(event.target.value)}
               />
+              <small className="hint">默认不限制；填写 0 也表示不限制，非 0 时最少 4000。</small>
             </label>
           </div>
 
@@ -259,10 +334,6 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
               <code>{info?.dataDir ?? '加载中…'}</code>
             </div>
             <div className="kv">
-              <span>版本</span>
-              <span>{info?.version ?? '-'}</span>
-            </div>
-            <div className="kv">
               <span>截图翻译快捷键</span>
               <kbd>{info?.shortcut ?? 'Ctrl + Shift + T'}</kbd>
             </div>
@@ -276,6 +347,68 @@ export default function SettingsView({ settings, onSaved, notify }: Props): Reac
             数据目录包含文献 PDF、全文缓存、对话记录与翻译截图。迁移或备份时复制整个目录即可；API Key
             受系统加密保护，迁移到其他电脑后需要重新填写。
           </p>
+        </section>
+
+        <section className="card update-card">
+          <div className="update-card-head">
+            <h2>关于与更新</h2>
+            <span className={cx('update-state', updateState)}>{updateStatusText}</span>
+          </div>
+          <div className="update-version">
+            <strong>Arbor v{updateInfo?.currentVersion ?? info?.version ?? '—'}</strong>
+            <span className="muted small">版本信息来自 GitHub Releases</span>
+          </div>
+          <p className="update-summary">
+            {updateInfo?.error
+              ? `检查更新失败：${updateInfo.error}`
+              : updateInfo?.hasUpdate
+                ? `发现新版本 v${updateInfo.latestVersion}，当前版本 v${updateInfo.currentVersion}。`
+                : updateInfo
+                  ? '当前使用的已是最新版本。'
+                  : '正在向 GitHub 查询最新版本…'}
+            {updateInfo?.checkedAt && (
+              <span className="muted small">
+                {' '}
+                · 上次检查 {new Date(updateInfo.checkedAt).toLocaleTimeString('zh-CN')}
+              </span>
+            )}
+          </p>
+
+          {showProgress && (
+            <div className="update-progress">
+              <div className="update-progress-bar" style={{ width: `${downloadPercent}%` }} />
+            </div>
+          )}
+          {updateBusy && updateProgress?.phase === 'downloading' && (
+            <p className="hint">
+              正在下载安装包：{formatSize(updateProgress.received)} / {formatSize(updateProgress.total)}
+            </p>
+          )}
+          {updateProgress?.phase === 'ready' && (
+            <p className="hint">{updateProgress.message ?? '安装包已下载完成，可立即安装。'}</p>
+          )}
+
+          <div className="settings-actions">
+            <button className="btn ghost" onClick={() => void onCheckUpdate()} disabled={updateBusy}>
+              <RefreshCw size={15} /> 检查更新
+            </button>
+            {updateInfo?.hasUpdate && (
+              <button className="btn primary" onClick={() => void onUpdate()} disabled={updateBusy}>
+                {updateBusy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
+                {updateButtonLabel}
+              </button>
+            )}
+            <button className="btn ghost" onClick={() => void window.api.updates.openRelease()}>
+              <ExternalLink size={15} /> 发布说明
+            </button>
+          </div>
+
+          {updateInfo?.notes && (
+            <details className="update-notes-wrap">
+              <summary>更新内容</summary>
+              <div className="update-notes">{updateInfo.notes}</div>
+            </details>
+          )}
         </section>
 
         <section className="card">

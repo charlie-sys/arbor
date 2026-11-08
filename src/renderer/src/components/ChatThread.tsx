@@ -14,41 +14,105 @@ interface PageRef {
   page: number
 }
 
-const PAGE_REF_PATTERN = /\[?第\s*(\d+)\s*页\]?|\bp\.\s*(\d+)\b/gi
+// 支持「第3页」「第2—3页」「第1、4页」「第1 至 3 页」「p. 5」等写法
+const PAGE_LIST = String.raw`\d+(?:\s*(?:[—–\-~～]\s*\d+|[至到]\s*\d+|[、,，和及]\s*\d+))*`
+const PAGE_REF_PATTERN = new RegExp(String.raw`第\s*(${PAGE_LIST})\s*页|\bpp?\.\s*(${PAGE_LIST})`, 'gi')
 
-function resolveDocAt(content: string, index: number, docs: DocumentMeta[]): string {
-  const mentions = [...content.slice(0, index).matchAll(/《([^》]{1,120})》/g)]
-  const last = mentions[mentions.length - 1]
-  if (last) {
-    const title = last[1]
-    const found = docs.find((doc) => doc.title === title || doc.title.includes(title) || title.includes(doc.title))
-    if (found) return found.id
+interface PageHit {
+  index: number
+  length: number
+  text: string
+  pages: number[]
+  docId: string
+}
+
+function parsePages(raw: string): number[] {
+  const pages = [...raw.matchAll(/\d+/g)].map((item) => Number(item[0])).filter((page) => page >= 1)
+  return [...new Set(pages)]
+}
+
+function normalizeTitle(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '')
+}
+
+function docByTitle(title: string, docs: DocumentMeta[]): DocumentMeta | undefined {
+  const needle = normalizeTitle(title)
+  if (!needle) return undefined
+  return docs.find((doc) => {
+    const hay = normalizeTitle(doc.title)
+    return hay.includes(needle) || needle.includes(hay)
+  })
+}
+
+// 表格等场景没有《标题》，用标题关键词就近匹配，如「MoCo 第1页；DINO 第4页」
+function docByMention(text: string, docs: DocumentMeta[]): DocumentMeta | undefined {
+  const lower = text.toLowerCase()
+  let best: { doc: DocumentMeta; score: number } | null = null
+  for (const doc of docs) {
+    const words = doc.title
+      .toLowerCase()
+      .split(/[^a-z0-9\u4e00-\u9fff]+/)
+      .filter((word) => word.length >= 3 && !/^\d+$/.test(word))
+    for (const word of words) {
+      const index = lower.lastIndexOf(word)
+      if (index < 0) continue
+      const score = index * 100 + word.length
+      if (!best || score > best.score) best = { doc, score }
+    }
   }
-  return docs[0]?.id ?? ''
+  return best?.doc
+}
+
+function findPageHits(content: string, docs: DocumentMeta[]): PageHit[] {
+  const hits: PageHit[] = []
+  if (!docs.length) return hits
+  const pattern = new RegExp(PAGE_REF_PATTERN.source, 'gi')
+  let lastDocId = ''
+  let lastEnd = 0
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(content))) {
+    const pages = parsePages(match[1] ?? match[2])
+    if (!pages.length) {
+      lastEnd = match.index + match[0].length
+      continue
+    }
+    const between = content.slice(lastEnd, match.index)
+    let doc: DocumentMeta | undefined
+    if (/同上|上文|前文/.test(between)) doc = docs.find((item) => item.id === lastDocId)
+    if (!doc) {
+      const mentions = [...between.matchAll(/《([^》]{1,160})》/g)]
+      const last = mentions[mentions.length - 1]
+      if (last) doc = docByTitle(last[1], docs)
+    }
+    if (!doc) doc = docByMention(between.slice(-200), docs)
+    if (!doc) doc = docs.find((item) => item.id === lastDocId)
+    if (!doc) doc = docs[0]
+    lastDocId = doc.id
+    hits.push({ index: match.index, length: match[0].length, text: match[0], pages, docId: doc.id })
+    lastEnd = match.index + match[0].length
+  }
+  return hits
 }
 
 function collectPageRefs(content: string, docs: DocumentMeta[]): PageRef[] {
-  if (!docs.length) return []
   const refs: PageRef[] = []
-  const pattern = new RegExp(PAGE_REF_PATTERN.source, 'gi')
-  let match: RegExpExecArray | null
-  while ((match = pattern.exec(content))) {
-    const page = Number(match[1] ?? match[2])
-    if (!Number.isFinite(page) || page <= 0) continue
-    const docId = resolveDocAt(content, match.index, docs)
-    if (!refs.some((ref) => ref.docId === docId && ref.page === page)) refs.push({ docId, page })
+  for (const hit of findPageHits(content, docs)) {
+    for (const page of hit.pages) {
+      if (!refs.some((ref) => ref.docId === hit.docId && ref.page === page)) {
+        refs.push({ docId: hit.docId, page })
+      }
+    }
   }
   return refs
 }
 
 function linkifyPageRefs(content: string, docs: DocumentMeta[]): string {
-  if (!docs.length) return content
-  return content.replace(PAGE_REF_PATTERN, (match, cn: string, en: string, offset: number) => {
-    const page = Number(cn ?? en)
-    if (!Number.isFinite(page) || page <= 0) return match
-    const docId = resolveDocAt(content, offset, docs)
-    return `[第${page}页](zotagent:page:${docId}:${page})`
-  })
+  const hits = findPageHits(content, docs)
+  let result = content
+  for (const hit of [...hits].reverse()) {
+    result = `${result.slice(0, hit.index)}[${hit.text}](zotagent:page:${hit.docId}:${hit.pages[0]})${result.slice(hit.index + hit.length)}`
+  }
+  return result
 }
 
 function CitationList({

@@ -1,5 +1,5 @@
 import { store } from './store'
-import { buildContext } from './context'
+import { buildContext, resolveContextBudget } from './context'
 import { completeText } from './llm'
 import { buildAiActionPrompt } from '../shared/aiActions'
 import type { AiActionId, AiActionOutput } from '../shared/types'
@@ -25,7 +25,7 @@ export async function runAiAction(input: AiActionInput): Promise<AiActionOutput>
     if (input.targetDocId === input.docId) throw new Error('请选择另一篇文献进行对比')
     const targetDoc = store.getDocument(input.targetDocId)
     if (!targetDoc) throw new Error('对比文献不存在')
-    const budget = Math.min(settings.maxContextChars, 24000)
+    const budget = resolveContextBudget(settings.maxContextChars, 24000)
     const built = await buildContext([targetDoc.id], text, budget)
     target = { title: targetDoc.title, context: built.context }
   }

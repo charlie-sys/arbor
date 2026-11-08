@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { ImportResult, LibraryData, SearchResult } from '@shared/types'
-import type { TranslateEvent } from '@shared/api'
+import type { TranslateEvent, UpdateInfo, UpdateProgress } from '@shared/api'
 import type { View } from './nav'
 import Sidebar from './components/Sidebar'
 import LibraryView from './components/LibraryView'
@@ -110,6 +110,12 @@ export default function App(): React.JSX.Element {
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     window.localStorage.getItem('zotagent-theme') === 'dark' ? 'dark' : 'light'
   )
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [updateChecking, setUpdateChecking] = useState(true)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null)
+  const [updateReady, setUpdateReady] = useState(false)
+  const updateNotifiedVersion = useRef('')
   const toastId = useRef(0)
 
   const notify = useCallback((message: string, kind: 'info' | 'success' | 'error' = 'info') => {
@@ -124,6 +130,85 @@ export default function App(): React.JSX.Element {
     notifyRef.current = notify
   }, [notify])
 
+  const checkUpdates = useCallback(
+    async (force = false): Promise<UpdateInfo | null> => {
+      setUpdateChecking(true)
+      try {
+        const info = await window.api.updates.check(force)
+        setUpdateInfo(info)
+        if (info.hasUpdate && updateNotifiedVersion.current !== info.latestVersion) {
+          updateNotifiedVersion.current = info.latestVersion
+          notify(`发现新版本 v${info.latestVersion}，可在设置中更新`, 'success')
+        }
+        return info
+      } catch (err) {
+        notify(`检查更新失败：${(err as Error).message}`, 'error')
+        return null
+      } finally {
+        setUpdateChecking(false)
+      }
+    },
+    [notify]
+  )
+
+  useEffect(() => {
+    void checkUpdates()
+    const timer = window.setInterval(() => void checkUpdates(), 30 * 60 * 1000)
+    const onFocus = (): void => {
+      void checkUpdates()
+    }
+    const onOnline = (): void => {
+      void checkUpdates()
+    }
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('online', onOnline)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [checkUpdates])
+
+  useEffect(
+    () =>
+      window.api.events.onUpdateProgress((progress) => {
+        setUpdateProgress(progress)
+        if (progress.phase === 'ready') setUpdateReady(true)
+        if (progress.phase === 'error') setUpdateReady(false)
+      }),
+    []
+  )
+
+  const checkUpdatesManually = useCallback(async (): Promise<void> => {
+    const info = await checkUpdates(true)
+    if (!info) return
+    if (info.error) notify(info.error, 'error')
+    else if (!info.hasUpdate) notify('当前已是最新版本', 'success')
+  }, [checkUpdates, notify])
+
+  const updateToLatest = useCallback(async (): Promise<void> => {
+    if (updateBusy) return
+    setUpdateBusy(true)
+    try {
+      if (!updateReady) {
+        const downloaded = await window.api.updates.download()
+        if (!downloaded.ok) {
+          notify(downloaded.message ?? '下载更新失败', 'error')
+          return
+        }
+      }
+      const installed = await window.api.updates.install()
+      if (!installed.ok) {
+        setUpdateReady(true)
+        notify(installed.message ?? '安装已取消', 'info')
+      }
+    } catch (err) {
+      notify(`更新失败：${(err as Error).message}`, 'error')
+    } finally {
+      setUpdateBusy(false)
+    }
+  }, [updateBusy, updateReady, notify])
+
   const refresh = useCallback(async (): Promise<LibraryData> => {
     const state = await window.api.library.getState()
     setData(state)
@@ -132,6 +217,13 @@ export default function App(): React.JSX.Element {
 
   const onChanged = useCallback(async (): Promise<void> => {
     await refresh()
+    window.api.readerPanel.refresh()
+  }, [refresh])
+
+  useEffect(() => {
+    return window.api.events.onReaderPanelDataChanged(() => {
+      void refresh()
+    })
   }, [refresh])
 
   useEffect(() => {
@@ -496,6 +588,9 @@ export default function App(): React.JSX.Element {
             onClearCollection={() => setView({ name: 'library' })}
             onSelectCollection={(collectionId) => setView({ name: 'library', collectionId })}
             onManageProperties={() => setPropertiesOpen(true)}
+            updateInfo={updateInfo}
+            updateChecking={updateChecking}
+            onOpenUpdate={() => setView({ name: 'settings' })}
             notify={notify}
           />
         </ViewSlot>
@@ -601,6 +696,12 @@ export default function App(): React.JSX.Element {
           <SettingsView
             settings={data.settings}
             onSaved={(settings) => setData((prev) => (prev ? { ...prev, settings } : prev))}
+            updateInfo={updateInfo}
+            updateBusy={updateBusy}
+            updateProgress={updateProgress}
+            updateReady={updateReady}
+            onCheckUpdate={checkUpdatesManually}
+            onUpdate={updateToLatest}
             notify={notify}
           />
         </ViewSlot>

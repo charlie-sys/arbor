@@ -14,6 +14,7 @@ import { importBibtexDialog, importReadwiseDialog } from './importers'
 import { listBackups, restoreBackup, runBackup } from './backup'
 import { runAiAction } from './aiActions'
 import { exportAttachmentZip } from './attachmentExport'
+import { checkForUpdates, downloadUpdate, installUpdate, openReleasePage } from './updater'
 import type {
   AiActionId,
   CanvasEdge,
@@ -613,7 +614,8 @@ export function registerIpc(): void {
       clean.temperature = Math.min(2, Math.max(0, clean.temperature))
     }
     if (typeof clean.maxContextChars === 'number') {
-      clean.maxContextChars = Math.min(200000, Math.max(4000, Math.round(clean.maxContextChars)))
+      const value = Math.round(clean.maxContextChars)
+      clean.maxContextChars = value > 0 ? Math.min(200000, Math.max(4000, value)) : 0
     }
     return store.updateSettings(clean as never)
   })
@@ -637,6 +639,11 @@ export function registerIpc(): void {
   ipcMain.handle('app:show-in-folder', (_event, filePath: string) => {
     shell.showItemInFolder(filePath)
   })
+
+  ipcMain.handle('update:check', (_event, force: unknown) => checkForUpdates(force === true))
+  ipcMain.handle('update:download', () => downloadUpdate())
+  ipcMain.handle('update:install', () => installUpdate())
+  ipcMain.handle('update:open-release', () => openReleasePage())
 }
 
 export function broadcast(channel: string, payload: unknown): void {

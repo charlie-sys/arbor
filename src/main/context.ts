@@ -60,6 +60,12 @@ function scoreChunk(text: string, terms: string[]): number {
   return score / Math.sqrt(Math.max(40, text.length / 40))
 }
 
+export function resolveContextBudget(chars: number | undefined, cap = Number.POSITIVE_INFINITY): number {
+  const value =
+    typeof chars === 'number' && Number.isFinite(chars) && chars > 0 ? chars : Number.POSITIVE_INFINITY
+  return Math.min(value, cap)
+}
+
 export async function buildContext(
   docIds: string[],
   query: string,
@@ -70,9 +76,10 @@ export async function buildContext(
   const docs = docIds.map((id) => store.getDocument(id)).filter((d): d is NonNullable<ReturnType<typeof store.getDocument>> => !!d)
   if (!docs.length) return { context: '', usedDocIds: [] }
 
+  const totalBudget = resolveContextBudget(budget)
   const perDocBudget = Math.max(
     3000,
-    Math.floor((budget - (options?.contextMode === 'selection' ? options.selection?.trim().length ?? 0 : 0)) / docs.length)
+    Math.floor((totalBudget - (options?.contextMode === 'selection' ? options.selection?.trim().length ?? 0 : 0)) / docs.length)
   )
   const terms = queryTerms(query)
   const blocks: string[] = []

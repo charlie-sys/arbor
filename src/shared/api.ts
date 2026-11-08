@@ -60,9 +60,93 @@ export interface TestResult {
   message: string
 }
 
+export interface UpdateAsset {
+  name: string
+  url: string
+  size: number
+  digest?: string
+}
+
+export interface UpdateInfo {
+  currentVersion: string
+  latestVersion: string
+  hasUpdate: boolean
+  releaseName: string
+  releaseUrl: string
+  notes: string
+  publishedAt?: string
+  asset?: UpdateAsset
+  checkedAt: number
+  error?: string
+}
+
+export interface UpdateProgress {
+  phase: 'downloading' | 'verifying' | 'ready' | 'installing' | 'error'
+  percent: number
+  received: number
+  total: number
+  message?: string
+}
+
+export interface UpdateDownloadResult {
+  ok: boolean
+  message?: string
+  filePath?: string
+  version?: string
+}
+
+export interface UpdateInstallResult {
+  ok: boolean
+  message?: string
+}
+
 export interface ExportResult {
   canceled: boolean
   filePath?: string
+}
+
+export type ReaderPanelTab = 'agent' | 'info' | 'notes' | 'highlights' | 'outline' | 'excerpts' | 'tasks'
+
+export interface ReaderPanelState {
+  open: boolean
+  docId: string | null
+  tab: ReaderPanelTab
+  activeChatId: string | null
+  pinned: boolean
+}
+
+export interface ReaderPanelQuote {
+  text: string
+  page?: number
+  nonce: number
+}
+
+export interface ReaderPanelOutlineItem {
+  title: string
+  page: number | null
+  children: ReaderPanelOutlineItem[]
+}
+
+export interface ReaderPanelOutlineState {
+  outline: ReaderPanelOutlineItem[]
+  outlineLoaded: boolean
+  fallbackToc: { page: number; title: string }[]
+}
+
+export interface ReaderPanelClosedPayload {
+  docId: string
+  tab: ReaderPanelTab
+  activeChatId: string | null
+}
+
+export interface ReaderPanelPagePayload {
+  docId: string
+  page: number
+}
+
+export interface ReaderPanelOpenDocPayload {
+  docId: string
+  page?: number
 }
 
 export interface ZotAgentApi {
@@ -253,10 +337,42 @@ export interface ZotAgentApi {
   app: {
     showInFolder(filePath: string): Promise<void>
   }
+  updates: {
+    check(force?: boolean): Promise<UpdateInfo>
+    download(): Promise<UpdateDownloadResult>
+    install(): Promise<UpdateInstallResult>
+    openRelease(): Promise<void>
+  }
+  readerPanel: {
+    open(docId: string, tab: ReaderPanelTab, activeChatId: string | null): Promise<ReaderPanelState>
+    close(): Promise<{ ok: boolean }>
+    state(): Promise<ReaderPanelState>
+    setPinned(pinned: boolean): Promise<void>
+    setDirty(dirty: boolean): void
+    setTab(tab: ReaderPanelTab, activeChatId: string | null): void
+    notifyChanged(): void
+    refresh(): void
+    quote(docId: string, text: string, page?: number): Promise<void>
+    ready(docId: string): void
+    openDoc(docId: string, page?: number): void
+    sendPage(docId: string, page: number): void
+    sendOutline(docId: string, state: ReaderPanelOutlineState): void
+  }
   events: {
     onChat(cb: (event: ChatEvent) => void): () => void
     onTranslate(cb: (event: TranslateEvent) => void): () => void
     onRenderRequest(cb: (request: RenderRequest) => void): () => void
+    onReaderPanelClosed(cb: (payload: ReaderPanelClosedPayload) => void): () => void
+    onReaderPanelQuote(cb: (payload: ReaderPanelQuote) => void): () => void
+    onReaderPanelPage(cb: (payload: ReaderPanelPagePayload) => void): () => void
+    onReaderPanelOutline(cb: (payload: ReaderPanelOutlineState & { docId: string }) => void): () => void
+    onReaderPanelDataChanged(cb: () => void): () => void
+    onReaderPanelRefresh(cb: () => void): () => void
+    onReaderPanelOpenDoc(cb: (payload: ReaderPanelOpenDocPayload) => void): () => void
+    onReaderPanelReady(cb: (payload: { docId: string }) => void): () => void
+    onReaderPanelBlockClose(cb: () => void): () => void
+    onReaderPanelPinned(cb: (pinned: boolean) => void): () => void
+    onUpdateProgress(cb: (progress: UpdateProgress) => void): () => void
   }
   overlay: {
     select(rect: { x: number; y: number; width: number; height: number }): Promise<void>

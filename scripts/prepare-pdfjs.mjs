@@ -37,6 +37,27 @@ const polyfill = `${marker}
       }
     });
   }
+  if (typeof Math.sumPrecise !== 'function') {
+    Object.defineProperty(Math, 'sumPrecise', {
+      configurable: true,
+      writable: true,
+      value: function (values) {
+        var sum = 0;
+        var compensation = 0;
+        for (var value of values) {
+          var number = Number(value);
+          var next = sum + number;
+          if (Math.abs(sum) >= Math.abs(number)) {
+            compensation += sum - next + number;
+          } else {
+            compensation += number - next + sum;
+          }
+          sum = next;
+        }
+        return sum + compensation;
+      }
+    });
+  }
 })();
 `
 if (!worker.startsWith(marker)) {

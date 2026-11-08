@@ -4,6 +4,7 @@ export interface AppSettings {
   chatModel: string
   visionModel: string
   temperature: number
+  // 0 表示不限制注入的文献上下文字符数
   maxContextChars: number
   systemPrompt: string
 }

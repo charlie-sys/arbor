@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   chatModel: 'deepseek-chat',
   visionModel: '',
   temperature: 0.3,
-  maxContextChars: 24000,
+  maxContextChars: 0,
   systemPrompt:
     '你是一位严谨、细致的学术研究助手。你会基于用户提供的文献原文回答问题：结论必须有原文依据；引用时注明《文献标题》第N页；原文没有的信息要明确说明"文献中未提及"，不得编造。回答使用中文，结构清晰，必要时使用 Markdown 小标题、列表和表格。'
 }
@@ -103,6 +103,8 @@ class Store {
         }
       }
       delete (settings as StoredSettings).apiKeyEnc
+      // 旧版本默认上限为 24000；现在默认不限制注入的文献上下文
+      if (settings.maxContextChars === 24000) settings.maxContextChars = 0
       const documents = (parsed.documents ?? []).map((doc) => ({
         ...doc,
         readingStatus: doc.readingStatus ?? 'unread'

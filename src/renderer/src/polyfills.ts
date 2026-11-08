@@ -24,3 +24,17 @@ define(WeakMap.prototype, 'getOrInsertComputed', function (this: WeakMap<object,
   if (!this.has(key)) this.set(key, compute(key))
   return this.get(key)
 } as never)
+
+// PDF.js 6.x uses the Math.sumPrecise proposal for glyph metrics.
+define(Math, 'sumPrecise', function (this: Math, values: Iterable<number>): number {
+  let sum = 0
+  let compensation = 0
+  for (const value of values) {
+    const number = Number(value)
+    const next = sum + number
+    if (Math.abs(sum) >= Math.abs(number)) compensation += sum - next + number
+    else compensation += number - next + sum
+    sum = next
+  }
+  return sum + compensation
+} as never)

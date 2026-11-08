@@ -4,6 +4,7 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import { store } from './store'
 import { registerIpc } from './ipc'
+import { closeReaderPanel, initReaderPanel, registerReaderPanelIpc } from './readerPanel'
 import { initCapture, startCapture } from './capture'
 import { startMcpServer } from './mcp'
 import { startBackupScheduler } from './backup'
@@ -115,6 +116,7 @@ function createMainWindow(): void {
 
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.on('closed', () => {
+    closeReaderPanel(true)
     mainWindow = null
   })
 
@@ -198,7 +200,9 @@ if (gotLock) {
     void startMcpServer()
     registerProtocols()
     initCapture(() => mainWindow)
+    initReaderPanel(() => mainWindow)
     registerIpc()
+    registerReaderPanelIpc()
     createMainWindow()
 
     const registered = globalShortcut.register('CommandOrControl+Shift+T', () => {
@@ -214,6 +218,7 @@ if (gotLock) {
   })
 
   app.on('will-quit', () => {
+    closeReaderPanel(true)
     globalShortcut.unregisterAll()
   })
 

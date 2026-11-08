@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react'
 import type { DocumentMeta, LibraryData, Property, PropertyValue, ReadingStatus, SavedViewConfig } from '@shared/types'
+import type { UpdateInfo } from '@shared/api'
 import CollectionPicker from './CollectionPicker'
 import PropertyCell from './PropertyCell'
 import './properties.css'
@@ -32,6 +33,9 @@ interface Props {
   onClearCollection(): void
   onSelectCollection?(collectionId?: string): void
   onManageProperties(): void
+  updateInfo: UpdateInfo | null
+  updateChecking: boolean
+  onOpenUpdate(): void
   notify(message: string, kind?: 'info' | 'success' | 'error'): void
 }
 
@@ -128,6 +132,9 @@ export default function LibraryView({
   onClearCollection,
   onSelectCollection,
   onManageProperties,
+  updateInfo,
+  updateChecking,
+  onOpenUpdate,
   notify
 }: Props): React.JSX.Element {
   const savedView = savedViewId ? data.savedViews.find((item) => item.id === savedViewId) : undefined
@@ -472,6 +479,24 @@ export default function LibraryView({
       .filter(Boolean)
       .join('、')
 
+  const updateState = updateInfo?.error
+    ? 'error'
+    : updateInfo?.hasUpdate
+      ? 'new'
+      : updateInfo
+        ? 'latest'
+        : updateChecking
+          ? 'checking'
+          : 'error'
+  const updateLabel =
+    updateState === 'checking'
+      ? '检查中…'
+      : updateState === 'error'
+        ? '更新检查失败'
+        : updateState === 'new'
+          ? `新版本 v${updateInfo?.latestVersion}`
+          : '已是最新'
+
   return (
     <div className="view library-view">
       <header className="view-head">
@@ -483,10 +508,21 @@ export default function LibraryView({
             {documents.length !== data.documents.length ? ` · 当前显示 ${documents.length} 篇` : ''}
           </p>
         </div>
-        <button className="btn primary" onClick={onImport} disabled={!!importing}>
-          {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-          {importing ? `导入中 ${importing.done}/${importing.total}` : '导入 PDF'}
-        </button>
+        <div className="view-head-actions">
+          <button
+            className={cx('version-pill', updateState)}
+            onClick={onOpenUpdate}
+            title={updateState === 'new' ? `发现新版本 v${updateInfo?.latestVersion}，打开设置更新` : '打开设置检查更新'}
+          >
+            <span className="version-dot" />
+            <span className="version-number">v{updateInfo?.currentVersion ?? '—'}</span>
+            <span className="version-status">{updateLabel}</span>
+          </button>
+          <button className="btn primary" onClick={onImport} disabled={!!importing}>
+            {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
+            {importing ? `导入中 ${importing.done}/${importing.total}` : '导入 PDF'}
+          </button>
+        </div>
       </header>
 
       <div className="library-toolbar">

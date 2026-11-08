@@ -10,8 +10,8 @@ export default function PaneResizer({
 }: {
   value: number
   onChange(value: number): void
-  min: number
-  max: number
+  min?: number
+  max?: number
   invert?: boolean
   label?: string
 }): React.JSX.Element {
@@ -37,7 +37,8 @@ export default function PaneResizer({
       onPointerMove={(event) => {
         if (!start.current) return
         const delta = (event.clientX - start.current.x) * (invert ? -1 : 1)
-        onChange(Math.min(max, Math.max(min, start.current.value + delta)))
+        const next = start.current.value + delta
+        onChange(Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min ?? 0, next)))
       }}
       onPointerUp={(event) => {
         start.current = null
