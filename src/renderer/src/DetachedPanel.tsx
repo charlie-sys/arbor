@@ -5,6 +5,7 @@ import type { LibraryData } from '@shared/types'
 import ReaderSidePanel from './components/ReaderSidePanel'
 import type { PdfOutlineItem } from './components/PdfViewer'
 import { cx } from './ui'
+import { applyTheme, readTheme } from './themes'
 
 interface Props {
   docId: string
@@ -37,8 +38,12 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
 
   useEffect(() => {
     document.title = '阅读面板 — Arbor'
-    document.documentElement.dataset.theme =
-      window.localStorage.getItem('zotagent-theme') === 'dark' ? 'dark' : 'light'
+    applyTheme(readTheme())
+    const onStorage = (event: StorageEvent): void => {
+      if (event.key === 'zotagent-theme') applyTheme(readTheme())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   useEffect(() => {

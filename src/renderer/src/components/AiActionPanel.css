@@ -11,7 +11,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius, 1.75rem);
   background: var(--panel, #fff);
-  box-shadow: 0 14px 34px rgba(63, 52, 45, 0.18);
+  box-shadow: var(--shadow);
   z-index: 60;
 }
 
@@ -36,7 +36,7 @@
   padding: 8px 10px;
   border-radius: var(--radius-sm, 1.1rem);
   border: 1px solid var(--border);
-  background: #f3ece2;
+  background: var(--surface-muted);
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-soft, #6b6258);
@@ -112,7 +112,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 1.1rem);
   background: var(--panel, #fffdf9);
-  box-shadow: 0 12px 28px rgba(63, 52, 45, 0.16);
+  box-shadow: var(--shadow);
   z-index: 61;
 }
 
@@ -134,7 +134,7 @@
 }
 
 .selection-toolbar .selection-action-menu button:hover {
-  background: #f1e9dd;
+  background: var(--surface-hover);
   color: var(--text);
 }
 

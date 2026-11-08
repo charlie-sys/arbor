@@ -43,8 +43,8 @@
 
 .property-input:focus {
   outline: none;
-  border-color: #b9c3a6;
-  box-shadow: 0 0 0 3px rgba(139, 157, 119, 0.16);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .property-form-actions {
@@ -132,8 +132,8 @@
 
 .property-filter-input:focus {
   outline: none;
-  border-color: #b9c3a6;
-  box-shadow: 0 0 0 3px rgba(139, 157, 119, 0.16);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .prop-cell {
@@ -179,7 +179,7 @@
 }
 
 .prop-multi > summary:hover {
-  background: #f1e9dd;
+  background: var(--surface-hover);
 }
 
 .prop-multi-menu {
@@ -195,7 +195,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel);
-  box-shadow: 0 8px 22px rgba(63, 52, 45, 0.16);
+  box-shadow: var(--shadow);
 }
 
 .prop-multi-menu label {
@@ -209,5 +209,5 @@
 }
 
 .prop-multi-menu label:hover {
-  background: #f1e9dd;
+  background: var(--surface-hover);
 }

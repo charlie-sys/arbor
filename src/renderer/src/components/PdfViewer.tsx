@@ -51,6 +51,8 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
   const loadingTaskRef = useRef<any>(null)
   const pageRef = useRef(props.initialPage || 1)
   const layersRef = useRef(new Map<number, HTMLDivElement>())
+  const pendingPageRef = useRef<number | null>(null)
+  const pagesReadyRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -105,22 +107,53 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     }
   }
 
+  const goToPage = (value: number): void => {
+    const requested = Math.max(1, Math.round(value))
+    const viewer = viewerObj.current
+    const total = viewer?.pagesCount || 0
+    // 文档尚未初始化完成时先记下目标页，pagesinit 时再应用，避免被 initialPage 覆盖
+    if (!viewer || !pagesReadyRef.current || !total) {
+      pendingPageRef.current = requested
+      return
+    }
+    pendingPageRef.current = null
+    const target = Math.min(total, requested)
+    try {
+      viewer.currentPageNumber = target
+    } catch {
+      pendingPageRef.current = target
+      return
+    }
+    window.requestAnimationFrame(() => {
+      if (viewerObj.current !== viewer) return
+      const container = scrollRef.current
+      const pageDiv = viewer.getPageView(target - 1)?.div as HTMLElement | undefined
+      if (!container || !pageDiv || !pageDiv.offsetParent || container.clientHeight <= 0) return
+      let offsetY = pageDiv.offsetTop + pageDiv.clientTop
+      let parent = pageDiv.offsetParent as HTMLElement | null
+      while (parent && parent !== container) {
+        offsetY += parent.offsetTop
+        parent = parent.offsetParent as HTMLElement | null
+      }
+      if (parent === container && Math.abs(container.scrollTop - offsetY) > 4) {
+        container.scrollTop = offsetY
+      }
+    })
+  }
+
   useImperativeHandle(ref, () => ({
     goToPage(page: number) {
-      const viewer = viewerObj.current
-      if (!viewer) return
-      const total = viewer.pagesCount || 1
-      viewer.currentPageNumber = Math.min(total, Math.max(1, page))
+      goToPage(page)
     },
     nextPage() {
       const viewer = viewerObj.current
-      if (!viewer) return
-      viewer.currentPageNumber = Math.min(viewer.pagesCount, viewer.currentPageNumber + 1)
+      const current = viewer?.currentPageNumber || pageRef.current
+      goToPage(current + 1)
     },
     prevPage() {
       const viewer = viewerObj.current
-      if (!viewer) return
-      viewer.currentPageNumber = Math.max(1, viewer.currentPageNumber - 1)
+      const current = viewer?.currentPageNumber || pageRef.current
+      goToPage(current - 1)
     },
     zoomIn() {
       const viewer = viewerObj.current
@@ -143,6 +176,8 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     let cancelled = false
     setLoading(true)
     setError('')
+    pendingPageRef.current = null
+    pagesReadyRef.current = false
     layersRef.current.forEach((layer) => layer.remove())
     layersRef.current.clear()
 
@@ -212,8 +247,10 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
         eventBus.on('scalechanging', () => window.requestAnimationFrame(paintHighlights))
         eventBus.on('pagesinit', () => {
           viewer.currentScaleValue = 'page-width'
-          const page = Math.min(callbacks.current.initialPage || 1, pdf.numPages)
-          viewer.currentPageNumber = page
+          pagesReadyRef.current = true
+          const pending = pendingPageRef.current ?? callbacks.current.initialPage ?? 1
+          pendingPageRef.current = null
+          viewer.currentPageNumber = Math.min(pending, pdf.numPages)
           callbacks.current.onPagesLoaded(pdf.numPages)
           if (!cancelled) setLoading(false)
           paintHighlights()

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FileText, Folder, Loader2, MessageSquare, Quote, Search, StickyNote } from 'lucide-react'
+import { Check, FileText, Folder, Loader2, MessageSquare, Palette, Quote, Search, StickyNote } from 'lucide-react'
 import type { SearchResult, SearchResultType } from '@shared/types'
+import { THEMES } from '../themes'
+import type { ThemeId } from '../themes'
 
 export interface PaletteCommand {
   id: string
@@ -14,6 +16,8 @@ export interface PaletteCommand {
 interface Props {
   mode: 'search' | 'command'
   commands: PaletteCommand[]
+  themeId: ThemeId
+  onSelectTheme(id: ThemeId): void
   onClose(): void
   onOpenResult(result: SearchResult, locate: boolean): void
   onCreateCollection(name: string): Promise<void> | void
@@ -41,6 +45,8 @@ function ResultIcon({ type }: { type: SearchResultType }): React.JSX.Element {
 export default function CommandPalette({
   mode,
   commands,
+  themeId,
+  onSelectTheme,
   onClose,
   onOpenResult,
   onCreateCollection,
@@ -50,7 +56,7 @@ export default function CommandPalette({
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState(0)
-  const [promptKind, setPromptKind] = useState<'collection' | null>(null)
+  const [promptKind, setPromptKind] = useState<'collection' | 'theme' | null>(null)
   const [promptValue, setPromptValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const promptRef = useRef<HTMLInputElement>(null)
@@ -96,7 +102,24 @@ export default function CommandPalette({
     )
   }, [commands, query])
 
+  const filteredThemes = useMemo(() => {
+    const keyword = promptValue.trim().toLowerCase()
+    if (!keyword) return THEMES
+    return THEMES.filter((theme) =>
+      `${theme.name} ${theme.latin} ${theme.description}`.toLowerCase().includes(keyword)
+    )
+  }, [promptValue])
+
   const items: { key: string; run(): void }[] = useMemo(() => {
+    if (promptKind === 'theme') {
+      return filteredThemes.map((theme) => ({
+        key: theme.id,
+        run: () => {
+          onSelectTheme(theme.id)
+          onClose()
+        }
+      }))
+    }
     if (mode === 'search') {
       return results.map((result) => ({
         key: result.id,
@@ -112,11 +135,18 @@ export default function CommandPalette({
           setPromptValue('')
           return
         }
+        if (command.id === 'theme') {
+          setPromptKind('theme')
+          setPromptValue('')
+          const index = THEMES.findIndex((theme) => theme.id === themeId)
+          setSelected(index < 0 ? 0 : index)
+          return
+        }
         void command.run()
         onClose()
       }
     }))
-  }, [mode, results, filteredCommands, onOpenResult, onClose])
+  }, [promptKind, filteredThemes, mode, results, filteredCommands, onOpenResult, onClose, onSelectTheme, themeId])
 
   const submitPrompt = async (): Promise<void> => {
     const name = promptValue.trim()
@@ -137,6 +167,23 @@ export default function CommandPalette({
       event.preventDefault()
       if (promptKind) setPromptKind(null)
       else onClose()
+      return
+    }
+    if (promptKind === 'theme') {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setSelected((value) => (items.length ? (value + 1) % items.length : 0))
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setSelected((value) => (items.length ? (value - 1 + items.length) % items.length : 0))
+        return
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        items[selected]?.run()
+      }
       return
     }
     if (promptKind) {
@@ -177,17 +224,32 @@ export default function CommandPalette({
     <div className="palette-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div className="palette" onKeyDown={onKeyDown}>
         <div className="palette-input-row">
-          {mode === 'search' ? <Search size={17} /> : <FileText size={17} />}
+          {promptKind === 'theme' ? (
+            <Palette size={17} />
+          ) : mode === 'search' ? (
+            <Search size={17} />
+          ) : (
+            <FileText size={17} />
+          )}
           <input
             ref={inputRef}
             value={promptKind ? promptValue : query}
-            onChange={(event) => (promptKind ? setPromptValue(event.target.value) : setQuery(event.target.value))}
+            onChange={(event) => {
+              if (promptKind) {
+                setPromptValue(event.target.value)
+                setSelected(0)
+              } else {
+                setQuery(event.target.value)
+              }
+            }}
             placeholder={
-              promptKind
-                ? '输入分类名称，回车创建'
-                : mode === 'search'
-                  ? '搜索文献、全文、对话、笔记、摘录、分类…'
-                  : '输入命令，例如：导入、分类、设置…'
+              promptKind === 'theme'
+                ? '搜索主题，↑↓ 浏览，回车应用'
+                : promptKind
+                  ? '输入分类名称，回车创建'
+                  : mode === 'search'
+                    ? '搜索文献、全文、对话、笔记、摘录、分类…'
+                    : '输入命令，例如：导入、分类、设置…'
             }
             autoFocus
           />
@@ -195,7 +257,34 @@ export default function CommandPalette({
           <span className="palette-kbd">{mode === 'search' ? 'Ctrl+O' : 'Ctrl+K'}</span>
         </div>
 
-        {promptKind ? (
+        {promptKind === 'theme' ? (
+          <div className="palette-list">
+            <div className="palette-section">界面主题</div>
+            {filteredThemes.map((theme, index) => (
+              <button
+                key={theme.id}
+                className={`palette-item theme-item${index === selected ? ' active' : ''}`}
+                onMouseEnter={() => setSelected(index)}
+                onClick={() => items[index]?.run()}
+              >
+                <span className="theme-swatch" aria-hidden="true">
+                  {theme.swatches.map((color) => (
+                    <span key={color} style={{ background: color }} />
+                  ))}
+                </span>
+                <span className="palette-item-main">
+                  <span className="palette-item-title">
+                    {theme.name}
+                    <span className="theme-latin">{theme.latin}</span>
+                    {theme.id === themeId && <Check size={14} className="theme-check" />}
+                  </span>
+                  <span className="palette-item-sub">{theme.description}</span>
+                </span>
+              </button>
+            ))}
+            {!filteredThemes.length && <div className="palette-empty">没有匹配的主题</div>}
+          </div>
+        ) : promptKind ? (
           <div className="palette-list">
             <button className="palette-item active" onClick={() => void submitPrompt()}>
               <span className="palette-item-icon">
@@ -260,9 +349,9 @@ export default function CommandPalette({
 
         <div className="palette-foot">
           <span>↑↓ 选择</span>
-          <span>Enter 打开</span>
-          {mode === 'search' && <span>Ctrl+Enter 定位到命中页</span>}
-          <span>Esc 关闭</span>
+          <span>{promptKind === 'theme' ? 'Enter 应用' : 'Enter 打开'}</span>
+          {mode === 'search' && !promptKind && <span>Ctrl+Enter 定位到命中页</span>}
+          <span>{promptKind ? 'Esc 返回' : 'Esc 关闭'}</span>
           {activeResult && mode === 'search' && <span className="palette-foot-path">{TYPE_LABEL[activeResult.type]}</span>}
         </div>
       </div>

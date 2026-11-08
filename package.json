@@ -1,6 +1,6 @@
 {
   "name": "arbor-desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Arbor — 文献阅读、知识整理与 AI 研究工坊",
   "author": "Arbor",
   "main": "./out/main/index.js",
@@ -49,6 +49,7 @@
     "appId": "com.arbor.desktop",
     "productName": "Arbor",
     "electronDist": "node_modules/electron/dist",
+    "artifactName": "Arbor-Setup-${version}.${ext}",
     "directories": {
       "output": "release"
     },

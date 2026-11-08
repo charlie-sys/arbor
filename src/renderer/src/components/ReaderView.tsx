@@ -212,7 +212,6 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
     setAiActionMenuOpen(false)
     setActionRequest(null)
     setQuote(null)
-    setActiveChatId(null)
     setEditor(null)
     setFlashHighlightId(null)
     setOutline([])
@@ -290,9 +289,10 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   }, [page, doc.id, doc.lastPage])
 
   const goToPage = (value: number): void => {
-    const target = Math.min(Math.max(1, value), pageCount || doc.pageCount || 1)
-    pdfRef.current?.goToPage(target)
+    const max = pageCount || doc.pageCount || 0
+    const target = max > 0 ? Math.min(Math.max(1, Math.round(value)), max) : Math.max(1, Math.round(value))
     setPage(target)
+    pdfRef.current?.goToPage(target)
   }
 
   const openAgentQuote = async (text: string, pageNumber: number): Promise<void> => {

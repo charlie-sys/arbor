@@ -4,6 +4,7 @@ import App from './App'
 import DetachedPanel from './DetachedPanel'
 import type { ReaderPanelTab } from '@shared/api'
 import './styles.css'
+import './themes.css'
 
 const params = new URLSearchParams(window.location.search)
 const docId = params.get('docId')

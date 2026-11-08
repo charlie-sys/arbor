@@ -23,10 +23,22 @@ const CARD_SIZE: Record<CanvasNodeKind, { width: number; height: number }> = {
 }
 
 const CARD_COLOR: Record<CanvasNodeKind, { bg: string; border: string; text: string }> = {
+  document: { bg: '--canvas-document-bg', border: '--canvas-document-border', text: '--canvas-document-text' },
+  excerpt: { bg: '--canvas-excerpt-bg', border: '--canvas-excerpt-border', text: '--canvas-excerpt-text' },
+  chat: { bg: '--canvas-chat-bg', border: '--canvas-chat-border', text: '--canvas-chat-text' },
+  section: { bg: '--canvas-section-bg', border: '--canvas-section-border', text: '--canvas-section-text' }
+}
+
+const CARD_FALLBACK: Record<CanvasNodeKind, { bg: string; border: string; text: string }> = {
   document: { bg: '#fffdf9', border: '#e3d9cc', text: '#3f3a33' },
   excerpt: { bg: '#f7ecdd', border: '#e8d3b4', text: '#6b4f33' },
   chat: { bg: '#efe9dd', border: '#d8cbbb', text: '#5d5449' },
   section: { bg: '#edf0e6', border: '#c9d3b8', text: '#4a5a3d' }
+}
+
+const readCssColor = (name: string, fallback: string): string => {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
 }
 
 const MIN_SIZE: Record<CanvasNodeKind, { width: number; height: number }> = {
@@ -389,9 +401,9 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
     if (!ctx) return
     ctx.scale(ratio, ratio)
     ctx.translate(-minX, -minY)
-    ctx.fillStyle = '#faf6f1'
+    ctx.fillStyle = readCssColor('--canvas-paper', '#faf6f1')
     ctx.fillRect(minX, minY, maxX - minX, maxY - minY)
-    ctx.strokeStyle = '#a1958a'
+    ctx.strokeStyle = readCssColor('--canvas-edge', '#a1958a')
     ctx.lineWidth = 1.5
     for (const edge of edges) {
       const from = nodes.find((node) => node.id === edge.from)
@@ -420,14 +432,15 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
     }
     for (const node of sorted) {
       const palette = CARD_COLOR[node.kind]
-      ctx.fillStyle = palette.bg
-      ctx.strokeStyle = palette.border
+      const fallback = CARD_FALLBACK[node.kind]
+      ctx.fillStyle = readCssColor(palette.bg, fallback.bg)
+      ctx.strokeStyle = readCssColor(palette.border, fallback.border)
       ctx.beginPath()
       if (typeof ctx.roundRect === 'function') ctx.roundRect(node.x, node.y, node.width, node.height, 12)
       else ctx.rect(node.x, node.y, node.width, node.height)
       ctx.fill()
       ctx.stroke()
-      ctx.fillStyle = palette.text
+      ctx.fillStyle = readCssColor(palette.text, fallback.text)
       ctx.font = '600 13px system-ui, sans-serif'
       drawText(node.title, node.x + 14, node.y + 24, node.width - 28, 18, 2)
       if (node.text) {
@@ -562,9 +575,9 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                   flexDirection: 'column',
                   gap: 6,
                   padding: 10,
-                  border: '1px solid #e3d9cc',
+                  border: '1px solid var(--border)',
                   borderRadius: 'var(--radius)',
-                  background: '#fffdf9',
+                  background: 'var(--panel)',
                   overflowY: 'auto'
                 }}
               >
@@ -588,9 +601,9 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                       alignItems: 'center',
                       gap: 6,
                       padding: '6px 8px',
-                      border: '1px solid #efe4d6',
+                      border: '1px solid var(--border-soft)',
                       borderRadius: 10,
-                      background: '#fffdf9',
+                      background: 'var(--panel)',
                       cursor: 'grab'
                     }}
                   >
@@ -626,11 +639,11 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
               minWidth: 0,
               overflow: 'hidden',
               borderRadius: 'var(--radius)',
-              border: '1px solid #e3d9cc',
-              background: 'radial-gradient(circle, #e3d9cc 1px, transparent 1px) 0 0 / 24px 24px, #f8f2e9',
+              border: '1px solid var(--border)',
+              background: 'radial-gradient(circle, var(--canvas-grid) 1px, transparent 1px) 0 0 / 24px 24px, var(--canvas-bg)',
               cursor: panning ? 'grabbing' : 'grab',
               touchAction: 'none',
-              outline: dragOver ? '2px dashed #5f7150' : 'none',
+              outline: dragOver ? '2px dashed var(--accent-strong)' : 'none',
               outlineOffset: -4
             }}
           >
@@ -657,7 +670,7 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                   const y2 = to.y + to.height / 2
                   return (
                     <g key={edge.id} data-canvas-edge={edge.id}>
-                      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#8b7f70" strokeWidth={1.5} />
+                      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--canvas-edge)" strokeWidth={1.5} />
                       <line
                         x1={x1}
                         y1={y1}
@@ -690,15 +703,15 @@ export default function CanvasView({ data, canvasId, onSelectCanvas, onOpenDoc, 
                         top: node.y,
                         width: node.width,
                         height: node.height,
-                        background: palette.bg,
-                        border: `1px ${node.kind === 'section' ? 'dashed' : 'solid'} ${palette.border}`,
-                        borderRadius: '1.25rem 1rem 1.25rem 1.1rem',
+                        background: `var(${palette.bg})`,
+                        border: `1px ${node.kind === 'section' ? 'dashed' : 'solid'} var(${palette.border})`,
+                        borderRadius: 'var(--canvas-card-radius)',
                         padding: node.kind === 'section' ? 12 : 14,
-                        color: palette.text,
-                        boxShadow: node.kind === 'section' ? 'none' : '0 6px 18px rgba(84,65,48,0.08)',
+                        color: `var(${palette.text})`,
+                        boxShadow: node.kind === 'section' ? 'none' : 'var(--canvas-card-shadow)',
                         cursor: mode === 'connect' ? 'crosshair' : 'grab',
                         pointerEvents: 'auto',
-                        outline: selected === node.id ? '2px solid #5f7150' : 'none',
+                        outline: selected === node.id ? '2px solid var(--accent-strong)' : 'none',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 6,

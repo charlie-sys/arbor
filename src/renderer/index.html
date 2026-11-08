@@ -8,6 +8,15 @@
     />
     <meta name="theme-color" content="#faf6f1" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var savedTheme = localStorage.getItem('zotagent-theme')
+        var savedDark = savedTheme === 'dark' || savedTheme === 'midnight'
+        if (savedTheme) document.documentElement.dataset.theme = savedTheme
+        if (savedDark) document.documentElement.dataset.dark = 'true'
+        document.documentElement.style.colorScheme = savedDark ? 'dark' : 'light'
+      } catch (error) {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="./arbor-logo.svg" />
     <title>Arbor — 文献阅读与 AI 研究工坊</title>
   </head>

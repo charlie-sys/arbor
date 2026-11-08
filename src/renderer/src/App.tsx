@@ -21,6 +21,8 @@ import PaneResizer from './components/PaneResizer'
 import { hasUnsavedChanges } from './unsaved'
 import { extractPdf } from './pdf'
 import { renderTranslatedImage } from './renderTranslated'
+import { applyTheme, persistTheme, readTheme, themeById } from './themes'
+import type { ThemeId } from './themes'
 
 interface Toast {
   id: number
@@ -107,9 +109,7 @@ export default function App(): React.JSX.Element {
       setLastLibraryCollectionId(view.collectionId)
     }
   }, [view])
-  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    window.localStorage.getItem('zotagent-theme') === 'dark' ? 'dark' : 'light'
-  )
+  const [theme, setTheme] = useState<ThemeId>(readTheme)
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [updateChecking, setUpdateChecking] = useState(true)
   const [updateBusy, setUpdateBusy] = useState(false)
@@ -231,8 +231,8 @@ export default function App(): React.JSX.Element {
   }, [refresh, notify])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('zotagent-theme', theme)
+    applyTheme(theme)
+    persistTheme(theme)
   }, [theme])
 
   useEffect(() => {
@@ -495,10 +495,10 @@ export default function App(): React.JSX.Element {
     { id: 'settings', label: '打开设置', hint: '配置模型、API Key 与数据目录', keywords: '设置 settings', run: () => setView({ name: 'settings' }) },
     {
       id: 'theme',
-      label: theme === 'dark' ? '切换浅色主题' : '切换深色主题',
-      hint: '外观主题',
-      keywords: '主题 dark light theme',
-      run: () => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))
+      label: '切换主题',
+      hint: `当前：${themeById(theme).name} · ${themeById(theme).latin}`,
+      keywords: '主题 切换主题 theme 外观 skin 配色 暖砂 澄蓝 柔光 暖夜 深空',
+      run: () => undefined
     },
     {
       id: 'export',
@@ -711,6 +711,8 @@ export default function App(): React.JSX.Element {
         <CommandPalette
           mode={paletteMode}
           commands={commands}
+          themeId={theme}
+          onSelectTheme={setTheme}
           onClose={() => setPaletteMode(null)}
           onOpenResult={openSearchResult}
           onCreateCollection={createCollection}
