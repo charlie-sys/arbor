@@ -1,5 +1,5 @@
 const api = window.api
-const a = await api.library.importPdf('C:/Users/18116/AppData/Local/Temp/zotagent-issue-test/test2.pdf', 'Issue Doc A')
+const a = await api.library.importDocument('C:/Users/18116/AppData/Local/Temp/zotagent-issue-test/test2.pdf', 'Issue Doc A')
 await api.library.setText(a.id, ['Page One', 'Page Two'], { title: 'Issue Doc A', authors: '作者 A' })
 await api.library.update(a.id, {
   lastPage: 2,
@@ -14,7 +14,7 @@ const excerptA = await api.excerpts.add({
   answer: 'A 的答案：**勾股定理** $a^2+b^2=c^2$'
 })
 
-const b = await api.library.importPdf('C:/Users/18116/AppData/Local/Temp/zotagent-issue-test/test.pdf', 'Issue Doc B')
+const b = await api.library.importDocument('C:/Users/18116/AppData/Local/Temp/zotagent-issue-test/test.pdf', 'Issue Doc B')
 await api.library.setText(b.id, ['Hello ZotAgent'], { title: 'Issue Doc B', authors: '作者 B' })
 await api.library.update(b.id, { notes: 'Issue Doc B 的独立笔记' })
 const excerptB = await api.excerpts.add({

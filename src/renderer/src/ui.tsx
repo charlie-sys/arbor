@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -65,7 +66,7 @@ function normalizeMath(text: string): string {
     .join('')
 }
 
-export function Markdown({
+function MarkdownView({
   children,
   onPageRef
 }: {
@@ -113,3 +114,9 @@ export function Markdown({
     </div>
   )
 }
+
+// 对话每次输入/流式更新都会重渲染整个列表，未变化的 Markdown 不应重复解析与排版公式
+export const Markdown = memo(
+  MarkdownView,
+  (prev, next) => prev.children === next.children && prev.onPageRef === next.onPageRef
+)

@@ -1,5 +1,7 @@
 import { store } from './store'
 import { fetchWithRetry } from './http'
+import { usage, usageFromApi } from './usage'
+import { estimateTokens } from '../shared/usage'
 import type { InboxSuggestion, InboxSuggestionType } from '../shared/types'
 
 const SUGGESTION_TYPES: InboxSuggestionType[] = ['tag', 'collection', 'excerpt', 'task']
@@ -98,6 +100,15 @@ ${JSON.stringify(payload)}`
     const json = (await res.json()) as { choices?: { message?: { content?: unknown } }[] }
     const content = json?.choices?.[0]?.message?.content
     const raw = typeof content === 'string' ? content : ''
+    const fromApi = usageFromApi(json)
+    usage.add({
+      kind: 'inbox',
+      model: settings.chatModel,
+      promptTokens: fromApi?.promptTokens ?? estimateTokens(prompt),
+      completionTokens: fromApi?.completionTokens ?? estimateTokens(raw),
+      ...(fromApi?.cachedTokens !== undefined ? { cachedTokens: fromApi.cachedTokens } : {}),
+      estimated: !fromApi
+    })
     if (!raw.trim()) throw new Error('模型未返回整理建议')
     return parseSuggestions(raw, new Set(items.map((item) => item.id)))
   } catch (err) {

@@ -3,8 +3,12 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { store } from './store'
+import { usage } from './usage'
+import { normalizePricing } from '../shared/usage'
 import { streamChat, cancelChat, composeDocument, testConnection } from './llm'
 import { exportMarkdown, exportBibtex, exportLibrary, exportDocumentPackage } from './docx'
+import { extractDocumentText } from './documentText'
+import { formatFromFileName, IMPORTABLE_EXTENSIONS } from '../shared/documents'
 import { globalSearch } from './search'
 import { startCapture, captureSelection, cancelCapture, resolveRenderResponse } from './capture'
 import { suggestInboxOrganization } from './inbox'
@@ -22,6 +26,7 @@ import type {
   ChatRequest,
   Excerpt,
   Highlight,
+  InboxAttachment,
   InboxItem,
   InboxKind,
   InboxSuggestion,
@@ -56,31 +61,51 @@ async function pickAttachmentFiles(
   }))
 }
 
+function resolveAttachmentPath(ownerId: string, file: string): string {
+  if (!/^[0-9a-f-]{36}$/i.test(ownerId)) throw new Error('附件归属无效')
+  const base = path.join(store.attachmentsDir, ownerId)
+  const target = path.normalize(path.join(base, file))
+  if (!target.startsWith(base + path.sep)) throw new Error('附件路径无效')
+  return target
+}
+
 export function registerIpc(): void {
   ipcMain.handle('library:get-state', () => store.data)
 
+  ipcMain.handle('usage:snapshot', () => usage.snapshot())
+
+  ipcMain.handle('usage:clear', async () => {
+    await usage.clear()
+  })
+
   ipcMain.handle('search:global', (_event, query: string) => globalSearch(query))
 
-  ipcMain.handle('library:pick-pdfs', async () => {
+  ipcMain.handle('library:pick-documents', async () => {
     const result = await dialog.showOpenDialog({
-      title: '导入 PDF 文献',
+      title: '导入文献',
       properties: ['openFile', 'multiSelections'],
       filters: [
+        { name: '文献文件', extensions: IMPORTABLE_EXTENSIONS },
         { name: 'PDF 文献', extensions: ['pdf'] },
-        { name: '所有文件', extensions: ['*'] }
+        { name: 'Word 文档', extensions: ['docx', 'doc'] },
+        { name: 'Markdown / 文本', extensions: ['md', 'markdown', 'txt'] }
       ]
     })
     if (result.canceled) return []
-    return result.filePaths.map((filePath) => {
+    return result.filePaths.flatMap((filePath) => {
       const fileName = path.basename(filePath)
-      const title = fileName.replace(/\.pdf$/i, '').replace(/[_]+/g, ' ').trim()
-      return { filePath, fileName, title: title || fileName }
+      const format = formatFromFileName(filePath)
+      if (!format) return []
+      const title = path.parse(fileName).name.replace(/[_]+/g, ' ').trim()
+      return [{ filePath, fileName, title: title || fileName, format }]
     })
   })
 
-  ipcMain.handle('library:import', async (_event, payload: { filePath: string; title: string }) => {
+  ipcMain.handle('library:import-document', async (_event, payload: { filePath: string; title: string }) => {
     return store.addDocument(payload.filePath, payload.title)
   })
+
+  ipcMain.handle('library:extract-text', (_event, id: string) => extractDocumentText(id))
 
   ipcMain.handle(
     'library:set-text',
@@ -489,10 +514,15 @@ export function registerIpc(): void {
     const send = (payload: ChatEvent): void => {
       if (!sender.isDestroyed()) sender.send('chat:event', payload)
     }
+    const attachments: InboxAttachment[] = []
     void streamChat(req, {
       onDelta: (delta) => send({ requestId: req.requestId, type: 'delta', delta }),
-      onDone: (content) => send({ requestId: req.requestId, type: 'done', content }),
-      onError: (error) => send({ requestId: req.requestId, type: 'error', error })
+      onAttachment: (attachment) => {
+        attachments.push(attachment)
+        send({ requestId: req.requestId, type: 'attachment', attachment })
+      },
+      onDone: (content) => send({ requestId: req.requestId, type: 'done', content, attachments }),
+      onError: (error) => send({ requestId: req.requestId, type: 'error', error, attachments })
     })
     return { ok: true }
   })
@@ -531,6 +561,31 @@ export function registerIpc(): void {
     'chat:remove-attachment',
     async (_event, payload: { chatId: string; file: string }) => {
       await store.removeChatAttachment(payload.chatId, payload.file)
+    }
+  )
+
+  ipcMain.handle(
+    'attachment:open',
+    async (_event, payload: { ownerId: string; file: string }) => {
+      const target = resolveAttachmentPath(payload.ownerId, payload.file)
+      const error = await shell.openPath(target)
+      return error ? { ok: false, error } : { ok: true }
+    }
+  )
+
+  ipcMain.handle(
+    'attachment:save-as',
+    async (_event, payload: { ownerId: string; file: string; name: string }) => {
+      const target = resolveAttachmentPath(payload.ownerId, payload.file)
+      const baseName =
+        path.basename(payload.name || payload.file).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_') || 'attachment'
+      const result = await dialog.showSaveDialog({
+        title: '保存附件',
+        defaultPath: path.join(app.getPath('downloads'), baseName)
+      })
+      if (result.canceled || !result.filePath) return { canceled: true }
+      await fs.copyFile(target, result.filePath)
+      return { canceled: false, filePath: result.filePath }
     }
   )
 
@@ -616,6 +671,9 @@ export function registerIpc(): void {
     if (typeof clean.maxContextChars === 'number') {
       const value = Math.round(clean.maxContextChars)
       clean.maxContextChars = value > 0 ? Math.min(200000, Math.max(4000, value)) : 0
+    }
+    if (clean.usagePricing) {
+      clean.usagePricing = normalizePricing(clean.usagePricing as never)
     }
     return store.updateSettings(clean as never)
   })

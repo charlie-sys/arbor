@@ -538,66 +538,65 @@ export default function ReaderSidePanel({
         )}
       </div>
 
-      {tab === 'agent' && (
-        <div className="panel-body agent-panel">
-          <div className="chat-switcher">
-            <div className="chat-pills">
-              {docChats.map((chat) => (
-                <button
-                  key={chat.id}
-                  className={cx('chat-pill', chat.id === activeChatId && 'active')}
-                  title={`${chat.title} · ${formatTime(chat.updatedAt)}`}
-                  onClick={() => onActiveChat(chat.id)}
+      <div className={cx('panel-body agent-panel', tab !== 'agent' && 'is-hidden')}>
+        <div className="chat-switcher">
+          <div className="chat-pills">
+            {docChats.map((chat) => (
+              <button
+                key={chat.id}
+                className={cx('chat-pill', chat.id === activeChatId && 'active')}
+                title={`${chat.title} · ${formatTime(chat.updatedAt)}`}
+                onClick={() => onActiveChat(chat.id)}
+              >
+                <span>{chat.title.length > 14 ? `${chat.title.slice(0, 14)}…` : chat.title}</span>
+                <span
+                  className="pill-delete"
+                  role="button"
+                  tabIndex={-1}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void deleteChat(chat.id)
+                  }}
                 >
-                  <span>{chat.title.length > 14 ? `${chat.title.slice(0, 14)}…` : chat.title}</span>
-                  <span
-                    className="pill-delete"
-                    role="button"
-                    tabIndex={-1}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      void deleteChat(chat.id)
-                    }}
-                  >
-                    <Trash2 size={11} />
-                  </span>
-                </button>
-              ))}
-              <button className="icon-btn tiny" title="新建对话" onClick={() => void createChat()}>
-                <Plus size={14} />
+                  <Trash2 size={11} />
+                </span>
               </button>
-            </div>
+            ))}
+            <button className="icon-btn tiny" title="新建对话" onClick={() => void createChat()}>
+              <Plus size={14} />
+            </button>
           </div>
-
-          {activeChat ? (
-            <ChatThread
-              key={activeChat.id}
-              chat={activeChat}
-              docs={chatDocs}
-              quote={quote}
-              currentPage={page}
-              compact
-              onChanged={onChanged}
-              onCompose={(chat) => setComposeChat(chat)}
-              notify={notify}
-              openPage={(docId, targetPage) => {
-                if (docId === doc.id) onJumpPage(targetPage)
-                else onOpenDoc(docId, targetPage)
-              }}
-              onQuoteApplied={onQuoteApplied}
-            />
-          ) : (
-            <div className="panel-empty">
-              <MessageSquarePlus size={26} />
-              <h3>针对本文提问</h3>
-              <p className="muted">选中 PDF 中的文字可直接“问 Agent”；回答会标注原文页码。</p>
-              <button className="btn primary" onClick={() => void createChat()}>
-                <Plus size={15} /> 新建对话
-              </button>
-            </div>
-          )}
         </div>
-      )}
+
+        {activeChat ? (
+          <ChatThread
+            key={activeChat.id}
+            chat={activeChat}
+            docs={chatDocs}
+            quote={quote}
+            currentPage={page}
+            compact
+            active={tab === 'agent'}
+            onChanged={onChanged}
+            onCompose={(chat) => setComposeChat(chat)}
+            notify={notify}
+            openPage={(docId, targetPage) => {
+              if (docId === doc.id) onJumpPage(targetPage)
+              else onOpenDoc(docId, targetPage)
+            }}
+            onQuoteApplied={onQuoteApplied}
+          />
+        ) : (
+          <div className="panel-empty">
+            <MessageSquarePlus size={26} />
+            <h3>针对本文提问</h3>
+            <p className="muted">选中 PDF 中的文字可直接“问 Agent”；回答会标注原文页码。</p>
+            <button className="btn primary" onClick={() => void createChat()}>
+              <Plus size={15} /> 新建对话
+            </button>
+          </div>
+        )}
+      </div>
 
       {tab === 'outline' && (
         <div className="panel-body outline-panel">

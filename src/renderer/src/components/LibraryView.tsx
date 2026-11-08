@@ -520,7 +520,7 @@ export default function LibraryView({
           </button>
           <button className="btn primary" onClick={onImport} disabled={!!importing}>
             {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-            {importing ? `导入中 ${importing.done}/${importing.total}` : '导入 PDF'}
+            {importing ? `导入中 ${importing.done}/${importing.total}` : '导入文献'}
           </button>
         </div>
       </header>
@@ -666,14 +666,14 @@ export default function LibraryView({
           </h2>
           <p className="muted">
             {data.documents.length === 0
-              ? '导入 PDF 后，Arbor 会自动提取全文，用于阅读、检索、问答和翻译。'
+              ? '导入 PDF、Word、Markdown 或 TXT 后，Arbor 会自动提取全文，用于阅读、检索、问答和翻译。'
               : activeCollection && !collectionHasDocs
                 ? '在列表行中点击「分类」按钮，即可把文献加入该分类。'
                 : '当前筛选条件下没有结果，试试更换关键词或清除筛选条件。'}
           </p>
           {data.documents.length === 0 && (
             <button className="btn primary" onClick={onImport}>
-              <Upload size={16} /> 导入 PDF 文献
+              <Upload size={16} /> 导入文献
             </button>
           )}
           {data.documents.length > 0 && hasFilters && (

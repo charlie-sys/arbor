@@ -1,6 +1,6 @@
 {
   "name": "arbor-desktop",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Arbor — 文献阅读、知识整理与 AI 研究工坊",
   "author": "Arbor",
   "main": "./out/main/index.js",
@@ -23,6 +23,8 @@
   },
   "dependencies": {
     "docx": "^9.5.0",
+    "mammoth": "^1.13.0",
+    "word-extractor": "^1.0.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

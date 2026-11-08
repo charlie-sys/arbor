@@ -2,7 +2,7 @@
 const api = window.api
 const pdf = 'C:/Users/18116/AppData/Local/Temp/zotagent-keepalive/test.pdf'
 async function add(title, year, status) {
-  const doc = await api.library.importPdf(pdf, title)
+  const doc = await api.library.importDocument(pdf, title)
   await api.library.setText(doc.id, [title + ' 第一页'], { title, authors: '作者' })
   await api.library.update(doc.id, { year, journal: '测试期刊', readingStatus: status })
   return doc.id

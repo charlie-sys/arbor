@@ -45,7 +45,7 @@ const importanceProperty = await api.properties.add({ name: '重要性', type: '
 const optionId = (property, name) => property.options?.find((option) => option.name === name)?.id ?? null
 
 const paperTitle = 'Generalized State-of-Health Estimation from Partial Charging Curves with Transfer Learning'
-const doc = await api.library.importPdf(demo.files['demo-paper.pdf'], paperTitle)
+const doc = await api.library.importDocument(demo.files['demo-paper.pdf'], paperTitle)
 await api.library.setText(doc.id, demo.texts['demo-paper.pdf'], {
   title: paperTitle,
   authors: 'Lina Chen, Ming Zhao, Yuki Sato'

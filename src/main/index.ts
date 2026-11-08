@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { store } from './store'
+import { usage } from './usage'
 import { registerIpc } from './ipc'
 import { closeReaderPanel, initReaderPanel, registerReaderPanelIpc } from './readerPanel'
 import { initCapture, startCapture } from './capture'
@@ -73,6 +74,11 @@ const MIME_TYPES: Record<string, string> = {
   '.ttf': 'font/ttf',
   '.wasm': 'application/wasm',
   '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.markdown': 'text/markdown; charset=utf-8',
   '.bcmap': 'application/octet-stream'
 }
 
@@ -177,7 +183,7 @@ function registerProtocols(): void {
         }
         return await serveFile(filePath)
       }
-      if (!/^[0-9a-f-]{36}(?:-translated)?\.(?:pdf|png)$/i.test(name)) {
+      if (!/^[0-9a-f-]{36}(?:-translated)?\.(?:pdf|png|docx|doc|txt|md|markdown)$/i.test(name)) {
         return new Response('Forbidden', { status: 403 })
       }
       let base = ''
@@ -196,6 +202,7 @@ if (gotLock) {
 
   app.whenReady().then(async () => {
     await store.init()
+    await usage.init(store.root)
     startBackupScheduler()
     void startMcpServer()
     registerProtocols()

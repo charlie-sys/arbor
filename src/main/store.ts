@@ -2,6 +2,8 @@ import { app, safeStorage } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import { formatFromFileName } from '../shared/documents'
+import { normalizePricing } from '../shared/usage'
 import type {
   AppSettings,
   CanvasBoard,
@@ -32,7 +34,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   temperature: 0.3,
   maxContextChars: 0,
   systemPrompt:
-    '你是一位严谨、细致的学术研究助手。你会基于用户提供的文献原文回答问题：结论必须有原文依据；引用时注明《文献标题》第N页；原文没有的信息要明确说明"文献中未提及"，不得编造。回答使用中文，结构清晰，必要时使用 Markdown 小标题、列表和表格。'
+    '你是一位严谨、细致的学术研究助手。你会基于用户提供的文献原文回答问题：结论必须有原文依据；引用时注明《文献标题》第N页；原文没有的信息要明确说明"文献中未提及"，不得编造。回答使用中文，结构清晰，必要时使用 Markdown 小标题、列表和表格。',
+  usagePricing: normalizePricing()
 }
 
 export function uid(): string {
@@ -95,6 +98,7 @@ class Store {
       const raw = await fs.readFile(this.libraryFile, 'utf-8')
       const parsed = JSON.parse(raw) as StoredData
       const settings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+      settings.usagePricing = normalizePricing(parsed.settings.usagePricing)
       if (parsed.settings.apiKeyEnc) {
         try {
           settings.apiKey = safeStorage.decryptString(Buffer.from(parsed.settings.apiKeyEnc, 'base64'))
@@ -107,6 +111,7 @@ class Store {
       if (settings.maxContextChars === 24000) settings.maxContextChars = 0
       const documents = (parsed.documents ?? []).map((doc) => ({
         ...doc,
+        sourceFormat: doc.sourceFormat ?? (doc.fileName ? formatFromFileName(doc.fileName) : null) ?? 'pdf',
         readingStatus: doc.readingStatus ?? 'unread'
       }))
       const tags: Tag[] = [...(parsed.tags ?? [])]
@@ -172,8 +177,11 @@ class Store {
   }
 
   async addDocument(filePath: string, title: string): Promise<DocumentMeta> {
+    const sourceFormat = formatFromFileName(filePath)
+    if (!sourceFormat) throw new Error('不支持的文献格式，请选择 PDF、Word、Markdown 或 TXT 文件')
     const id = uid()
-    const fileName = `${id}.pdf`
+    const extension = path.extname(filePath).toLowerCase() || '.pdf'
+    const fileName = `${id}${extension}`
     await fs.copyFile(filePath, path.join(this.filesDir, fileName))
     const now = Date.now()
     const doc: DocumentMeta = {
@@ -190,6 +198,7 @@ class Store {
       addedAt: now,
       updatedAt: now,
       fileName,
+      sourceFormat,
       pageCount: 0,
       starred: false,
       readingStatus: 'unread',
@@ -238,6 +247,7 @@ class Store {
   }
 
   async deleteDocument(id: string): Promise<void> {
+    const removed = this.getDocument(id)
     this.data.documents = this.data.documents.filter((d) => d.id !== id)
     this.data.chats.forEach((chat) => {
       chat.docIds = chat.docIds.filter((d) => d !== id)
@@ -253,7 +263,7 @@ class Store {
       }
     })
     await Promise.allSettled([
-      fs.unlink(path.join(this.filesDir, `${id}.pdf`)),
+      fs.unlink(path.join(this.filesDir, removed?.fileName || `${id}.pdf`)),
       fs.unlink(path.join(this.textsDir, `${id}.json`))
     ])
     await this.save()

@@ -1,3 +1,15 @@
+export interface TokenPrice {
+  // 每百万 token 单价
+  input: number
+  output: number
+}
+
+export interface UsagePricing {
+  currency: 'CNY' | 'USD'
+  models: Record<string, TokenPrice>
+  defaultPrice: TokenPrice
+}
+
 export interface AppSettings {
   apiBaseUrl: string
   apiKey: string
@@ -7,6 +19,37 @@ export interface AppSettings {
   // 0 表示不限制注入的文献上下文字符数
   maxContextChars: number
   systemPrompt: string
+  usagePricing: UsagePricing
+}
+
+export type UsageKind = 'chat' | 'compose' | 'translate' | 'action' | 'plan' | 'topic' | 'inbox' | 'test'
+
+export interface UsageRecord {
+  id: string
+  createdAt: number
+  kind: UsageKind
+  model: string
+  promptTokens: number
+  completionTokens: number
+  // 关联的对话，用于按会话聚合用量
+  chatId?: string
+  // 首 token 延迟（毫秒），仅流式对话可精确获得
+  firstTokenMs?: number
+  // 首 token 到生成结束的耗时（毫秒），用于计算输出速度
+  generationMs?: number
+  // 输入 token 中命中缓存的 token 数；服务端未提供时缺省
+  cachedTokens?: number
+  // 服务端未返回 usage 时为本地估算值
+  estimated?: boolean
+}
+
+export interface ActiveUsage {
+  id: string
+  kind: UsageKind
+  model: string
+  startedAt: number
+  promptTokens: number
+  completionTokens: number
 }
 
 export interface Tag {
@@ -68,6 +111,7 @@ export interface DocumentMeta {
   addedAt: number
   updatedAt: number
   fileName: string
+  sourceFormat?: DocumentFormat
   pageCount: number
   starred: boolean
   readingStatus: ReadingStatus
@@ -77,6 +121,8 @@ export interface DocumentMeta {
 }
 
 export type ReadingStatus = 'unread' | 'reading' | 'read'
+
+export type DocumentFormat = 'pdf' | 'docx' | 'doc' | 'txt' | 'md'
 
 export type Role = 'user' | 'assistant' | 'system'
 
@@ -332,6 +378,12 @@ export interface ImportCandidate {
   filePath: string
   title: string
   fileName: string
+  format: DocumentFormat
+}
+
+export interface ExtractedDocument {
+  pageCount: number
+  pages: string[]
 }
 
 export interface ExtractedPdf {

@@ -8,7 +8,7 @@ for (const [title, year, status, tag] of [
   ['大语言模型推理能力研究', '2025', 'unread', 'LLM'],
   ['科学知识管理方法', '2021', 'read', '知识管理']
 ]) {
-  const doc = await api.library.importPdf(pdf, title)
+  const doc = await api.library.importDocument(pdf, title)
   await api.library.setText(doc.id, [title + ' 第一页内容'], { title, authors: '测试作者' })
   await api.library.update(doc.id, { year, journal: '测试期刊', readingStatus: status, tags: [tag] })
   docs.push(doc)

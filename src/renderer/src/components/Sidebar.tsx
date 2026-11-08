@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, Inbox, Layers, MessagesSquare, PenTool, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter } from 'lucide-react'
+import { BarChart3, BookOpen, Inbox, Layers, MessagesSquare, PenTool, ScanLine, Settings, Plus, Upload, Trash2, Loader2, Keyboard, Filter } from 'lucide-react'
 import type { LibraryData } from '@shared/types'
 import type { View } from '../nav'
 import { cx } from '../ui'
@@ -58,7 +58,7 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
 
       <button className="btn import-btn" onClick={onImport} disabled={!!importing}>
         {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-        {importing ? `导入中 ${importing.done}/${importing.total}` : '导入 PDF 文献'}
+        {importing ? `导入中 ${importing.done}/${importing.total}` : '导入文献'}
       </button>
 
       <nav className="nav">
@@ -91,6 +91,10 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
           <ScanLine size={17} />
           <span>截图翻译</span>
           <span className="nav-count">{data.translations.length}</span>
+        </button>
+        <button className={cx('nav-item', view.name === 'usage' && 'active')} onClick={() => onNavigate({ name: 'usage' })}>
+          <BarChart3 size={17} />
+          <span>用量仪表盘</span>
         </button>
         <button className={cx('nav-item', view.name === 'settings' && 'active')} onClick={() => onNavigate({ name: 'settings' })}>
           <Settings size={17} />

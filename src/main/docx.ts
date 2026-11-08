@@ -516,10 +516,11 @@ export async function exportDocumentPackage(docId: string): Promise<{ canceled: 
     }
   ]
   try {
-    const pdf = await fs.readFile(path.join(store.filesDir, doc.fileName))
-    entries.unshift({ name: `${safeFileName(doc.title)}.pdf`, data: pdf })
+    const original = await fs.readFile(path.join(store.filesDir, doc.fileName))
+    const extension = path.extname(doc.fileName) || '.pdf'
+    entries.unshift({ name: `${safeFileName(doc.title)}${extension}`, data: original })
   } catch {
-    // PDF 缺失时仍导出笔记与摘录
+    // 原始文件缺失时仍导出笔记与摘录
   }
   return saveAs(`${safeFileName(doc.title)}-文献包.zip`, '文献包', ['zip'], createZip(entries))
 }

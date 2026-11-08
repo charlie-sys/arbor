@@ -2,7 +2,7 @@ const api = window.api
 const pdf = 'C:/Users/18116/AppData/Local/Temp/zotagent-acceptance/test.pdf'
 
 async function addDoc(title, year, readingStatus) {
-  const doc = await api.library.importPdf(pdf, title)
+  const doc = await api.library.importDocument(pdf, title)
   await api.library.setText(doc.id, [`${title} 第一页`, `${title} 第二页`], { title, authors: '测试作者' })
   await api.library.update(doc.id, { year, journal: '测试期刊', readingStatus })
   return doc.id

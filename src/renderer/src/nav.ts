@@ -7,4 +7,5 @@ export type View =
   | { name: 'readingPlan' }
   | { name: 'inbox' }
   | { name: 'translations'; selectedId?: string }
+  | { name: 'usage' }
   | { name: 'settings' }

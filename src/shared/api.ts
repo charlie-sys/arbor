@@ -9,6 +9,7 @@ import type {
   Collection,
   DocumentMeta,
   Excerpt,
+  ExtractedDocument,
   Highlight,
   HighlightColor,
   HighlightRect,
@@ -30,16 +31,20 @@ import type {
   Tag,
   TaskItem,
   TranslationRecord,
-  TranslationResult
+  TranslationResult,
+  ActiveUsage,
+  UsageRecord
 } from './types'
 import type { ComposeScope } from './compose'
 
 export interface ChatEvent {
   requestId: string
-  type: 'delta' | 'done' | 'error'
+  type: 'delta' | 'attachment' | 'done' | 'error'
   delta?: string
   content?: string
   error?: string
+  attachment?: InboxAttachment
+  attachments?: InboxAttachment[]
 }
 
 export interface TranslateEvent {
@@ -149,11 +154,23 @@ export interface ReaderPanelOpenDocPayload {
   page?: number
 }
 
+export interface UsageSnapshot {
+  records: UsageRecord[]
+  active: ActiveUsage[]
+}
+
+export interface UsageRecordedEvent {
+  record?: UsageRecord
+  cleared?: boolean
+  active: ActiveUsage[]
+}
+
 export interface ZotAgentApi {
   library: {
     getState(): Promise<LibraryData>
-    pickPdfs(): Promise<ImportCandidate[]>
-    importPdf(filePath: string, title: string): Promise<DocumentMeta>
+    pickDocuments(): Promise<ImportCandidate[]>
+    importDocument(filePath: string, title: string): Promise<DocumentMeta>
+    extractText(id: string): Promise<ExtractedDocument>
     setText(id: string, pages: string[], meta?: { title?: string; authors?: string }): Promise<void>
     update(id: string, patch: Partial<DocumentMeta>): Promise<DocumentMeta | undefined>
     remove(id: string): Promise<void>
@@ -221,6 +238,10 @@ export interface ZotAgentApi {
       kind?: 'image' | 'file'
     ): Promise<InboxAttachment>
     removeAttachment(chatId: string, file: string): Promise<void>
+  }
+  attachments: {
+    open(ownerId: string, file: string): Promise<{ ok: boolean; error?: string }>
+    saveAs(ownerId: string, file: string, name: string): Promise<ExportResult>
   }
   highlights: {
     add(input: {
@@ -292,7 +313,7 @@ export interface ZotAgentApi {
       requestId: string
       chatId: string
       docIds: string[]
-      messages: { role: 'user' | 'assistant'; content: string }[]
+      messages: { role: 'user' | 'assistant'; content: string; attachments?: InboxAttachment[] }[]
       context?: ChatContext
     }): Promise<{ ok: boolean }>
     cancel(requestId: string): Promise<void>
@@ -322,6 +343,10 @@ export interface ZotAgentApi {
     list(): Promise<TranslationRecord[]>
     renderResponse(requestId: string, dataUrl: string | null): Promise<void>
     exportImage(id: string, variant: 'original' | 'translated'): Promise<ExportResult>
+  }
+  usage: {
+    snapshot(): Promise<UsageSnapshot>
+    clear(): Promise<void>
   }
   settings: {
     save(patch: Partial<AppSettings>): Promise<AppSettings>
@@ -373,6 +398,8 @@ export interface ZotAgentApi {
     onReaderPanelBlockClose(cb: () => void): () => void
     onReaderPanelPinned(cb: (pinned: boolean) => void): () => void
     onUpdateProgress(cb: (progress: UpdateProgress) => void): () => void
+    onUsageRecorded(cb: (event: UsageRecordedEvent) => void): () => void
+    onUsageLive(cb: (active: ActiveUsage[]) => void): () => void
   }
   overlay: {
     select(rect: { x: number; y: number; width: number; height: number }): Promise<void>

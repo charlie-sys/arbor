@@ -1,5 +1,5 @@
 const api = window.api
-const doc = await api.library.importPdf('C:/Users/18116/AppData/Local/Temp/zotagent-topic-excerpt/test.pdf', '主题摘录测试文献')
+const doc = await api.library.importDocument('C:/Users/18116/AppData/Local/Temp/zotagent-topic-excerpt/test.pdf', '主题摘录测试文献')
 await api.library.setText(doc.id, ['Hello'], { title: '主题摘录测试文献', authors: '作者' })
 const excerpt = await api.excerpts.add({
   docId: doc.id,

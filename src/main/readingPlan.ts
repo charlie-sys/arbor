@@ -69,7 +69,7 @@ ${docs}`
       { role: 'system', content: '你是严谨的学术阅读规划助手，严格只输出 JSON，不输出任何解释。' },
       { role: 'user', content: prompt }
     ],
-    { temperature: 0.3 }
+    { temperature: 0.3, kind: 'plan' }
   )
 
   const known = new Map(store.data.documents.map((doc) => [doc.id, doc]))

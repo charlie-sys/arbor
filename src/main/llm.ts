@@ -4,7 +4,10 @@ import { store } from './store'
 import { fetchWithRetry } from './http'
 import { isSpreadsheetFile, spreadsheetToText } from './spreadsheet'
 import { buildChatTranscript, buildContext } from './context'
-import type { ChatRequest } from '../shared/types'
+import { ChatArtifactParser, chatArtifactPrompt } from './chatArtifacts'
+import type { ChatRequest, InboxAttachment, UsageKind } from '../shared/types'
+import { estimateTokens } from '../shared/usage'
+import { usage, usageFromApi } from './usage'
 import { DEFAULT_COMPOSE_SCOPE, defaultComposeOutline } from '../shared/compose'
 import type { ComposeScope } from '../shared/compose'
 
@@ -27,6 +30,38 @@ function contentOf(json: any): string {
       .join('')
   }
   return ''
+}
+
+function contentToText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => (typeof part === 'string' ? part : typeof (part as { text?: unknown })?.text === 'string' ? String((part as { text: string }).text) : ''))
+      .join('\n')
+  }
+  return ''
+}
+
+function estimatePromptTokens(messages: unknown[]): number {
+  return estimateTokens(messages.map((message) => contentToText((message as { content?: unknown })?.content)).join('\n'))
+}
+
+function recordJsonUsage(
+  kind: UsageKind,
+  model: string,
+  json: unknown,
+  promptText: string,
+  completionText: string
+): void {
+  const fromApi = usageFromApi(json)
+  usage.add({
+    kind,
+    model,
+    promptTokens: fromApi?.promptTokens ?? estimateTokens(promptText),
+    completionTokens: fromApi?.completionTokens ?? estimateTokens(completionText),
+    ...(fromApi?.cachedTokens !== undefined ? { cachedTokens: fromApi.cachedTokens } : {}),
+    estimated: !fromApi
+  })
 }
 
 const TEXT_ATTACHMENT_EXTENSIONS = new Set([
@@ -53,7 +88,9 @@ async function buildModelMessage(
   chatId: string,
   includeImages: boolean
 ): Promise<{ role: 'user' | 'assistant'; content: string | unknown[] }> {
-  if (!message.attachments?.length) return { role: message.role, content: message.content }
+  if (!message.attachments?.length || message.role !== 'user') {
+    return { role: message.role, content: message.content }
+  }
   let text = message.content
   const parts: unknown[] = []
   for (const attachment of message.attachments) {
@@ -148,7 +185,7 @@ export function cancelChat(requestId: string): void {
 
 export async function completeText(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
-  options: { temperature?: number; timeoutMs?: number } = {}
+  options: { temperature?: number; timeoutMs?: number; kind?: UsageKind } = {}
 ): Promise<string> {
   const settings = store.data.settings
   if (!settings.chatModel) throw new Error('尚未配置对话模型，请打开「设置」完成配置')
@@ -162,12 +199,20 @@ export async function completeText(
     options.timeoutMs ?? 180000
   )
   const content = contentOf(json)
+  recordJsonUsage(
+    options.kind ?? 'action',
+    settings.chatModel,
+    json,
+    messages.map((message) => message.content).join('\n'),
+    content
+  )
   if (!content.trim()) throw new Error('模型返回了空结果')
   return content.trim()
 }
 
 export interface ChatHandlers {
   onDelta: (delta: string) => void
+  onAttachment: (attachment: InboxAttachment) => void
   onDone: (content: string) => void
   onError: (message: string) => void
 }
@@ -176,7 +221,17 @@ export async function streamChat(req: ChatRequest, handlers: ChatHandlers): Prom
   const settings = store.data.settings
   const controller = new AbortController()
   controllers.set(req.requestId, controller)
-  let content = ''
+  let usedModel = settings.chatModel
+  let promptEstimate = 0
+  let apiUsage: { promptTokens: number; completionTokens: number; cachedTokens?: number } | null = null
+  let outputText = ''
+  let requestStartedAt = 0
+  let firstTokenAt = 0
+  const parser = new ChatArtifactParser(
+    req.chatId,
+    (name, data, kind) => store.saveChatAttachment(req.chatId, name, data, kind),
+    { onText: handlers.onDelta, onAttachment: handlers.onAttachment }
+  )
   try {
     if (!settings.apiKey) throw new Error('尚未配置 API Key，请打开「设置」完成配置')
     if (!settings.chatModel) throw new Error('尚未配置对话模型，请打开「设置」完成配置')
@@ -197,11 +252,15 @@ export async function streamChat(req: ChatRequest, handlers: ChatHandlers): Prom
           ? '以下是用户指定的当前页原文，回答只能依据该页内容；如该页无法回答，请直接说明：'
           : '以下是检索到的文献原文片段（带页码），请严格依据这些内容回答；引用原文时标注页码：'
     const system = context
-      ? `${settings.systemPrompt}\n\n${mathNote}\n\n${contextRule}\n\n${context}`
-      : `${settings.systemPrompt}\n\n${mathNote}`
+      ? `${settings.systemPrompt}\n\n${mathNote}\n\n${chatArtifactPrompt()}\n\n${contextRule}\n\n${context}`
+      : `${settings.systemPrompt}\n\n${mathNote}\n\n${chatArtifactPrompt()}`
     const built = await buildModelMessages(req.messages, req.chatId, system)
     const model = built.hasImages ? settings.visionModel || settings.chatModel : settings.chatModel
+    usedModel = model
+    promptEstimate = estimatePromptTokens(built.messages)
+    usage.begin(req.requestId, 'chat', model, promptEstimate)
 
+    requestStartedAt = Date.now()
     const res = await fetchWithRetry(endpoint(settings.apiBaseUrl, 'chat/completions'), {
       method: 'POST',
       headers: {
@@ -212,6 +271,7 @@ export async function streamChat(req: ChatRequest, handlers: ChatHandlers): Prom
         model,
         temperature: settings.temperature,
         stream: true,
+        stream_options: { include_usage: true },
         messages: built.messages
       }),
       signal: controller.signal
@@ -242,25 +302,57 @@ export async function streamChat(req: ChatRequest, handlers: ChatHandlers): Prom
         }
         try {
           const json = JSON.parse(payload)
+          const chunkUsage = usageFromApi(json)
+          if (chunkUsage) apiUsage = chunkUsage
           const delta = json?.choices?.[0]?.delta?.content
           if (typeof delta === 'string' && delta) {
-            content += delta
-            handlers.onDelta(delta)
+            if (!firstTokenAt) firstTokenAt = Date.now()
+            outputText += delta
+            parser.push(delta)
+          } else if (Array.isArray(delta)) {
+            for (const part of delta) {
+              const text = typeof part === 'string' ? part : part?.type === 'text' ? part.text : ''
+              if (typeof text === 'string' && text) {
+                if (!firstTokenAt) firstTokenAt = Date.now()
+                outputText += text
+                parser.push(text)
+              }
+            }
           }
+          usage.progress(req.requestId, estimateTokens(outputText))
         } catch {
           // ignore malformed keep-alive lines
         }
       }
     }
 
-    handlers.onDone(content)
+    handlers.onDone(await parser.flush())
   } catch (err) {
+    const partial = await parser.flush().catch(() => parser.content)
     if (controller.signal.aborted) {
-      handlers.onDone(content)
+      handlers.onDone(partial)
     } else {
       handlers.onError((err as Error).message || '请求失败')
     }
   } finally {
+    const finishedAt = Date.now()
+    if (apiUsage || outputText.trim()) {
+      const firstTokenMs = firstTokenAt && requestStartedAt ? firstTokenAt - requestStartedAt : undefined
+      const generationMs = firstTokenAt ? finishedAt - firstTokenAt : undefined
+      usage.finish(req.requestId, {
+        kind: 'chat',
+        model: usedModel,
+        chatId: req.chatId,
+        promptTokens: apiUsage?.promptTokens ?? promptEstimate,
+        completionTokens: apiUsage?.completionTokens ?? estimateTokens(outputText),
+        ...(apiUsage?.cachedTokens !== undefined ? { cachedTokens: apiUsage.cachedTokens } : {}),
+        ...(firstTokenMs !== undefined ? { firstTokenMs } : {}),
+        ...(generationMs !== undefined ? { generationMs } : {}),
+        estimated: !apiUsage
+      })
+    } else {
+      usage.cancel(req.requestId)
+    }
     controllers.delete(req.requestId)
   }
 }
@@ -327,6 +419,7 @@ export async function translateImage(imagePath: string): Promise<{ structured: s
     180000
   )
   const raw = contentOf(json)
+  recordJsonUsage('translate', model, json, TRANSLATE_PROMPT, raw)
   if (!raw.trim()) throw new Error('模型返回了空翻译结果')
   const parsed = parseTranslation(raw)
   return { ...parsed, model }
@@ -360,6 +453,7 @@ ${JSON.stringify(limited)}`
   )
 
   const raw = contentOf(json).trim()
+  recordJsonUsage('translate', settings.chatModel, json, prompt, raw)
   const start = raw.indexOf('{')
   const end = raw.lastIndexOf('}')
   if (start < 0 || end <= start) throw new Error('译文排版结果不是有效 JSON')
@@ -467,6 +561,7 @@ ${outlineText}
     300000
   )
   const markdown = contentOf(json)
+  recordJsonUsage('compose', settings.chatModel, json, `${system}\n${user}`, markdown)
   if (!markdown.trim()) throw new Error('模型返回了空文档')
   return markdown
 }
@@ -484,6 +579,7 @@ export async function testConnection(): Promise<{ ok: boolean; message: string }
       30000
     )
     const content = contentOf(json)
+    recordJsonUsage('test', settings.chatModel, json, '请回复：OK', content)
     return { ok: true, message: `连接成功，模型响应：${content.trim().slice(0, 80) || 'OK'}` }
   } catch (err) {
     return { ok: false, message: (err as Error).message || '连接失败' }

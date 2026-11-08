@@ -1,5 +1,7 @@
 import { store } from './store'
 import { fetchWithRetry } from './http'
+import { usage, usageFromApi } from './usage'
+import { estimateTokens } from '../shared/usage'
 import type { ResearchTopic } from '../shared/types'
 
 function endpoint(base: string): string {
@@ -108,6 +110,15 @@ ${docs}`
     const json = (await res.json()) as { choices?: { message?: { content?: unknown } }[] }
     const content = json?.choices?.[0]?.message?.content
     const raw = typeof content === 'string' ? content : ''
+    const fromApi = usageFromApi(json)
+    usage.add({
+      kind: 'topic',
+      model: settings.chatModel,
+      promptTokens: fromApi?.promptTokens ?? estimateTokens(prompt),
+      completionTokens: fromApi?.completionTokens ?? estimateTokens(raw),
+      ...(fromApi?.cachedTokens !== undefined ? { cachedTokens: fromApi.cachedTokens } : {}),
+      estimated: !fromApi
+    })
     if (!raw.trim()) throw new Error('模型未返回建议问题')
     const questions = parseQuestions(raw)
     if (!questions.length) throw new Error('模型未返回有效的建议问题')

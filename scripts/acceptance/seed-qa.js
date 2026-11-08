@@ -9,7 +9,7 @@ const entries = [
   ['科学知识管理方法', '2021', 'read', '知识管理']
 ]
 for (const [title, year, status, tag] of entries) {
-  const doc = await api.library.importPdf(pdf, title)
+  const doc = await api.library.importDocument(pdf, title)
   await api.library.setText(doc.id, [title + ' 第一页内容', title + ' 第二页内容'], {
     title,
     authors: '测试作者'

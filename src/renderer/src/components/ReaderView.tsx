@@ -20,6 +20,8 @@ import type { AiActionId, ChatSession, Collection, DocumentMeta, Excerpt, Highli
 import type { ReaderPanelTab } from '@shared/api'
 import { AI_ACTIONS } from '@shared/aiActions'
 import PdfViewer, { type PdfOutlineItem, type PdfSelection, type PdfViewerHandle } from './PdfViewer'
+import TextViewer from './TextViewer'
+import { documentFormatOf } from '@shared/documents'
 import AiActionPanel from './AiActionPanel'
 import PaneResizer from './PaneResizer'
 import ReaderSidePanel from './ReaderSidePanel'
@@ -75,6 +77,7 @@ interface HighlightEditorState {
 
 export default function ReaderView({ doc, documents, chats, collections, highlights, excerpts, tasks, initialPage, translateBusy, translation, hasTranslation, onCloseTranslation, onRestoreTranslation, onOpenTranslations, onBack, onChanged, onOpenDoc, notify }: Props): React.JSX.Element {
   const pdfRef = useRef<PdfViewerHandle>(null)
+  const docFormat = documentFormatOf(doc)
   const [panel, setPanel] = useState<Panel>('agent')
   const [detached, setDetached] = useState(false)
   const livePageRef = useRef(1)
@@ -82,6 +85,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   const startPage = initialPage && initialPage > 0 ? initialPage : doc.lastPage || 1
   const [page, setPage] = useState(startPage)
   const [pageInput, setPageInput] = useState(String(startPage))
+  const pageInputRef = useRef<HTMLInputElement>(null)
   const [pageCount, setPageCount] = useState(doc.pageCount)
   const [selection, setSelection] = useState<PdfSelection | null>(null)
   const [aiActionMenuOpen, setAiActionMenuOpen] = useState(false)
@@ -259,6 +263,8 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   }, [outlineLoaded, outline.length, doc.id])
 
   useEffect(() => {
+    // 用户正在输入页码时，滚动触发的翻页事件不能覆盖输入内容
+    if (document.activeElement === pageInputRef.current) return
     setPageInput(String(page))
   }, [page])
 
@@ -291,6 +297,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   const goToPage = (value: number): void => {
     const max = pageCount || doc.pageCount || 0
     const target = max > 0 ? Math.min(Math.max(1, Math.round(value)), max) : Math.max(1, Math.round(value))
+    setPageInput(String(target))
     setPage(target)
     pdfRef.current?.goToPage(target)
   }
@@ -455,6 +462,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             <ChevronLeft size={17} />
           </button>
           <input
+            ref={pageInputRef}
             className="page-input"
             value={pageInput}
             onChange={(event) => setPageInput(event.target.value.replace(/[^\d]/g, ''))}
@@ -584,13 +592,38 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           {!doc.fileName ? (
             <div className="empty-state" style={{ margin: 'auto' }}>
               <h2>这是一条外部导入的文献记录</h2>
-              <p className="muted">尚未关联 PDF 文件。你仍可查看右侧的文献信息、摘录与 AI 对话。</p>
+              <p className="muted">尚未关联原始文件。你仍可查看右侧的文献信息、摘录与 AI 对话。</p>
             </div>
-          ) : (
+          ) : docFormat === 'pdf' ? (
           <PdfViewer
             key={doc.id}
             ref={pdfRef}
             docId={doc.id}
+            initialPage={startPage}
+            highlights={docHighlights}
+            flashHighlightId={flashHighlightId}
+            onPageChange={(nextPage) => {
+              setPage(nextPage)
+              if (!highlightEditorDirty) setEditor(null)
+            }}
+            onPagesLoaded={setPageCount}
+            onSelection={(next) => {
+              setSelection(next)
+              setAiActionMenuOpen(false)
+              if (next && !highlightEditorDirty) setEditor(null)
+            }}
+            onHighlightClick={openHighlightEditor}
+            onOutline={(items) => {
+              setOutline(items)
+              setOutlineLoaded(true)
+            }}
+          />
+          ) : (
+          <TextViewer
+            key={doc.id}
+            ref={pdfRef}
+            docId={doc.id}
+            markdown={docFormat === 'md'}
             initialPage={startPage}
             highlights={docHighlights}
             flashHighlightId={flashHighlightId}

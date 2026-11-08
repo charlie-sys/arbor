@@ -10,6 +10,7 @@ import ReaderView from './components/ReaderView'
 import ChatPage from './components/ChatPage'
 import TranslationsView from './components/TranslationsView'
 import SettingsView from './components/SettingsView'
+import UsageView from './components/UsageView'
 import CommandPalette from './components/CommandPalette'
 import type { PaletteCommand } from './components/CommandPalette'
 import PropertyManager from './components/PropertyManager'
@@ -20,6 +21,7 @@ import ReadingPlanView from './components/ReadingPlanView'
 import PaneResizer from './components/PaneResizer'
 import { hasUnsavedChanges } from './unsaved'
 import { extractPdf } from './pdf'
+import { documentFormatOf } from '@shared/documents'
 import { renderTranslatedImage } from './renderTranslated'
 import { applyTheme, persistTheme, readTheme, themeById } from './themes'
 import type { ThemeId } from './themes'
@@ -116,6 +118,7 @@ export default function App(): React.JSX.Element {
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null)
   const [updateReady, setUpdateReady] = useState(false)
   const updateNotifiedVersion = useRef('')
+  const lastUpdateCheck = useRef(0)
   const toastId = useRef(0)
 
   const notify = useCallback((message: string, kind: 'info' | 'success' | 'error' = 'info') => {
@@ -132,6 +135,9 @@ export default function App(): React.JSX.Element {
 
   const checkUpdates = useCallback(
     async (force = false): Promise<UpdateInfo | null> => {
+      // 窗口每次获得焦点都会触发，过于频繁的检查会让整个界面重复渲染并卡住输入
+      if (!force && Date.now() - lastUpdateCheck.current < 10 * 60 * 1000) return null
+      lastUpdateCheck.current = Date.now()
       setUpdateChecking(true)
       try {
         const info = await window.api.updates.check(force)
@@ -301,34 +307,39 @@ export default function App(): React.JSX.Element {
     })
   }, [])
 
-  const importPdfs = async (): Promise<void> => {
+  const importDocuments = async (): Promise<void> => {
     if (importing) return
     try {
-      const candidates = await window.api.library.pickPdfs()
+      const candidates = await window.api.library.pickDocuments()
       if (!candidates.length) return
       setImporting({ done: 0, total: candidates.length })
       let succeeded = 0
       for (let index = 0; index < candidates.length; index++) {
         const candidate = candidates[index]
         try {
-          const doc = await window.api.library.importPdf(candidate.filePath, candidate.title)
+          const doc = await window.api.library.importDocument(candidate.filePath, candidate.title)
           succeeded += 1
           try {
-            const extracted = await extractPdf(window.api.library.pdfUrl(doc.id))
-            await window.api.library.setText(doc.id, extracted.pages, {
-              title: extracted.title,
-              authors: extracted.author
-            })
-            const patch: Record<string, string> = {}
-            if (extracted.title && extracted.title.length > 6 && !/microsoft word|untitled|\.docx?$/i.test(extracted.title)) {
-              patch.title = extracted.title
+            if (documentFormatOf(doc) === 'pdf') {
+              const extracted = await extractPdf(window.api.library.pdfUrl(doc.id))
+              await window.api.library.setText(doc.id, extracted.pages, {
+                title: extracted.title,
+                authors: extracted.author
+              })
+              const patch: Record<string, string> = {}
+              if (extracted.title && extracted.title.length > 6 && !/microsoft word|untitled|\.docx?$/i.test(extracted.title)) {
+                patch.title = extracted.title
+              }
+              if (extracted.author && !/unknown/i.test(extracted.author)) patch.authors = extracted.author
+              if (extracted.journal) patch.journal = extracted.journal
+              if (extracted.year) patch.year = extracted.year
+              if (extracted.doi) patch.doi = extracted.doi
+              if (extracted.abstract) patch.abstract = extracted.abstract
+              if (Object.keys(patch).length) await window.api.library.update(doc.id, patch)
+            } else {
+              const extracted = await window.api.library.extractText(doc.id)
+              await window.api.library.setText(doc.id, extracted.pages)
             }
-            if (extracted.author && !/unknown/i.test(extracted.author)) patch.authors = extracted.author
-            if (extracted.journal) patch.journal = extracted.journal
-            if (extracted.year) patch.year = extracted.year
-            if (extracted.doi) patch.doi = extracted.doi
-            if (extracted.abstract) patch.abstract = extracted.abstract
-            if (Object.keys(patch).length) await window.api.library.update(doc.id, patch)
           } catch (err) {
             notify(`《${candidate.title}》文本提取失败：${(err as Error).message}`, 'error')
           }
@@ -473,7 +484,7 @@ export default function App(): React.JSX.Element {
     { id: 'topics', label: '打开研究主题', hint: '聚合成员文献、摘录、建议问题与主题对话', keywords: 'topics 研究主题 主题空间', run: () => setView({ name: 'topics' }) },
     { id: 'canvas', label: '打开主题画布', hint: '文献、摘录、问答卡片与连线的无限画布', keywords: 'canvas 画布 主题 白板', run: () => setView({ name: 'canvas' }) },
     { id: 'reading-plan', label: '打开主题阅读计划', hint: '按学习目标生成文献阅读顺序与问题清单', keywords: 'reading plan 阅读计划 学习目标', run: () => setView({ name: 'readingPlan' }) },
-    { id: 'import', label: '导入 PDF 文献', hint: '选择一个或多个 PDF 加入文献库', keywords: '导入 import pdf', run: () => importPdfs() },
+    { id: 'import', label: '导入文献', hint: '选择 PDF、Word、Markdown 或 TXT 加入文献库', keywords: '导入 import pdf word docx markdown txt', run: () => importDocuments() },
     {
       id: 'import-bibtex',
       label: '导入 BibTeX（Zotero 导出）',
@@ -493,6 +504,7 @@ export default function App(): React.JSX.Element {
     { id: 'properties', label: '属性管理', hint: '新建文献属性（文本/数字/单选/多选/日期/复选框/URL）', keywords: '属性 property 字段 自定义', run: () => setPropertiesOpen(true) },
     { id: 'translate', label: '截图翻译', hint: 'Ctrl+Shift+T，框选区域翻译', keywords: '翻译 translate ocr', run: () => window.api.translate.start().then((res) => !res.ok && notify(res.reason || '截图翻译不可用', 'error')) },
     { id: 'settings', label: '打开设置', hint: '配置模型、API Key 与数据目录', keywords: '设置 settings', run: () => setView({ name: 'settings' }) },
+    { id: 'usage', label: '用量仪表盘', hint: '查看输入 / 输出 Token、缓存命中率与调用趋势', keywords: '用量 usage token 缓存 命中 统计 仪表盘 图表', run: () => setView({ name: 'usage' }) },
     {
       id: 'theme',
       label: '切换主题',
@@ -556,7 +568,7 @@ export default function App(): React.JSX.Element {
               view={view}
               importing={importing}
               onNavigate={setView}
-              onImport={() => void importPdfs()}
+              onImport={() => void importDocuments()}
               onChanged={onChanged}
               notify={notify}
             />
@@ -583,7 +595,7 @@ export default function App(): React.JSX.Element {
             importing={importing}
             onOpen={(docId) => setView({ name: 'reader', docId })}
             onChat={startDocChat}
-            onImport={() => void importPdfs()}
+            onImport={() => void importDocuments()}
             onChanged={onChanged}
             onClearCollection={() => setView({ name: 'library' })}
             onSelectCollection={(collectionId) => setView({ name: 'library', collectionId })}
@@ -690,6 +702,10 @@ export default function App(): React.JSX.Element {
             onChanged={onChanged}
             notify={notify}
           />
+        </ViewSlot>
+
+        <ViewSlot active={view.name === 'usage'}>
+          <UsageView notify={notify} />
         </ViewSlot>
 
         <ViewSlot active={view.name === 'settings'}>

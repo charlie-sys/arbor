@@ -46,7 +46,7 @@ export async function runAiAction(input: AiActionInput): Promise<AiActionOutput>
       },
       { role: 'user', content: prompt }
     ],
-    { temperature: 0.3 }
+    { temperature: 0.3, kind: 'action' }
   )
 
   return { action: input.action, content, model: settings.chatModel }

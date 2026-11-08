@@ -1,5 +1,5 @@
 const api = window.api
-const doc = await api.library.importPdf('C:/Users/18116/AppData/Local/Temp/zotagent-acceptance/test.pdf', '验收测试文献')
+const doc = await api.library.importDocument('C:/Users/18116/AppData/Local/Temp/zotagent-acceptance/test.pdf', '验收测试文献')
 await api.library.setText(doc.id, ['第一页：研究方法与样本。ZotAgent acceptance.', '第二页：结论与讨论。'], {
   title: '验收测试文献',
   authors: '测试作者'

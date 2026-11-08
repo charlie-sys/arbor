@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { BookmarkPlus, BookOpen, ChevronDown, Copy, FileText, NotebookPen, Paperclip, Send, Sparkles, Square, Loader2, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { BookmarkPlus, BookOpen, ChevronDown, Copy, Download, ExternalLink, FileText, Maximize2, NotebookPen, Paperclip, Send, Sparkles, Square, Loader2, X } from 'lucide-react'
 import type { ChatMessage, ChatSession, DocumentMeta, InboxAttachment } from '@shared/types'
 import { Markdown, cx, formatTime } from '../ui'
+import { formatChatUsage, useChatUsageSummary } from '../chatUsage'
 
 interface Quote {
   text: string
@@ -12,6 +13,86 @@ interface Quote {
 interface PageRef {
   docId: string
   page: number
+}
+
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
+interface AttachmentItemProps {
+  attachment: InboxAttachment
+  ownerId: string
+  inverse?: boolean
+  onPreview: (attachment: InboxAttachment) => void
+  onOpen: (attachment: InboxAttachment) => void
+  onSave: (attachment: InboxAttachment) => void
+  onRemove?: (attachment: InboxAttachment) => void
+}
+
+function AttachmentItem({
+  attachment,
+  ownerId,
+  inverse,
+  onPreview,
+  onOpen,
+  onSave,
+  onRemove
+}: AttachmentItemProps): React.JSX.Element {
+  const url = `zotfile://attachments/${ownerId}/${encodeURIComponent(attachment.file)}`
+  const tools = (
+    <span className="chat-attachment-tools">
+      {attachment.kind === 'image' && (
+        <button type="button" title="预览图片" onClick={() => onPreview(attachment)}>
+          <Maximize2 size={12} />
+        </button>
+      )}
+      <button type="button" title="用系统应用打开" onClick={() => onOpen(attachment)}>
+        <ExternalLink size={12} />
+      </button>
+      <button type="button" title="保存到…" onClick={() => onSave(attachment)}>
+        <Download size={12} />
+      </button>
+      {onRemove && (
+        <button type="button" title="移除附件" onClick={() => onRemove(attachment)}>
+          <X size={12} />
+        </button>
+      )}
+    </span>
+  )
+
+  if (attachment.kind === 'image') {
+    return (
+      <div className={cx('chat-attachment-card', inverse && 'inverse')}>
+        <button
+          type="button"
+          className="chat-attachment-thumb"
+          title={`预览 ${attachment.name}`}
+          onClick={() => onPreview(attachment)}
+        >
+          <img src={url} alt={attachment.name} />
+        </button>
+        <div className="chat-attachment-info">
+          <span className="chat-attachment-name" title={attachment.name}>
+            {attachment.name}
+          </span>
+          {tools}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cx('chat-file-card', inverse && 'inverse')}>
+      <button type="button" className="chat-file-main" title="打开文件" onClick={() => onOpen(attachment)}>
+        <FileText size={14} />
+        <span className="chat-file-name">{attachment.name}</span>
+        <span className="chat-file-size">{formatBytes(attachment.size)}</span>
+      </button>
+      {tools}
+    </div>
+  )
 }
 
 // 支持「第3页」「第2—3页」「第1、4页」「第1 至 3 页」「p. 5」等写法
@@ -33,6 +114,17 @@ function parsePages(raw: string): number[] {
 
 function normalizeTitle(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '')
+}
+
+const INTERRUPTED_NOTE = '回答生成已中断：切换页面后无法继续接收内容，请重新发送问题。'
+
+// 历史数据里可能残留「只有用户提问 + 空 assistant 占位」的会话，避免渲染成空白气泡
+function recoverInterruptedMessages(list: ChatMessage[]): ChatMessage[] {
+  const last = list[list.length - 1]
+  if (last && last.role === 'assistant' && !last.content.trim() && !last.error && !last.attachments?.length) {
+    return [...list.slice(0, -1), { ...last, content: INTERRUPTED_NOTE, error: true }]
+  }
+  return list
 }
 
 function docByTitle(title: string, docs: DocumentMeta[]): DocumentMeta | undefined {
@@ -94,25 +186,21 @@ function findPageHits(content: string, docs: DocumentMeta[]): PageHit[] {
   return hits
 }
 
-function collectPageRefs(content: string, docs: DocumentMeta[]): PageRef[] {
+function analyzePageRefs(content: string, docs: DocumentMeta[]): { linked: string; refs: PageRef[] } {
+  const hits = findPageHits(content, docs)
+  let linked = content
+  for (const hit of [...hits].reverse()) {
+    linked = `${linked.slice(0, hit.index)}[${hit.text}](zotagent:page:${hit.docId}:${hit.pages[0]})${linked.slice(hit.index + hit.length)}`
+  }
   const refs: PageRef[] = []
-  for (const hit of findPageHits(content, docs)) {
+  for (const hit of hits) {
     for (const page of hit.pages) {
       if (!refs.some((ref) => ref.docId === hit.docId && ref.page === page)) {
         refs.push({ docId: hit.docId, page })
       }
     }
   }
-  return refs
-}
-
-function linkifyPageRefs(content: string, docs: DocumentMeta[]): string {
-  const hits = findPageHits(content, docs)
-  let result = content
-  for (const hit of [...hits].reverse()) {
-    result = `${result.slice(0, hit.index)}[${hit.text}](zotagent:page:${hit.docId}:${hit.pages[0]})${result.slice(hit.index + hit.length)}`
-  }
-  return result
+  return { linked, refs }
 }
 
 function CitationList({
@@ -178,6 +266,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const [contextMode, setContextMode] = useState<'auto' | 'none' | 'page' | 'selection'>('auto')
   const [includeNotes, setIncludeNotes] = useState(false)
   const [selectionContext, setSelectionContext] = useState<{ text: string; page?: number } | null>(null)
+  const [preview, setPreview] = useState<InboxAttachment | null>(null)
+  const usageSummary = useChatUsageSummary(chat.id)
 
   const messagesRef = useRef<ChatMessage[]>(chat.messages)
   const chatRef = useRef(chat)
@@ -191,6 +281,27 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
 
   const reqRef = useRef<string | null>(null)
   const streamRef = useRef('')
+  const finalizingRef = useRef(false)
+  const flushTimerRef = useRef<number | null>(null)
+  const activeRef = useRef(active)
+  activeRef.current = active
+  const docsRef = useRef(docs)
+  docsRef.current = docs
+  const openPageRef = useRef(openPage)
+  openPageRef.current = openPage
+  const pageRefCacheRef = useRef(new Map<string, { content: string; docKey: string; linked: string; refs: PageRef[] }>())
+  const docsKey = docs.map((doc) => doc.id).join(',')
+  const handlePageRef = useCallback((docId: string, page: number) => {
+    openPageRef.current?.(docId || docsRef.current[0]?.id || '', page)
+  }, [])
+
+  const pageRefsFor = (message: ChatMessage): { linked: string; refs: PageRef[] } => {
+    const cached = pageRefCacheRef.current.get(message.id)
+    if (cached && cached.content === message.content && cached.docKey === docsKey) return cached
+    const analyzed = analyzePageRefs(message.content, docs)
+    pageRefCacheRef.current.set(message.id, { content: message.content, docKey: docsKey, ...analyzed })
+    return analyzed
+  }
   const listRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -206,6 +317,34 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     })
   }
 
+  const appendAttachment = (attachment: InboxAttachment): void => {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1]
+      if (!last || last.role !== 'assistant') return prev
+      if (last.attachments?.some((item) => item.id === attachment.id)) return prev
+      const next = [...prev]
+      next[next.length - 1] = { ...last, attachments: [...(last.attachments ?? []), attachment] }
+      messagesRef.current = next
+      return next
+    })
+  }
+
+  // 模型增量可能每秒数十次，合并到约 12fps 再渲染，避免整段对话反复解析卡住主线程
+  const scheduleStreamFlush = (): void => {
+    if (flushTimerRef.current !== null) return
+    flushTimerRef.current = window.setTimeout(() => {
+      flushTimerRef.current = null
+      if (!activeRef.current) return
+      updateLast(streamRef.current)
+    }, 80)
+  }
+
+  const cancelStreamFlush = (): void => {
+    if (flushTimerRef.current === null) return
+    window.clearTimeout(flushTimerRef.current)
+    flushTimerRef.current = null
+  }
+
   const persist = async (list: ChatMessage[]): Promise<void> => {
     const active = chatRef.current
     const firstUser = list.find((m) => m.role === 'user')
@@ -217,8 +356,12 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     await onChangedRef.current()
   }
 
-  const finalizeRef = useRef<(content: string, error?: string) => Promise<void>>(async () => {})
-  finalizeRef.current = async (content, error) => {
+  const finalizeRef = useRef<(content: string, error?: string, added?: InboxAttachment[]) => Promise<void>>(
+    async () => {}
+  )
+  finalizeRef.current = async (content, error, added) => {
+    cancelStreamFlush()
+    finalizingRef.current = true
     reqRef.current = null
     setStreaming(false)
     const finalMessages = messagesRef.current.map((message, index, array) => {
@@ -228,7 +371,15 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
           ? `${message.content}\n\n> 生成中断：${error}`
           : `请求失败：${error}`
         : content || message.content
-      return { ...message, content: merged, error: !!error && !message.content }
+      const attachments = [...(message.attachments ?? []), ...(added ?? [])].filter(
+        (attachment, position, list) => list.findIndex((item) => item.id === attachment.id) === position
+      )
+      return {
+        ...message,
+        content: merged,
+        error: !!error && !message.content,
+        ...(attachments.length ? { attachments } : {})
+      }
     })
     messagesRef.current = finalMessages
     setMessages(finalMessages)
@@ -236,23 +387,29 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       await persist(finalMessages)
     } catch (err) {
       notifyRef.current(`保存对话失败：${(err as Error).message}`, 'error')
+    } finally {
+      finalizingRef.current = false
     }
   }
 
   useEffect(() => {
     reqRef.current = null
     streamRef.current = ''
+    cancelStreamFlush()
+    pageRefCacheRef.current.clear()
     setStreaming(false)
     setDraft('')
     setPendingAttachments([])
-    setMessages(chat.messages)
-    messagesRef.current = chat.messages
+    const restored = recoverInterruptedMessages(chat.messages)
+    setMessages(restored)
+    messagesRef.current = restored
   }, [chat.id])
 
   useEffect(() => {
-    if (streaming) return
-    setMessages(chat.messages)
-    messagesRef.current = chat.messages
+    if (streaming || reqRef.current || finalizingRef.current) return
+    const restored = recoverInterruptedMessages(chat.messages)
+    setMessages(restored)
+    messagesRef.current = restored
   }, [chat.updatedAt, chat.id, streaming])
 
   useEffect(() => {
@@ -260,14 +417,54 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       if (!reqRef.current || event.requestId !== reqRef.current) return
       if (event.type === 'delta') {
         streamRef.current += event.delta ?? ''
-        updateLast(streamRef.current)
+        if (activeRef.current) scheduleStreamFlush()
+      } else if (event.type === 'attachment') {
+        if (event.attachment) appendAttachment(event.attachment)
       } else if (event.type === 'done') {
-        void finalizeRef.current(event.content ?? streamRef.current)
+        void finalizeRef.current(event.content ?? streamRef.current, undefined, event.attachments)
       } else {
-        void finalizeRef.current(streamRef.current, event.error || '请求失败')
+        void finalizeRef.current(streamRef.current, event.error || '请求失败', event.attachments)
       }
     })
     return off
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 面板隐藏时不渲染增量；回到 AI 标签时一次性补齐，避免后台标签持续占用主线程
+  useEffect(() => {
+    if (active && reqRef.current) updateLast(streamRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
+
+  // 组件真正卸载（切换文献、脱离面板）时终止流式请求，并把中断状态落库，避免留下空白回答
+  useEffect(() => {
+    return () => {
+      const requestId = reqRef.current
+      if (!requestId) return
+      reqRef.current = null
+      cancelStreamFlush()
+      void window.api.agent.cancel(requestId).catch(() => undefined)
+      const list = messagesRef.current
+      const last = list[list.length - 1]
+      if (last?.role !== 'assistant') return
+      const interrupted: ChatMessage = {
+        ...last,
+        content: last.content ? `${last.content}\n\n> ${INTERRUPTED_NOTE}` : INTERRUPTED_NOTE,
+        error: !last.content
+      }
+      const final = [...list.slice(0, -1), interrupted]
+      messagesRef.current = final
+      const active = chatRef.current
+      const firstUser = final.find((message) => message.role === 'user')
+      const title =
+        active.title === '新的对话' && firstUser
+          ? firstUser.content.replace(/^>.*$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 30) || '新的对话'
+          : active.title
+      void window.api.chats
+        .update(active.id, { messages: final, title })
+        .then(() => onChangedRef.current())
+        .catch(() => undefined)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -282,6 +479,15 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     onQuoteAppliedRef.current?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote?.nonce])
+
+  useEffect(() => {
+    if (!preview) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setPreview(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [preview])
 
   useEffect(() => {
     if (!active) return
@@ -345,6 +551,28 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const attachmentUrl = (attachment: InboxAttachment): string =>
     `zotfile://attachments/${chat.id}/${encodeURIComponent(attachment.file)}`
 
+  const openAttachment = async (attachment: InboxAttachment): Promise<void> => {
+    try {
+      const result = await window.api.attachments.open(chat.id, attachment.file)
+      if (!result.ok) throw new Error(result.error || '系统没有可用于打开该附件的应用')
+    } catch (err) {
+      notify(`打开附件失败：${(err as Error).message}`, 'error')
+    }
+  }
+
+  const saveAttachmentAs = async (attachment: InboxAttachment): Promise<void> => {
+    try {
+      const result = await window.api.attachments.saveAs(chat.id, attachment.file, attachment.name)
+      if (!result.canceled) notify('附件已保存', 'success')
+    } catch (err) {
+      notify(`保存附件失败：${(err as Error).message}`, 'error')
+    }
+  }
+
+  const previewAttachment = (attachment: InboxAttachment): void => {
+    setPreview(attachment)
+  }
+
   const send = async (override?: string): Promise<void> => {
     const text = (override ?? draft).trim()
     if ((!text && !pendingAttachments.length) || streaming) return
@@ -368,6 +596,12 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     setDraft('')
     setPendingAttachments([])
 
+    // 先标记请求中，避免持久化触发的 props 同步把空的 assistant 占位当成中断消息
+    const requestId = crypto.randomUUID()
+    reqRef.current = requestId
+    streamRef.current = ''
+    setStreaming(true)
+
     try {
       await persist(next)
     } catch {
@@ -383,10 +617,6 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         attachments: message.attachments
       }))
 
-    const requestId = crypto.randomUUID()
-    reqRef.current = requestId
-    streamRef.current = ''
-    setStreaming(true)
     const pageForContext = selectionContext?.page ?? currentPage
     const effectiveMode =
       contextMode === 'selection' && !selectionContext?.text.trim() ? 'auto' : contextMode
@@ -497,7 +727,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
     }
   }
 
-  const answerPage = (content: string): number | undefined => collectPageRefs(content, docs)[0]?.page
+  const answerPage = (content: string): number | undefined => analyzePageRefs(content, docs).refs[0]?.page
 
   const hasMessages = messages.length > 0
   const suggestions = docs.length
@@ -539,6 +769,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         {messages.map((message, index) => {
           const isLast = index === messages.length - 1
           const waiting = streaming && isLast && message.role === 'assistant' && !message.content
+          const liveStreaming = streaming && isLast && message.role === 'assistant' && !!message.content
+          const settled = !waiting && !liveStreaming
           if (message.role === 'user') {
             return (
               <div className="msg-row user" key={message.id}>
@@ -546,20 +778,17 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                   <div className="msg-user-text">{message.content}</div>
                   {message.attachments && message.attachments.length > 0 && (
                     <div className="msg-attachments">
-                      {message.attachments.map((attachment) =>
-                        attachment.kind === 'image' ? (
-                          <img
-                            key={attachment.id}
-                            src={attachmentUrl(attachment)}
-                            alt={attachment.name}
-                            title={attachment.name}
-                          />
-                        ) : (
-                          <span className="msg-attachment-file" key={attachment.id} title={attachment.name}>
-                            <FileText size={13} /> {attachment.name}
-                          </span>
-                        )
-                      )}
+                      {message.attachments.map((attachment) => (
+                        <AttachmentItem
+                          key={attachment.id}
+                          attachment={attachment}
+                          ownerId={chat.id}
+                          inverse
+                          onPreview={previewAttachment}
+                          onOpen={(item) => void openAttachment(item)}
+                          onSave={(item) => void saveAttachmentAs(item)}
+                        />
+                      ))}
                     </div>
                   )}
                   <div className="msg-meta">{formatTime(message.createdAt)}</div>
@@ -576,6 +805,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
               </div>
             )
           }
+          const analysis = settled ? pageRefsFor(message) : null
           return (
             <div className="msg-row assistant" key={message.id}>
               <div className={cx('msg-bubble assistant-bubble', message.error && 'error')}>
@@ -583,14 +813,27 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                   <div className="typing">
                     <Loader2 size={15} className="spin" /> 正在阅读文献并思考…
                   </div>
+                ) : liveStreaming ? (
+                  // 流式阶段先用纯文本增量渲染，避免每个分片都重新解析整段 Markdown 与 KaTeX
+                  <div className="msg-streaming-text">{message.content}</div>
                 ) : (
-                  <Markdown
-                    onPageRef={(docId, page) => openPage?.(docId || docs[0]?.id || '', page)}
-                  >
-                    {linkifyPageRefs(message.content, docs)}
-                  </Markdown>
+                  <Markdown onPageRef={handlePageRef}>{analysis?.linked ?? message.content}</Markdown>
                 )}
-                {!waiting && (
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="msg-attachments">
+                    {message.attachments.map((attachment) => (
+                      <AttachmentItem
+                        key={attachment.id}
+                        attachment={attachment}
+                        ownerId={chat.id}
+                        onPreview={previewAttachment}
+                        onOpen={(item) => void openAttachment(item)}
+                        onSave={(item) => void saveAttachmentAs(item)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {settled && (
                   <div className="msg-actions">
                     <button className="icon-btn tiny" title="复制回答" onClick={() => void copy(message.content)}>
                       <Copy size={13} />
@@ -611,12 +854,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                     </button>
                   </div>
                 )}
-                {!waiting && (
-                  <CitationList
-                    refs={collectPageRefs(message.content, docs)}
-                    docs={docs}
-                    onOpen={openPage}
-                  />
+                {settled && analysis && (
+                  <CitationList refs={analysis.refs} docs={docs} onOpen={openPage} />
                 )}
               </div>
             </div>
@@ -673,21 +912,15 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
         {pendingAttachments.length > 0 && (
           <div className="chat-attachments">
             {pendingAttachments.map((attachment) => (
-              <div className="chat-attachment" key={attachment.id}>
-                {attachment.kind === 'image' ? (
-                  <img src={attachmentUrl(attachment)} alt="" />
-                ) : (
-                  <FileText size={14} />
-                )}
-                <span title={attachment.name}>{attachment.name}</span>
-                <button
-                  className="icon-btn tiny"
-                  title="移除附件"
-                  onClick={() => void removePendingAttachment(attachment)}
-                >
-                  <X size={12} />
-                </button>
-              </div>
+              <AttachmentItem
+                key={attachment.id}
+                attachment={attachment}
+                ownerId={chat.id}
+                onPreview={previewAttachment}
+                onOpen={(item) => void openAttachment(item)}
+                onSave={(item) => void saveAttachmentAs(item)}
+                onRemove={(item) => void removePendingAttachment(item)}
+              />
             ))}
           </div>
         )}
@@ -754,7 +987,43 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
             )}
           </div>
         </div>
+        {usageSummary && (
+          <div
+            className="chat-usage-bar"
+            title="本对话累计的首 token 延迟、输出速度、缓存命中与输入/输出 Token"
+          >
+            {formatChatUsage(usageSummary)}
+          </div>
+        )}
       </div>
+      {preview && (
+        <div
+          className="attachment-lightbox"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPreview(null)
+          }}
+        >
+          <div className="attachment-lightbox-panel">
+            <div className="attachment-lightbox-head">
+              <span className="attachment-lightbox-title" title={preview.name}>
+                {preview.name}
+              </span>
+              <div className="attachment-lightbox-actions">
+                <button className="btn ghost small" onClick={() => void openAttachment(preview)}>
+                  <ExternalLink size={13} /> 系统打开
+                </button>
+                <button className="btn primary small" onClick={() => void saveAttachmentAs(preview)}>
+                  <Download size={13} /> 保存
+                </button>
+                <button className="icon-btn" title="关闭预览" onClick={() => setPreview(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <img src={attachmentUrl(preview)} alt={preview.name} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

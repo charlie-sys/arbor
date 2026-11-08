@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ZotAgentApi, ChatEvent, TranslateEvent, UpdateProgress } from '../shared/api'
+import type { ZotAgentApi, ChatEvent, ExportResult, TranslateEvent, UpdateProgress, UsageRecordedEvent } from '../shared/api'
 import type {
   AiActionId,
   AppSettings,
@@ -18,7 +18,8 @@ import type {
   ResearchTopic,
   SavedViewConfig,
   Tag,
-  TaskItem
+  TaskItem,
+  ActiveUsage
 } from '../shared/types'
 import type { ComposeScope } from '../shared/compose'
 
@@ -31,8 +32,10 @@ function subscribe<T>(channel: string, callback: (payload: T) => void): () => vo
 const api: ZotAgentApi = {
   library: {
     getState: () => ipcRenderer.invoke('library:get-state'),
-    pickPdfs: () => ipcRenderer.invoke('library:pick-pdfs'),
-    importPdf: (filePath: string, title: string) => ipcRenderer.invoke('library:import', { filePath, title }),
+    pickDocuments: () => ipcRenderer.invoke('library:pick-documents'),
+    importDocument: (filePath: string, title: string) =>
+      ipcRenderer.invoke('library:import-document', { filePath, title }),
+    extractText: (id: string) => ipcRenderer.invoke('library:extract-text', id),
     setText: (id: string, pages: string[], meta?: { title?: string; authors?: string }) =>
       ipcRenderer.invoke('library:set-text', { id, pages, ...meta }),
     update: (id: string, patch: Partial<DocumentMeta>) => ipcRenderer.invoke('library:update', { id, patch }),
@@ -102,6 +105,12 @@ const api: ZotAgentApi = {
     ): Promise<InboxAttachment> => ipcRenderer.invoke('chat:save-attachment', { chatId, name, data, kind }),
     removeAttachment: (chatId: string, file: string) =>
       ipcRenderer.invoke('chat:remove-attachment', { chatId, file })
+  },
+  attachments: {
+    open: (ownerId: string, file: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('attachment:open', { ownerId, file }),
+    saveAs: (ownerId: string, file: string, name: string): Promise<ExportResult> =>
+      ipcRenderer.invoke('attachment:save-as', { ownerId, file, name })
   },
   highlights: {
     add: (input) => ipcRenderer.invoke('highlight:add', input),
@@ -185,6 +194,10 @@ const api: ZotAgentApi = {
     exportImage: (id: string, variant: 'original' | 'translated') =>
       ipcRenderer.invoke('translate:export-image', { id, variant })
   },
+  usage: {
+    snapshot: () => ipcRenderer.invoke('usage:snapshot'),
+    clear: () => ipcRenderer.invoke('usage:clear')
+  },
   settings: {
     save: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:save', patch),
     test: () => ipcRenderer.invoke('settings:test'),
@@ -234,7 +247,9 @@ const api: ZotAgentApi = {
     onReaderPanelReady: (cb) => subscribe('reader-panel:ready-event', cb),
     onReaderPanelBlockClose: (cb) => subscribe('reader-panel:block-close', cb),
     onReaderPanelPinned: (cb) => subscribe('reader-panel:pinned', cb),
-    onUpdateProgress: (cb) => subscribe<UpdateProgress>('update:progress', cb)
+    onUpdateProgress: (cb) => subscribe<UpdateProgress>('update:progress', cb),
+    onUsageRecorded: (cb) => subscribe<UsageRecordedEvent>('usage:recorded', cb),
+    onUsageLive: (cb) => subscribe<ActiveUsage[]>('usage:live', cb)
   },
   overlay: {
     select: (rect) => ipcRenderer.invoke('capture:selection', rect),
