@@ -7,6 +7,7 @@ import type {
   ChatContext,
   ChatSession,
   Collection,
+  DocumentAnnotations,
   DocumentMeta,
   Excerpt,
   ExtractedDocument,
@@ -119,7 +120,15 @@ export interface ExportResult {
   filePath?: string
 }
 
-export type ReaderPanelTab = 'agent' | 'info' | 'notes' | 'highlights' | 'outline' | 'excerpts' | 'tasks'
+export type ReaderPanelTab =
+  | 'agent'
+  | 'info'
+  | 'notes'
+  | 'highlights'
+  | 'annotations'
+  | 'outline'
+  | 'excerpts'
+  | 'tasks'
 
 export interface ReaderPanelState {
   open: boolean
@@ -267,6 +276,11 @@ export interface ZotAgentApi {
     ): Promise<Highlight | undefined>
     remove(id: string): Promise<void>
     list(docId: string): Promise<Highlight[]>
+  }
+  annotations: {
+    load(docId: string): Promise<DocumentAnnotations>
+    save(docId: string, data: DocumentAnnotations): Promise<void>
+    remove(docId: string): Promise<void>
   }
   excerpts: {
     add(input: {

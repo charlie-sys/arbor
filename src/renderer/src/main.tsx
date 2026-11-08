@@ -19,7 +19,16 @@ document.title = t('Arbor — 文献阅读与 AI 研究工坊')
 const params = new URLSearchParams(window.location.search)
 const docId = params.get('docId')
 const tabParam = params.get('tab')
-const tabs: ReaderPanelTab[] = ['agent', 'info', 'notes', 'highlights', 'outline', 'excerpts', 'tasks']
+const tabs: ReaderPanelTab[] = [
+  'agent',
+  'info',
+  'notes',
+  'highlights',
+  'annotations',
+  'outline',
+  'excerpts',
+  'tasks'
+]
 const initialTab = tabs.find((tab) => tab === tabParam) ?? 'agent'
 
 createRoot(document.getElementById('root') as HTMLElement).render(

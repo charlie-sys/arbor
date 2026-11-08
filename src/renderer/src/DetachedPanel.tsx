@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Pin, PinOff, X } from 'lucide-react'
 import type { ReaderPanelQuote, ReaderPanelTab } from '@shared/api'
-import type { LibraryData } from '@shared/types'
+import type { DocumentAnnotations, LibraryData } from '@shared/types'
 import ReaderSidePanel from './components/ReaderSidePanel'
 import type { PdfOutlineItem } from './components/PdfViewer'
 import { cx } from './ui'
@@ -16,6 +16,13 @@ interface Props {
 export default function DetachedPanel({ docId, tab: initialTab }: Props): React.JSX.Element {
   const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [data, setData] = useState<LibraryData | null>(null)
+  const [annotations, setAnnotations] = useState<DocumentAnnotations>({
+    version: 1,
+    docId,
+    notes: [],
+    strokes: [],
+    updatedAt: 0
+  })
   const [tab, setTab] = useState<ReaderPanelTab>(initialTab)
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -34,10 +41,14 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
   }, [])
 
   const reload = useCallback(async (): Promise<void> => {
-    const state = await window.api.library.getState()
+    const [state, annotationState] = await Promise.all([
+      window.api.library.getState(),
+      window.api.annotations.load(docId)
+    ])
     setData(state)
+    setAnnotations(annotationState)
     setLocale(state.settings.language)
-  }, [])
+  }, [docId])
 
   useEffect(() => {
     document.documentElement.lang = localeTag(locale)
@@ -92,6 +103,17 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
     window.api.readerPanel.setTab(tab, activeChatId)
   }, [tab, activeChatId])
 
+  useEffect(() => {
+    if (tab !== 'annotations') return
+    let cancelled = false
+    void window.api.annotations.load(docId).then((data) => {
+      if (!cancelled) setAnnotations(data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [tab, docId])
+
   const onDirtyChange = useCallback((dirty: boolean) => {
     window.api.readerPanel.setDirty(dirty)
   }, [])
@@ -138,6 +160,7 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
           chats={data.chats}
           collections={data.collections}
           highlights={data.highlights}
+          annotations={annotations}
           excerpts={data.excerpts}
           tasks={data.tasks}
           page={page}
@@ -152,6 +175,7 @@ export default function DetachedPanel({ docId, tab: initialTab }: Props): React.
           onChanged={onChanged}
           onQuoteApplied={() => setQuote(null)}
           onJumpPage={(target) => window.api.readerPanel.openDoc(docId, target)}
+          onRevealNote={(note) => window.api.readerPanel.openDoc(docId, note.page)}
           onOpenDoc={(targetDocId, targetPage) => window.api.readerPanel.openDoc(targetDocId, targetPage)}
           onDirtyChange={onDirtyChange}
           notify={notify}

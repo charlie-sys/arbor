@@ -1,6 +1,6 @@
 {
   "name": "arbor-desktop",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Arbor — 文献阅读、知识整理与 AI 研究工坊",
   "author": "Arbor",
   "main": "./out/main/index.js",

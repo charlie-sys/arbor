@@ -124,12 +124,16 @@ export interface DocumentMeta {
   readingStatus: ReadingStatus
   lastPage: number
   notes: string
+  // 阅读显示色调，仅影响界面渲染
+  tone?: DocumentToneId
   propertyValues?: Record<string, PropertyValue>
 }
 
 export type ReadingStatus = 'unread' | 'reading' | 'read'
 
 export type DocumentFormat = 'pdf' | 'docx' | 'doc' | 'txt' | 'md'
+
+export type DocumentToneId = 'original' | 'paper' | 'eye-care' | 'night' | 'high-contrast'
 
 export type Role = 'user' | 'assistant' | 'system'
 
@@ -205,6 +209,49 @@ export interface Highlight {
   note: string
   rects: HighlightRect[]
   createdAt: number
+  updatedAt: number
+}
+
+export interface AnnotationPoint {
+  // 相对页面宽高的归一化坐标（0–1）
+  x: number
+  y: number
+}
+
+export type StickyNoteKind = 'idea' | 'question'
+export type StickyColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple'
+
+export interface StickyNote {
+  id: string
+  page: number
+  kind: StickyNoteKind
+  color: StickyColor
+  x: number
+  y: number
+  text: string
+  resolved: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+export type InkTool = 'pen' | 'marker'
+
+export interface InkStroke {
+  id: string
+  page: number
+  tool: InkTool
+  color: string
+  // 相对页面宽度的比例
+  width: number
+  points: AnnotationPoint[]
+  createdAt: number
+}
+
+export interface DocumentAnnotations {
+  version: 1
+  docId: string
+  notes: StickyNote[]
+  strokes: InkStroke[]
   updatedAt: number
 }
 

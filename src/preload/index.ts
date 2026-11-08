@@ -6,6 +6,7 @@ import type {
   CanvasBoard,
   ChatSession,
   Collection,
+  DocumentAnnotations,
   DocumentMeta,
   Excerpt,
   Highlight,
@@ -126,6 +127,12 @@ const api: ZotAgentApi = {
       ipcRenderer.invoke('highlight:update', { id, patch }),
     remove: (id: string) => ipcRenderer.invoke('highlight:remove', id),
     list: (docId: string) => ipcRenderer.invoke('highlight:list', docId)
+  },
+  annotations: {
+    load: (docId: string) => ipcRenderer.invoke('annotation:load', docId),
+    save: (docId: string, data: DocumentAnnotations) =>
+      ipcRenderer.invoke('annotation:save', { docId, data }),
+    remove: (docId: string) => ipcRenderer.invoke('annotation:remove', docId)
   },
   excerpts: {
     add: (input: { docId?: string | null; page?: number; source?: string; question?: string; answer?: string }) =>

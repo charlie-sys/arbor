@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Arbor 是一款本地优先的文献阅读、知识整理与 AI 研究工坊，支持 PDF、Word、Markdown 与 TXT 阅读、可溯源 AI 对话、桌面伙伴阿栗、多语言界面、对话附件、Token 用量仪表盘、灵感收集、截图翻译、研究主题与阅读计划。" />
+    <meta name="description" content="Arbor 是一款本地优先的文献阅读、知识整理与 AI 研究工坊，支持 PDF、Word、Markdown 与 TXT 阅读、可溯源 AI 对话、贴纸与手写标注、五种阅读色调、桌面伙伴阿栗、多语言界面、对话附件、Token 用量仪表盘、灵感收集、截图翻译、研究主题与阅读计划。" />
     <meta name="theme-color" content="#faf6f1" />
     <title>Arbor — 让研究与阅读自然生长</title>
     <link rel="icon" type="image/svg+xml" href="./assets/arbor-logo.svg" />
@@ -58,7 +58,7 @@
               <a class="btn" href="./demo.html">在线交互体验</a>
             </div>
             <p class="hero-meta">
-              <strong>Windows 10/11</strong> · v0.1.6 · 开源 · API Key 使用系统级加密
+              <strong>Windows 10/11</strong> · v0.1.7 · 开源 · API Key 使用系统级加密
             </p>
           </div>
           <div class="hero-visual">
@@ -117,6 +117,22 @@
               <h3>多格式文献</h3>
               <p>除 PDF 外还可导入 Word（docx/doc）、Markdown 与 TXT；文本文献自动分页，大纲、高亮、摘录与笔记保持一致体验。</p>
               <span class="feature-tag">PDF · Word · Markdown</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/><path d="m15 5 3 3"/></svg>
+              </div>
+              <h3>PDF 手写标注</h3>
+              <p>想法与问题贴纸、画笔、荧光笔与橡皮擦直接落在页面上；支持五色贴纸、撤销重做、隐藏标注与按页清空墨迹。贴纸可一键「问 Agent」，右侧「标注」页签按页汇总。</p>
+              <span class="feature-tag">贴纸 · 手写 · 标注</span>
+            </article>
+            <article class="feature reveal">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18c0-4 2-6 4.5-7.5C14 12 12 10 12 6Z"/><path d="M12 21c0-3-1.5-5-3.5-6.5"/></svg>
+              </div>
+              <h3>五种阅读色调</h3>
+              <p>原色、暖纸、护眼、夜间与高对比，长时间阅读更舒适；插图与彩色图表保留原色。色调随文献保存，并自动沿用上次选择。</p>
+              <span class="feature-tag">色调 · 夜间 · 护眼</span>
             </article>
             <article class="feature reveal">
               <div class="feature-icon">
@@ -217,7 +233,9 @@
                 <li>PDF、Word、Markdown 与 TXT 统一阅读，文本文献自动分页</li>
                 <li>PDF 缩放、翻页、大纲与文本层检索</li>
                 <li>高亮、摘录、笔记与引用一键串联</li>
-                <li>右侧面板页签：AI 助手 / 大纲 / 高亮 / 摘录 / 文献信息 / 笔记 / 任务</li>
+                <li>贴纸与手写批注直接落在页面，标注可撤销、可隐藏</li>
+                <li>五种文献色调，插图与图表保留原色</li>
+                <li>右侧面板页签：AI 助手 / 大纲 / 高亮 / 标注 / 摘录 / 文献信息 / 笔记 / 任务</li>
                 <li>深色模式与自适应分栏，长时间阅读更舒适</li>
               </ul>
             </div>
@@ -226,6 +244,31 @@
                 <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 阅读器</span></div>
                 <img src="./assets/screens/reader.png" alt="Arbor 阅读器与右侧 AI 助手、摘录和笔记面板" />
               </div>
+            </div>
+          </div>
+          <div class="split reverse" style="margin-top: 64px">
+            <div class="split-visual">
+              <div class="window">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 标注</span></div>
+                <img src="./assets/screens/annotations.png" alt="Arbor 阅读器标注模式，页面上的贴纸、手写笔迹与右侧标注页签" />
+              </div>
+              <div class="window" style="margin-top: 18px">
+                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 夜间阅读</span></div>
+                <img src="./assets/screens/tone-night.png" alt="Arbor 夜间阅读色调，插图与图表保留原色" />
+              </div>
+            </div>
+            <div class="split-copy">
+              <div class="section-kicker">随手标注</div>
+              <h2>在页边留下想法，不打断阅读</h2>
+              <p>选中文字可以高亮，页面空白处也能放贴纸、写字或画线。标注与原文同页显示，右侧按页整理，想法不会散落在另一个应用里。</p>
+              <ul class="check-list">
+                <li>想法 / 问题双类贴纸，五色可选，问题可标记「已解决」</li>
+                <li>画笔、荧光笔、橡皮擦与三档粗细，Ctrl+Z 撤销、Ctrl+Shift+Z 重做</li>
+                <li>贴纸一键「问 Agent」，把页边问题带入右侧对话</li>
+                <li>右侧「标注」页签按页汇总贴纸与墨迹，点击即可定位</li>
+                <li>五种阅读色调，夜间模式插图与图表仍保留原色</li>
+              </ul>
+              <div class="note">标注按文献保存在本机；删除文献时会一并清理。</div>
             </div>
           </div>
         </div>
@@ -449,7 +492,7 @@
             </article>
             <article class="step reveal">
               <h3>阅读与提问</h3>
-              <p>打开文献，选中文字高亮或摘录，在右侧 AI 助手中提问；引用可跳回原文核对。</p>
+              <p>打开文献，选中文字高亮或摘录，开启「标注」放置贴纸与手写批注，在右侧 AI 助手中提问；引用可跳回原文核对。</p>
             </article>
           </div>
           <div class="note" style="margin-top: 28px">
@@ -463,7 +506,7 @@
           <div class="cta-card">
             <div>
               <h2>先在线看看，再把 Arbor 带回桌面</h2>
-              <p>在线 Demo 使用模拟数据，已覆盖文献库、阅读器 7 个页签、研究主题详情、主题画布、阅读计划、截图翻译与备份恢复等界面；完整阅读、真实 AI 与本地文件功能请下载桌面版。</p>
+              <p>在线 Demo 使用模拟数据，已覆盖文献库、阅读器 8 个页签、研究主题详情、主题画布、阅读计划、截图翻译与备份恢复等界面；完整阅读、真实 AI、手写标注与本地文件功能请下载桌面版。</p>
             </div>
             <div class="cta-actions">
               <a class="btn primary" href="./demo.html">进入在线 Demo</a>
@@ -505,7 +548,7 @@
             <a data-github href="https://github.com/" target="_blank" rel="noreferrer">GitHub 仓库</a>
             <a data-download href="https://github.com/" target="_blank" rel="noreferrer">最新 Release</a>
             <a href="#guide">使用说明</a>
-            <span>版本 0.1.6 · Windows 10/11</span>
+            <span>版本 0.1.7 · Windows 10/11</span>
           </div>
         </div>
         <div class="footer-bottom">

@@ -7,6 +7,8 @@ import {
   Copy,
   Highlighter,
   Maximize,
+  Palette,
+  PenLine,
   Save,
   ScanLine,
   Sparkles,
@@ -16,7 +18,21 @@ import {
   ZoomIn,
   ZoomOut
 } from 'lucide-react'
-import type { AiActionId, ChatSession, Collection, DocumentMeta, Excerpt, Highlight, HighlightColor, TaskItem, TranslationRecord } from '@shared/types'
+import type {
+  AiActionId,
+  ChatSession,
+  Collection,
+  DocumentMeta,
+  DocumentToneId,
+  Excerpt,
+  Highlight,
+  HighlightColor,
+  StickyColor,
+  StickyNote as StickyNoteRecord,
+  StickyNoteKind,
+  TaskItem,
+  TranslationRecord
+} from '@shared/types'
 import type { ReaderPanelTab } from '@shared/api'
 import { AI_ACTIONS } from '@shared/aiActions'
 import PdfViewer, { type PdfOutlineItem, type PdfSelection, type PdfViewerHandle } from './PdfViewer'
@@ -25,6 +41,12 @@ import { documentFormatOf } from '@shared/documents'
 import AiActionPanel from './AiActionPanel'
 import PaneResizer from './PaneResizer'
 import ReaderSidePanel from './ReaderSidePanel'
+import AnnotationToolbar from './AnnotationToolbar'
+import StickyNoteEditor from './StickyNoteEditor'
+import DocumentToneMenu from './DocumentToneMenu'
+import type { AnnotationTool } from './PageAnnotationLayer'
+import { useDocumentAnnotations, INK_COLORS, INK_WIDTHS, NIGHT_INK_COLORS } from '../annotations'
+import { isDocumentToneId, readLastTone, toneById, writeLastTone } from '../documentTone'
 import { useUnsavedChanges } from '../unsaved'
 import { cx, formatTime, Markdown } from '../ui'
 import { t } from '@shared/i18n'
@@ -97,6 +119,26 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
   const [editor, setEditor] = useState<HighlightEditorState | null>(null)
   const [draftNote, setDraftNote] = useState('')
   const [draftColor, setDraftColor] = useState<HighlightColor>('yellow')
+  const [annotating, setAnnotating] = useState(false)
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('note')
+  const [annotationsVisible, setAnnotationsVisible] = useState(true)
+  const [inkColor, setInkColor] = useState(INK_COLORS[0].value)
+  const [inkWidth, setInkWidth] = useState(INK_WIDTHS[1].value)
+  const [stickyColor, setStickyColor] = useState<StickyColor>('yellow')
+  const [noteEditor, setNoteEditor] = useState<{ id: string; isNew: boolean; left: number; top: number } | null>(null)
+  const [noteDraft, setNoteDraft] = useState<{
+    kind: StickyNoteKind
+    color: StickyColor
+    text: string
+    resolved: boolean
+  } | null>(null)
+  const [flashNoteId, setFlashNoteId] = useState<string | null>(null)
+  const [tone, setTone] = useState<DocumentToneId>(() =>
+    isDocumentToneId(doc.tone) ? doc.tone : readLastTone()
+  )
+  const [toneMenuOpen, setToneMenuOpen] = useState(false)
+  const noteFlashTimer = useRef<number | null>(null)
+  const inkPalette = tone === 'night' ? NIGHT_INK_COLORS : INK_COLORS
   const [outline, setOutline] = useState<PdfOutlineItem[]>([])
   const [outlineLoaded, setOutlineLoaded] = useState(false)
   const [fallbackToc, setFallbackToc] = useState<FallbackTocEntry[]>([])
@@ -193,6 +235,176 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
         .sort((a, b) => a.page - b.page || a.createdAt - b.createdAt),
     [highlights, doc.id]
   )
+  const {
+    annotations,
+    canUndo: canUndoAnnotation,
+    canRedo: canRedoAnnotation,
+    addNote: addStickyNote,
+    updateNote: updateStickyNote,
+    removeNote: removeStickyNote,
+    addStroke,
+    removeStroke,
+    clearStrokes,
+    undo: undoAnnotation,
+    redo: redoAnnotation
+  } = useDocumentAnnotations(doc.id, (message) =>
+    notify(t("保存标注失败：{0}", [message]), 'error')
+  )
+  const editingNote = noteEditor ? annotations.notes.find((note) => note.id === noteEditor.id) ?? null : null
+  const noteEditorDirty =
+    !!editingNote &&
+    !!noteDraft &&
+    (noteDraft.kind !== editingNote.kind ||
+      noteDraft.color !== editingNote.color ||
+      noteDraft.text !== editingNote.text ||
+      noteDraft.resolved !== editingNote.resolved)
+
+  useUnsavedChanges('reader-sticky-note', noteEditorDirty)
+
+  const flashStickyNote = (id: string): void => {
+    setFlashNoteId(id)
+    if (noteFlashTimer.current) window.clearTimeout(noteFlashTimer.current)
+    noteFlashTimer.current = window.setTimeout(() => setFlashNoteId(null), 1800)
+  }
+
+  const closeStickyEditor = (): void => {
+    if (noteEditorDirty) {
+      notify(t("贴纸有未保存的修改，请先保存"), 'info')
+      return
+    }
+    if (noteEditor?.isNew) removeStickyNote(noteEditor.id)
+    setNoteEditor(null)
+    setNoteDraft(null)
+  }
+
+  const openStickyEditor = (
+    note: StickyNoteRecord,
+    position: { left: number; top: number },
+    isNew = false
+  ): void => {
+    if (noteEditor && noteEditor.id !== note.id && noteEditorDirty) {
+      notify(t("贴纸有未保存的修改，请先保存"), 'info')
+      return
+    }
+    if (noteEditor && noteEditor.id !== note.id && noteEditor.isNew) removeStickyNote(noteEditor.id)
+    const width = 316
+    const height = 360
+    setNoteEditor({
+      id: note.id,
+      isNew,
+      left: Math.min(Math.max(12, position.left), window.innerWidth - width - 12),
+      top: Math.min(Math.max(12, position.top), window.innerHeight - height - 12)
+    })
+    setNoteDraft({ kind: note.kind, color: note.color, text: note.text, resolved: note.resolved })
+  }
+
+  const saveStickyNote = (): void => {
+    if (!noteEditor || !noteDraft) return
+    const text = noteDraft.text.trim()
+    if (!text && noteEditor.isNew) {
+      removeStickyNote(noteEditor.id)
+      setNoteEditor(null)
+      setNoteDraft(null)
+      return
+    }
+    updateStickyNote(noteEditor.id, { ...noteDraft, text })
+    flashStickyNote(noteEditor.id)
+    setNoteEditor(null)
+    setNoteDraft(null)
+    notify(t("贴纸已保存"), 'success')
+  }
+
+  const deleteStickyNote = (): void => {
+    if (!noteEditor) return
+    if (!window.confirm(t("删除这条贴纸？"))) return
+    removeStickyNote(noteEditor.id)
+    setNoteEditor(null)
+    setNoteDraft(null)
+    notify(t("已删除贴纸"), 'success')
+  }
+
+  const askAgentFromSticky = (): void => {
+    if (!noteEditor || !editingNote || !noteDraft) return
+    const text = noteDraft.text.trim()
+    if (!text) return
+    updateStickyNote(noteEditor.id, { ...noteDraft, text })
+    setNoteEditor(null)
+    setNoteDraft(null)
+    void openAgentQuote(text, editingNote.page)
+  }
+
+  const placeStickyNote = (
+    pageNumber: number,
+    x: number,
+    y: number,
+    position: { left: number; top: number }
+  ): void => {
+    if (noteEditorDirty) {
+      notify(t("贴纸有未保存的修改，请先保存"), 'info')
+      return
+    }
+    if (noteEditor?.isNew) removeStickyNote(noteEditor.id)
+    const note = addStickyNote({
+      page: pageNumber,
+      kind: 'idea',
+      color: stickyColor,
+      x,
+      y,
+      text: ''
+    })
+    openStickyEditor(note, position, true)
+  }
+
+  const changeAnnotationTool = (next: AnnotationTool): void => {
+    if (noteEditorDirty) {
+      notify(t("贴纸有未保存的修改，请先保存"), 'info')
+      return
+    }
+    if (noteEditor) {
+      if (noteEditor.isNew) removeStickyNote(noteEditor.id)
+      setNoteEditor(null)
+      setNoteDraft(null)
+    }
+    setAnnotationTool(next)
+  }
+
+  const exitAnnotating = (): void => {
+    if (noteEditorDirty) {
+      notify(t("贴纸有未保存的修改，请先保存"), 'info')
+      return
+    }
+    if (noteEditor?.isNew) removeStickyNote(noteEditor.id)
+    setNoteEditor(null)
+    setNoteDraft(null)
+    setAnnotationTool('note')
+    setAnnotating(false)
+  }
+
+  const toggleAnnotating = (): void => {
+    if (annotating) {
+      exitAnnotating()
+      return
+    }
+    window.getSelection()?.removeAllRanges()
+    setSelection(null)
+    setAiActionMenuOpen(false)
+    setAnnotationTool('note')
+    setAnnotating(true)
+  }
+
+  const changeTone = async (next: DocumentToneId): Promise<void> => {
+    const previous = tone
+    setTone(next)
+    writeLastTone(next)
+    try {
+      await window.api.library.update(doc.id, { tone: next })
+      await onChanged()
+    } catch (error) {
+      setTone(previous)
+      notify(t("切换文献色调失败：{0}", [(error as Error).message]), 'error')
+    }
+  }
+
   const editingHighlight = editor ? docHighlights.find((highlight) => highlight.id === editor.id) ?? null : null
 
   const highlightEditorDirty =
@@ -222,8 +434,92 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
     setOutline([])
     setOutlineLoaded(false)
     setFallbackToc([])
+    setAnnotating(false)
+    setAnnotationTool('note')
+    setAnnotationsVisible(true)
+    setNoteEditor(null)
+    setNoteDraft(null)
+    setFlashNoteId(null)
+    setToneMenuOpen(false)
+    setTone(isDocumentToneId(doc.tone) ? doc.tone : readLastTone())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.id])
+
+  useEffect(() => {
+    if (isDocumentToneId(doc.tone)) setTone(doc.tone)
+  }, [doc.id, doc.tone])
+
+  useEffect(() => {
+    if (tone === 'night' && INK_COLORS.some((color) => color.value === inkColor)) {
+      setInkColor(NIGHT_INK_COLORS[0].value)
+    } else if (tone !== 'night' && NIGHT_INK_COLORS.some((color) => color.value === inkColor)) {
+      setInkColor(INK_COLORS[0].value)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tone])
+
+  useEffect(() => {
+    if (noteEditor && !annotations.notes.some((note) => note.id === noteEditor.id)) {
+      setNoteEditor(null)
+      setNoteDraft(null)
+    }
+  }, [annotations.notes, noteEditor])
+
+  useEffect(() => {
+    return () => {
+      if (noteFlashTimer.current) {
+        window.clearTimeout(noteFlashTimer.current)
+        noteFlashTimer.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!toneMenuOpen) return
+    const close = (event: MouseEvent): void => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('.reader-toolbar-menu-wrap')) return
+      setToneMenuOpen(false)
+    }
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [toneMenuOpen])
+
+  useEffect(() => {
+    if (!annotating && !toneMenuOpen) return
+    const onKey = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) redoAnnotation()
+        else undoAnnotation()
+        return
+      }
+      if (event.key === 'Escape') {
+        if (toneMenuOpen) {
+          setToneMenuOpen(false)
+          return
+        }
+        if (noteEditor) {
+          closeStickyEditor()
+          return
+        }
+        exitAnnotating()
+        return
+      }
+      if (!annotating || event.ctrlKey || event.metaKey || event.altKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'v') changeAnnotationTool('select')
+      else if (key === 'n') changeAnnotationTool('note')
+      else if (key === 'p') changeAnnotationTool('pen')
+      else if (key === 'm') changeAnnotationTool('marker')
+      else if (key === 'e') changeAnnotationTool('eraser')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotating, toneMenuOpen, noteEditor, noteEditorDirty, undoAnnotation, redoAnnotation])
 
   useEffect(() => {
     setTranslationImageMode(translation?.translatedImageFile ? 'translated' : 'original')
@@ -490,6 +786,29 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           </button>
         </div>
 
+        <div className="reader-toolbar-menu-wrap">
+          <button
+            className={cx('icon-btn', toneMenuOpen && 'active')}
+            title={t("文献色调：{0}", [t(toneById(tone).label)])}
+            onClick={() => setToneMenuOpen((open) => !open)}
+          >
+            <Palette size={17} />
+          </button>
+          {toneMenuOpen && (
+            <DocumentToneMenu tone={tone} onSelect={(next) => void changeTone(next)} onClose={() => setToneMenuOpen(false)} />
+          )}
+        </div>
+
+        {docFormat === 'pdf' && (
+          <button
+            className={cx('btn ghost small', annotating && 'active')}
+            title={t("在文献任意位置添加贴纸、画笔与标注")}
+            onClick={toggleAnnotating}
+          >
+            <PenLine size={15} /> {' '}{t("标注")}{' '}
+          </button>
+        )}
+
         {!translation && hasTranslation && (
           <button className="btn ghost small" onClick={onRestoreTranslation} title={t("重新显示翻译面板")}>
             <ScanLine size={15} /> {' '}{t("显示翻译")}{' '}</button>
@@ -581,7 +900,33 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             label={t("调整翻译面板宽度")}
           />
         )}
-        <div className="reader-pdf">
+        <div
+          className={cx('reader-pdf', !annotationsVisible && 'annotations-hidden')}
+          data-tone={tone}
+        >
+          {annotating && docFormat === 'pdf' && (
+            <AnnotationToolbar
+              tool={annotationTool}
+              inkColor={inkColor}
+              inkColors={inkPalette}
+              inkWidth={inkWidth}
+              stickyColor={stickyColor}
+              canUndo={canUndoAnnotation}
+              canRedo={canRedoAnnotation}
+              visible={annotationsVisible}
+              onTool={changeAnnotationTool}
+              onInkColor={setInkColor}
+              onInkWidth={setInkWidth}
+              onStickyColor={setStickyColor}
+              onUndo={undoAnnotation}
+              onRedo={redoAnnotation}
+              onClearPage={() => {
+                if (window.confirm(t("清空第 {0} 页的全部墨迹？", [page]))) clearStrokes(page)
+              }}
+              onToggleVisible={() => setAnnotationsVisible((visible) => !visible)}
+              onClose={exitAnnotating}
+            />
+          )}
           {!doc.fileName ? (
             <div className="empty-state" style={{ margin: 'auto' }}>
               <h2>{t("这是一条外部导入的文献记录")}</h2>
@@ -595,9 +940,21 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             initialPage={startPage}
             highlights={docHighlights}
             flashHighlightId={flashHighlightId}
+            annotations={annotations}
+            annotationMode={annotating}
+            annotationTool={annotationTool}
+            inkColor={inkColor}
+            inkWidth={inkWidth}
+            flashNoteId={flashNoteId}
+            tone={tone}
             onPageChange={(nextPage) => {
               setPage(nextPage)
               if (!highlightEditorDirty) setEditor(null)
+              if (!noteEditorDirty && noteEditor) {
+                if (noteEditor.isNew) removeStickyNote(noteEditor.id)
+                setNoteEditor(null)
+                setNoteDraft(null)
+              }
             }}
             onPagesLoaded={setPageCount}
             onSelection={(next) => {
@@ -606,6 +963,11 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
               if (next && !highlightEditorDirty) setEditor(null)
             }}
             onHighlightClick={openHighlightEditor}
+            onPlaceNote={placeStickyNote}
+            onNoteClick={(note, position) => openStickyEditor(note, position)}
+            onNoteMove={(note, x, y) => updateStickyNote(note.id, { x, y })}
+            onStroke={addStroke}
+            onEraseStroke={removeStroke}
             onOutline={(items) => {
               setOutline(items)
               setOutlineLoaded(true)
@@ -623,6 +985,11 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             onPageChange={(nextPage) => {
               setPage(nextPage)
               if (!highlightEditorDirty) setEditor(null)
+              if (!noteEditorDirty && noteEditor) {
+                if (noteEditor.isNew) removeStickyNote(noteEditor.id)
+                setNoteEditor(null)
+                setNoteDraft(null)
+              }
             }}
             onPagesLoaded={setPageCount}
             onSelection={(next) => {
@@ -654,6 +1021,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
                 chats={chats}
                 collections={collections}
                 highlights={highlights}
+                annotations={annotations}
                 excerpts={excerpts}
                 tasks={tasks}
                 page={page}
@@ -668,6 +1036,10 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
                 onChanged={onChanged}
                 onQuoteApplied={() => setQuote(null)}
                 onJumpPage={goToPage}
+                onRevealNote={(note) => {
+                  goToPage(note.page)
+                  flashStickyNote(note.id)
+                }}
                 onOpenDoc={(docId, targetPage) => onOpenDoc?.(docId, targetPage)}
                 onDetach={(nextTab) => void detachPanel(nextTab)}
                 notify={notify}
@@ -758,6 +1130,24 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
               <Save size={13} /> {' '}{t("保存")}{' '}</button>
           </div>
         </div>
+      )}
+
+      {noteEditor && editingNote && noteDraft && (
+        <StickyNoteEditor
+          page={editingNote.page}
+          isNew={noteEditor.isNew}
+          kind={noteDraft.kind}
+          color={noteDraft.color}
+          text={noteDraft.text}
+          resolved={noteDraft.resolved}
+          position={{ left: noteEditor.left, top: noteEditor.top }}
+          canAskAgent={Boolean(noteDraft.text.trim())}
+          onChange={(patch) => setNoteDraft((current) => (current ? { ...current, ...patch } : current))}
+          onSave={saveStickyNote}
+          onClose={closeStickyEditor}
+          onDelete={deleteStickyNote}
+          onAskAgent={askAgentFromSticky}
+        />
       )}
 
       {actionRequest && (

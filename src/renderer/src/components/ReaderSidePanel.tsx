@@ -5,7 +5,9 @@ import {
   Check,
   ChevronRight,
   Highlighter,
+  HelpCircle,
   Info,
+  Lightbulb,
   ListTodo,
   MessageSquarePlus,
   PanelRightOpen,
@@ -17,7 +19,17 @@ import {
   Trash2,
   X
 } from 'lucide-react'
-import type { ChatSession, Collection, DocumentMeta, Excerpt, Highlight, ReadingStatus, TaskItem } from '@shared/types'
+import type {
+  ChatSession,
+  Collection,
+  DocumentAnnotations,
+  DocumentMeta,
+  Excerpt,
+  Highlight,
+  ReadingStatus,
+  StickyNote as StickyNoteRecord,
+  TaskItem
+} from '@shared/types'
 import type { ReaderPanelTab } from '@shared/api'
 import type { PdfOutlineItem } from './PdfViewer'
 import ChatThread from './ChatThread'
@@ -39,6 +51,7 @@ interface Props {
   chats: ChatSession[]
   collections: Collection[]
   highlights: Highlight[]
+  annotations?: DocumentAnnotations
   excerpts: Excerpt[]
   tasks: TaskItem[]
   page: number
@@ -53,6 +66,7 @@ interface Props {
   onChanged(): Promise<void> | void
   onQuoteApplied(): void
   onJumpPage(page: number): void
+  onRevealNote?(note: StickyNoteRecord): void
   onOpenDoc(docId: string, page?: number): void
   onDetach?(tab: ReaderPanelTab): void
   onDirtyChange?(dirty: boolean): void
@@ -138,6 +152,7 @@ export default function ReaderSidePanel({
   chats,
   collections,
   highlights,
+  annotations,
   excerpts,
   tasks,
   page,
@@ -152,6 +167,7 @@ export default function ReaderSidePanel({
   onChanged,
   onQuoteApplied,
   onJumpPage,
+  onRevealNote,
   onOpenDoc,
   onDetach,
   onDirtyChange,
@@ -219,6 +235,24 @@ export default function ReaderSidePanel({
     }
     return Array.from(groups.entries()).sort((a, b) => a[0] - b[0])
   }, [docHighlights])
+  const noteGroups = useMemo(() => {
+    const groups = new Map<number, StickyNoteRecord[]>()
+    for (const note of annotations?.notes ?? []) {
+      const list = groups.get(note.page) ?? []
+      list.push(note)
+      groups.set(note.page, list)
+    }
+    for (const list of groups.values()) list.sort((a, b) => a.createdAt - b.createdAt)
+    return Array.from(groups.entries()).sort((a, b) => a[0] - b[0])
+  }, [annotations])
+  const strokeGroups = useMemo(() => {
+    const groups = new Map<number, number>()
+    for (const stroke of annotations?.strokes ?? []) {
+      groups.set(stroke.page, (groups.get(stroke.page) ?? 0) + 1)
+    }
+    return Array.from(groups.entries()).sort((a, b) => a[0] - b[0])
+  }, [annotations])
+  const annotationCount = (annotations?.notes.length ?? 0) + strokeGroups.length
 
   const metaDirty =
     title !== doc.title ||
@@ -500,6 +534,14 @@ export default function ReaderSidePanel({
         >
           <Highlighter size={14} /> <span className="tab-label">{t("高亮")}</span>
           {docHighlights.length > 0 && <span className="tab-count">{docHighlights.length}</span>}
+        </button>
+        <button
+          className={cx('panel-tab', tab === 'annotations' && 'active')}
+          onClick={() => onTab('annotations')}
+          title={t("标注")}
+        >
+          <PenLine size={14} /> <span className="tab-label">{t("标注")}</span>
+          {annotationCount > 0 && <span className="tab-count">{annotationCount}</span>}
         </button>
         <button
           className={cx('panel-tab', tab === 'excerpts' && 'active')}
@@ -806,6 +848,69 @@ export default function ReaderSidePanel({
                       </span>
                     </div>
                   ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'annotations' && (
+        <div className="panel-body annotations-panel">
+          {annotationCount === 0 ? (
+            <div className="panel-empty">
+              <PenLine size={26} />
+              <h3>{t("还没有标注")}</h3>
+              <p className="muted">{t("在文献中开启标注，任意位置放置贴纸或使用画笔。")}</p>
+            </div>
+          ) : (
+            <div className="annotation-list">
+              {noteGroups.map(([pageNumber, items]) => (
+                <div className="highlight-group" key={`notes-${pageNumber}`}>
+                  <div className="highlight-group-head">
+                    <span>{t("第")} {pageNumber} {t("页")} · {t("贴纸")}</span>
+                    <span className="muted small">{items.length} {t("条")}</span>
+                  </div>
+                  {items.map((note) => (
+                    <div
+                      key={note.id}
+                      className="highlight-item annotation-note-item"
+                      role="button"
+                      tabIndex={0}
+                      title={t("点击定位到贴纸")}
+                      onClick={() => onRevealNote?.(note)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') onRevealNote?.(note)
+                      }}
+                    >
+                      <span className={`highlight-color note-${note.color}`} />
+                      <span className="highlight-body">
+                        <span className="highlight-text">
+                          {note.kind === 'question' ? (
+                            <HelpCircle size={12} className="annotation-kind-icon" />
+                          ) : (
+                            <Lightbulb size={12} className="annotation-kind-icon" />
+                          )}
+                          {note.text || (note.kind === 'question' ? t("未填写的问题") : t("未填写的想法"))}
+                        </span>
+                        {note.resolved && <span className="highlight-note">{t("已解决")}</span>}
+                      </span>
+                      <span className="highlight-page">p.{note.page}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {strokeGroups.map(([pageNumber, count]) => (
+                <div className="highlight-group" key={`ink-${pageNumber}`}>
+                  <button
+                    type="button"
+                    className="annotation-ink-entry"
+                    onClick={() => onJumpPage(pageNumber)}
+                    title={t("点击跳转到该页")}
+                  >
+                    <PenLine size={14} />
+                    <span>{t("第 {0} 页 · {1} 笔墨迹", [pageNumber, count])}</span>
+                  </button>
                 </div>
               ))}
             </div>

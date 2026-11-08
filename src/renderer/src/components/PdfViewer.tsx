@@ -1,11 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import * as pdfjsLib from 'pdfjs-dist'
 import { EventBus, LinkTarget, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
 import 'pdfjs-dist/web/pdf_viewer.css'
 import { Loader2, TriangleAlert } from 'lucide-react'
 import { pdfOptions } from '../pdf'
-import type { Highlight, HighlightRect } from '@shared/types'
+import type { DocumentAnnotations, Highlight, HighlightRect, InkStroke, StickyNote } from '@shared/types'
 import { t } from '@shared/i18n'
+import PageAnnotationLayer, { type AnnotationTool } from './PageAnnotationLayer'
+import { isDocumentToneId, paintToneImagePreserve } from '../documentTone'
 
 export interface PdfSelection {
   text: string
@@ -34,11 +37,29 @@ interface Props {
   initialPage: number
   highlights: Highlight[]
   flashHighlightId?: string | null
+  annotations?: DocumentAnnotations
+  annotationMode?: boolean
+  annotationTool?: AnnotationTool
+  inkColor?: string
+  inkWidth?: number
+  flashNoteId?: string | null
+  tone?: string
   onPageChange(page: number): void
   onPagesLoaded(count: number): void
   onSelection(selection: PdfSelection | null): void
   onHighlightClick(highlight: Highlight, position: { left: number; top: number }): void
   onOutline(items: PdfOutlineItem[]): void
+  onPlaceNote?(page: number, x: number, y: number, position: { left: number; top: number }): void
+  onNoteClick?(note: StickyNote, position: { left: number; top: number }): void
+  onNoteMove?(note: StickyNote, x: number, y: number): void
+  onStroke?(input: {
+    page: number
+    tool: InkStroke['tool']
+    color: string
+    width: number
+    points: InkStroke['points']
+  }): void
+  onEraseStroke?(id: string): void
 }
 
 function clamp01(value: number): number {
@@ -49,11 +70,15 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
   const scrollRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const viewerObj = useRef<any>(null)
+  const pdfDocRef = useRef<any>(null)
   const loadingTaskRef = useRef<any>(null)
   const pageRef = useRef(props.initialPage || 1)
   const layersRef = useRef(new Map<number, HTMLDivElement>())
+  const toneLayersRef = useRef(new Map<number, HTMLCanvasElement>())
+  const pageBoundsRef = useRef(new Map<number, { x: number; y: number; width: number; height: number }[]>())
   const pendingPageRef = useRef<number | null>(null)
   const pagesReadyRef = useRef(false)
+  const [pageHosts, setPageHosts] = useState<Map<number, HTMLDivElement>>(new Map())
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -104,6 +129,64 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
           el.dataset.highlightId = highlight.id
           layer.appendChild(el)
         }
+      }
+    }
+  }
+
+  const ensurePageHost = (pageNumber: number, pageDiv: HTMLElement): void => {
+    let host = pageDiv.querySelector(':scope > .page-annotation-host') as HTMLDivElement | null
+    if (!host) {
+      host = document.createElement('div')
+      host.className = 'page-annotation-host'
+      pageDiv.appendChild(host)
+    }
+    const node = host
+    setPageHosts((previous) => {
+      if (previous.get(pageNumber) === node) return previous
+      const next = new Map(previous)
+      next.set(pageNumber, node)
+      return next
+    })
+  }
+
+  const paintToneLayers = (): void => {
+    const viewer = viewerObj.current
+    const pdf = pdfDocRef.current
+    if (!viewer || !pdf) return
+    const rawTone = callbacks.current.tone
+    const tone = isDocumentToneId(rawTone) ? rawTone : 'original'
+    if (tone === 'original') {
+      for (const canvas of toneLayersRef.current.values()) canvas.remove()
+      toneLayersRef.current.clear()
+      return
+    }
+    const pageCount = viewer.pagesCount || 0
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
+      let pageView: any
+      try {
+        pageView = viewer.getPageView(pageNumber - 1)
+      } catch {
+        continue
+      }
+      const pageDiv = pageView?.div as HTMLElement | undefined
+      if (!pageDiv) continue
+      const canvas = paintToneImagePreserve({
+        pageDiv,
+        pageView,
+        pdf,
+        pageNumber,
+        tone,
+        layer: toneLayersRef.current.get(pageNumber),
+        bounds: pageBoundsRef.current.get(pageNumber),
+        onBounds: (bounds) => {
+          pageBoundsRef.current.set(pageNumber, bounds)
+          window.requestAnimationFrame(() => paintToneLayers())
+        }
+      })
+      if (canvas) toneLayersRef.current.set(pageNumber, canvas)
+      else {
+        toneLayersRef.current.get(pageNumber)?.remove()
+        toneLayersRef.current.delete(pageNumber)
       }
     }
   }
@@ -239,13 +322,27 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
         viewer.setDocument(pdf)
         linkService.setDocument(pdf, null)
         viewerObj.current = viewer
+        pdfDocRef.current = pdf
 
         eventBus.on('pagechanging', (event: { pageNumber: number }) => {
           pageRef.current = event.pageNumber
           callbacks.current.onPageChange(event.pageNumber)
         })
-        eventBus.on('pagerendered', () => paintHighlights())
-        eventBus.on('scalechanging', () => window.requestAnimationFrame(paintHighlights))
+        eventBus.on('pagerendered', (event: { pageNumber: number; source?: any }) => {
+          paintHighlights()
+          const pageView = viewer.getPageView(event.pageNumber - 1)
+          const pageDiv = pageView?.div as HTMLElement | undefined
+          if (pageDiv) ensurePageHost(event.pageNumber, pageDiv)
+          const toneLayer = toneLayersRef.current.get(event.pageNumber)
+          if (toneLayer) delete toneLayer.dataset.renderKey
+          paintToneLayers()
+        })
+        eventBus.on('scalechanging', () => {
+          window.requestAnimationFrame(() => {
+            paintHighlights()
+            paintToneLayers()
+          })
+        })
         eventBus.on('pagesinit', () => {
           viewer.currentScaleValue = 'page-width'
           pagesReadyRef.current = true
@@ -255,6 +352,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
           callbacks.current.onPagesLoaded(pdf.numPages)
           if (!cancelled) setLoading(false)
           paintHighlights()
+          paintToneLayers()
         })
       } catch (err) {
         if (!cancelled) {
@@ -279,6 +377,11 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
       loadingTaskRef.current = null
       layersRef.current.forEach((layer) => layer.remove())
       layersRef.current.clear()
+      toneLayersRef.current.forEach((layer) => layer.remove())
+      toneLayersRef.current.clear()
+      pageBoundsRef.current.clear()
+      pdfDocRef.current = null
+      setPageHosts(new Map())
     }
   }, [props.docId])
 
@@ -317,7 +420,16 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.highlights, props.flashHighlightId])
 
+  useEffect(() => {
+    paintToneLayers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.tone])
+
   const handleMouseUp = (event: React.MouseEvent): void => {
+    if (callbacks.current.annotationMode && callbacks.current.annotationTool && callbacks.current.annotationTool !== 'select') {
+      callbacks.current.onSelection(null)
+      return
+    }
     window.setTimeout(() => {
       const selection = window.getSelection()
       const text = selection?.toString().trim()
@@ -394,9 +506,40 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
 
   return (
     <div className="pdf-viewer-wrap">
-      <div className="pdf-scroll" ref={scrollRef} onMouseUp={handleMouseUp} onScroll={() => callbacks.current.onSelection(null)}>
+      <div
+        className={`pdf-scroll${
+          props.annotationMode && (props.annotationTool ?? 'select') !== 'select' ? ' annotating' : ''
+        }`}
+        ref={scrollRef}
+        onMouseUp={handleMouseUp}
+        onScroll={() => callbacks.current.onSelection(null)}
+      >
         <div className="pdfViewer" ref={viewportRef} />
       </div>
+      {[...pageHosts.entries()].map(([pageNumber, host]) =>
+        createPortal(
+          <PageAnnotationLayer
+            page={pageNumber}
+            notes={props.annotations?.notes ?? []}
+            strokes={props.annotations?.strokes ?? []}
+            tool={props.annotationTool ?? 'select'}
+            active={Boolean(props.annotationMode)}
+            inkColor={props.inkColor ?? '#3f342d'}
+            inkWidth={props.inkWidth ?? 0.0045}
+            flashNoteId={props.flashNoteId}
+            onPlaceNote={(x, y, position) => callbacks.current.onPlaceNote?.(pageNumber, x, y, position)}
+            onNoteClick={(note, position) => callbacks.current.onNoteClick?.(note, position)}
+            onNoteMove={(id, x, y) => {
+              const note = (props.annotations?.notes ?? []).find((item) => item.id === id)
+              if (note) callbacks.current.onNoteMove?.(note, x, y)
+            }}
+            onStroke={(input) => callbacks.current.onStroke?.(input)}
+            onErase={(id) => callbacks.current.onEraseStroke?.(id)}
+          />,
+          host,
+          pageNumber
+        )
+      )}
       {loading && (
         <div className="pdf-overlay">
           <Loader2 size={22} className="spin" />

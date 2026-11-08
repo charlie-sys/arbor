@@ -3,6 +3,7 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { store } from './store'
+import { loadAnnotations, removeAnnotations, saveAnnotations } from './annotationStore'
 import { usage } from './usage'
 import { normalizePricing } from '../shared/usage'
 import { setLocale } from '../shared/i18n'
@@ -33,6 +34,7 @@ import type {
   CanvasEdge,
   CanvasNode,
   ChatRequest,
+  DocumentAnnotations,
   Excerpt,
   Highlight,
   InboxAttachment,
@@ -130,6 +132,7 @@ export function registerIpc(): void {
 
   ipcMain.handle('library:delete', async (_event, id: string) => {
     await store.deleteDocument(id)
+    await removeAnnotations(id)
   })
 
   ipcMain.handle('library:get-texts', async (_event, id: string) => {
@@ -318,6 +321,19 @@ export function registerIpc(): void {
 
   ipcMain.handle('highlight:list', (_event, docId: string) => {
     return store.getHighlights(docId)
+  })
+
+  ipcMain.handle('annotation:load', (_event, docId: string) => {
+    return loadAnnotations(docId)
+  })
+
+  ipcMain.handle('annotation:save', async (_event, payload: { docId: string; data: DocumentAnnotations }) => {
+    if (!store.getDocument(payload.docId)) throw new Error(t("文献不存在"))
+    await saveAnnotations(payload.docId, payload.data)
+  })
+
+  ipcMain.handle('annotation:remove', async (_event, docId: string) => {
+    await removeAnnotations(docId)
   })
 
   ipcMain.handle(

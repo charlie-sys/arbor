@@ -541,7 +541,7 @@ html[data-theme='midnight'] .excerpt-source {
   background: var(--surface-hover);
 }
 html[data-theme='midnight'] .reader-pdf {
-  background: var(--bg);
+  background: var(--doc-surround, var(--bg));
 }
 html[data-theme='midnight'] .markdown code {
   background: var(--code-bg);

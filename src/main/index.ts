@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { store } from './store'
+import { flushAnnotations } from './annotationStore'
 import { usage } from './usage'
 import { registerIpc } from './ipc'
 import { closeReaderPanel, initReaderPanel, registerReaderPanelIpc } from './readerPanel'
@@ -239,6 +240,18 @@ if (gotLock) {
   app.on('will-quit', () => {
     closeReaderPanel(true)
     globalShortcut.unregisterAll()
+  })
+
+  let annotationsFlushed = false
+  app.on('before-quit', (event) => {
+    if (annotationsFlushed) return
+    event.preventDefault()
+    void flushAnnotations()
+      .catch(() => undefined)
+      .finally(() => {
+        annotationsFlushed = true
+        app.quit()
+      })
   })
 
   app.on('window-all-closed', () => {
