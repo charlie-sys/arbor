@@ -40,6 +40,7 @@ Arbor 是一款本地优先的桌面文献研究工具。它把 PDF、Word、Mar
 - **桌面版下载**：前往 [Releases](https://github.com/charlie-sys/arbor/releases/latest) 下载最新的 Windows 安装包。
 - **在线产品页**：[charlie-sys.github.io/arbor](https://charlie-sys.github.io/arbor/)（功能、截图、使用说明、下载入口）。
 - **在线交互 Demo**：[demo.html](https://charlie-sys.github.io/arbor/demo.html)，使用模拟数据展示主要界面与交互，不连接真实 AI、不读取本地文件。
+- **使用演示**：[demo/interactive.html](https://charlie-sys.github.io/arbor/demo/interactive.html)，基于 v0.1.7 真实界面完整走完导入、提问、标注、翻译、导出与主题画布的交互演示；同目录附[视频](https://charlie-sys.github.io/arbor/demo/demo-video.mp4)、字幕与导出示例。
 - **用户体验问卷**：已迁移至 [腾讯文档收集表](https://docs.qq.com/form/page/DREh5UExreEdxTm5t)，10 题、约 2 分钟、匿名；`questionnaire.html` 保留为跳转页。
 
 ## 快速开始

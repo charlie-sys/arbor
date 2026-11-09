@@ -23,6 +23,7 @@
           <a href="#features">功能</a>
           <a href="#ali">阿栗</a>
           <a href="#interface">界面</a>
+          <a href="#demo">使用演示</a>
           <a href="#guide">使用说明</a>
           <a href="./demo.html">在线体验</a>
           <a href="https://docs.qq.com/form/page/DREh5UExreEdxTm5t" target="_blank" rel="noreferrer">体验问卷</a>
@@ -470,6 +471,47 @@
         </div>
       </section>
 
+      <section class="section" id="demo">
+        <div class="wrap">
+          <div class="section-head center">
+            <div class="section-kicker">使用演示</div>
+            <h2>跟着真实界面走一遍完整流程</h2>
+            <p>
+              基于 v0.1.7 桌面版的真实界面，用一篇深度学习综述完成导入、元数据核对、阅读提问、引用核对、高亮与贴纸、
+              截图翻译、笔记摘录、Word 导出、研究主题、阅读计划与画布导出。动画由实际操作画面逐步编排而成，便于完整展示流程。
+            </p>
+          </div>
+          <div class="window demo-stage">
+            <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>ARBOR · 使用演示</span></div>
+            <video class="demo-video" controls preload="metadata" poster="./demo/cover.png" playsinline>
+              <source src="./demo/demo-video.mp4" type="video/mp4" />
+              <track kind="subtitles" src="./demo/subtitles.vtt" srclang="zh" label="中文字幕" default />
+              你的浏览器不支持内嵌视频，可<a href="./demo/demo-video.mp4">直接下载观看</a>。
+            </video>
+          </div>
+          <div class="demo-actions">
+            <a class="btn primary" href="./demo/interactive.html">打开交互演示（推荐）</a>
+            <a class="btn" href="./demo/demo-video.mp4" download>下载演示视频</a>
+            <a class="btn ghost" href="./demo/guide.md">观看说明</a>
+          </div>
+          <p class="demo-load-hint">
+            交互演示为单文件（约 36 MB），首次打开需要稍等片刻；支持章节跳转、鼠标自由查看与全屏。建议使用 Edge 或 Chrome。
+          </p>
+          <div class="demo-files">
+            <a class="demo-file" href="./demo/storyboard.md"><strong>演示分镜与文案</strong><span>逐镜操作、说明与旁白文案</span></a>
+            <a class="demo-file" href="./demo/subtitles.srt" download><strong>中文字幕</strong><span>SRT 字幕，与视频时间轴对应</span></a>
+            <a class="demo-file" href="./demo/cap-reading.docx" download><strong>阅读整理示例</strong><span>本次由 Arbor 生成并导出的 Word 文档</span></a>
+            <a class="demo-file" href="./demo/cap-research-map.png" download><strong>研究地图示例</strong><span>本次由 Arbor 导出的主题画布</span></a>
+            <a class="demo-file" href="./demo/guide.md"><strong>演示使用说明</strong><span>播放器操作、素材清单与真实性边界</span></a>
+            <a class="demo-file" href="./demo/cover.png" download><strong>演示封面</strong><span>1920 × 1080 封面预览</span></a>
+          </div>
+          <div class="note">
+            界面为实际操作时采集的画面，逐步编排后叠加演示鼠标、缩放运镜与字幕，是演示动画而非未经剪辑的连续录屏，模型等待过程已压缩。
+            AI 回答、翻译与文档均来自用户指定模型服务的真实调用；演示用于介绍软件操作，AI 输出仍应回到论文核对。
+          </div>
+        </div>
+      </section>
+
       <section class="section alt" id="guide">
         <div class="wrap">
           <div class="section-head center">
@@ -540,6 +582,7 @@
             <h4>产品</h4>
             <a href="#features">功能</a>
             <a href="#interface">界面</a>
+            <a href="#demo">使用演示</a>
             <a href="./demo.html">在线 Demo</a>
             <a href="https://docs.qq.com/form/page/DREh5UExreEdxTm5t" target="_blank" rel="noreferrer">体验问卷</a>
           </div>
