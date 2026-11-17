@@ -24,6 +24,7 @@ import type {
 } from '../shared/types'
 import type { ComposeScope } from '../shared/compose'
 import type { AliEvent, AliSendRequest, AliSessionPatch } from '../shared/ali'
+import type { WebBounds, WebPageAction, WebPageSource } from '../shared/web'
 import type {
   PetRuntimeConfig,
   PetSettings,
@@ -44,6 +45,8 @@ const api: ZotAgentApi = {
     pickDocuments: () => ipcRenderer.invoke('library:pick-documents'),
     importDocument: (filePath: string, title: string) =>
       ipcRenderer.invoke('library:import-document', { filePath, title }),
+    importUrl: (url: string, requestId?: string) => ipcRenderer.invoke('library:import-url', { url, requestId }),
+    cancelImport: (requestId: string) => ipcRenderer.invoke('library:cancel-import', requestId),
     extractText: (id: string) => ipcRenderer.invoke('library:extract-text', id),
     setText: (id: string, pages: string[], meta?: { title?: string; authors?: string }) =>
       ipcRenderer.invoke('library:set-text', { id, pages, ...meta }),
@@ -51,6 +54,18 @@ const api: ZotAgentApi = {
     remove: (id: string) => ipcRenderer.invoke('library:delete', id),
     getTexts: (id: string) => ipcRenderer.invoke('library:get-texts', id),
     pdfUrl: (id: string) => `zotfile://files/${id}.pdf`
+  },
+  web: {
+    mount: (docId: string, bounds: WebBounds, source?: WebPageSource) => ipcRenderer.invoke('web:mount', { docId, bounds, source }),
+    unmount: () => ipcRenderer.invoke('web:unmount'),
+    bounds: (bounds: WebBounds | null) => ipcRenderer.invoke('web:bounds', bounds),
+    navigate: (url: string) => ipcRenderer.invoke('web:navigate', url),
+    action: (action: WebPageAction) => ipcRenderer.invoke('web:action', action),
+    state: () => ipcRenderer.invoke('web:state'),
+    source: (source: WebPageSource) => ipcRenderer.invoke('web:source', source),
+    capture: () => ipcRenderer.invoke('web:capture'),
+    selection: () => ipcRenderer.invoke('web:selection'),
+    openExternal: (url: string) => ipcRenderer.invoke('web:open-external', url)
   },
   collections: {
     add: (name: string, parentId?: string) => ipcRenderer.invoke('collection:add', { name, parentId }),
@@ -248,6 +263,7 @@ const api: ZotAgentApi = {
     restore: (name: string) => ipcRenderer.invoke('backup:restore', name)
   },
   app: {
+    newWindow: (docId?: string) => ipcRenderer.invoke('app:new-window', docId),
     showInFolder: (filePath: string) => ipcRenderer.invoke('app:show-in-folder', filePath)
   },
   updates: {
@@ -272,6 +288,7 @@ const api: ZotAgentApi = {
     sendOutline: (docId, state) => ipcRenderer.send('reader-panel:send-outline', { docId, ...state })
   },
   events: {
+    onLibraryChanged: (cb) => subscribe('library:changed', cb),
     onChat: (cb) => subscribe<ChatEvent>('chat:event', cb),
     onAli: (cb) => subscribe<AliEvent>('ali:event', cb),
     onTranslate: (cb) => subscribe<TranslateEvent>('translate:event', cb),

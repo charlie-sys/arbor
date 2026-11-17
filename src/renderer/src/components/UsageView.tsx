@@ -461,9 +461,10 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
   const [lastUpdated, setLastUpdated] = useState(0)
   const [rangeId, setRangeId] = useState<RangeId>(readInitialRange)
   const [clearing, setClearing] = useState(false)
+  const [kindFilter, setKindFilter] = useState<UsageKind | 'all'>('all')
 
-  const records = snapshot.records
-  const active = snapshot.active
+  const records = useMemo(() => snapshot.records.filter((record) => kindFilter === 'all' || record.kind === kindFilter), [snapshot.records, kindFilter])
+  const active = snapshot.active.filter((record) => kindFilter === 'all' || record.kind === kindFilter)
 
   const refreshSnapshot = async (): Promise<void> => {
     try {
@@ -670,6 +671,10 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
           <p className="muted">{t("实时统计输入 / 输出 Token、缓存命中率与调用趋势；数据来自服务端返回的 usage。")}</p>
         </div>
         <div className="view-head-actions">
+          <select className="select" aria-label={t('功能筛选')} value={kindFilter} onChange={(event) => setKindFilter(event.target.value as UsageKind | 'all')}>
+            <option value="all">{t('全部功能')}</option>
+            {Object.entries(KIND_LABEL).map(([kind, label]) => <option key={kind} value={kind}>{t(label)}</option>)}
+          </select>
           <div className="usage-range" role="tablist" aria-label={t("时间跨度")}>
             {RANGES.map((range) => (
               <button
@@ -754,7 +759,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
             </div>
             <div className="usage-kpi">
               <div className="usage-kpi-head">
-                <span>{t("缓存命中率")}</span>
+                <span title={t('缓存由模型服务端管理，匹配相同请求前缀；首次请求、前缀变化或缓存过期都会降低命中率。')}>{t("缓存命中率")}</span>
                 <span className="usage-kpi-icon">
                   <Database size={16} />
                 </span>

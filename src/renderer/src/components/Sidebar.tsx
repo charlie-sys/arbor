@@ -63,6 +63,9 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
       </button>
 
       <nav className="nav">
+        <button className="nav-item" title={t('新建窗口（Ctrl+Shift+N）')} onClick={() => void window.api.app.newWindow().catch((err: Error) => notify(err.message, 'error'))}>
+          <Plus size={17} /><span>{t('新建窗口')}</span>
+        </button>
         <button className={cx('nav-item', view.name === 'library' && 'active')} onClick={() => onNavigate({ name: 'library' })}>
           <BookOpen size={17} />
           <span>{t("文献库")}</span>

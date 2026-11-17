@@ -79,7 +79,7 @@ export async function buildContext(
 
   const totalBudget = resolveContextBudget(budget)
   const perDocBudget = Math.max(
-    3000,
+    1,
     Math.floor((totalBudget - (options?.contextMode === 'selection' ? options.selection?.trim().length ?? 0 : 0)) / docs.length)
   )
   const terms = queryTerms(query)
@@ -99,6 +99,7 @@ export async function buildContext(
 
     const info = [doc.authors, doc.year, doc.journal].filter(Boolean).join(' · ')
     const header = t("===== 文献：《{0}》{1} =====", [doc.title, info ? t('（{0}）', [info]) : ''])
+      + (doc.sourceFormat === 'web' ? `\n${t('网页来源：{0}', [doc.url])}` : '')
 
     if (options?.includeNotes && doc.notes.trim()) {
       blocks.push(t("{0}\n【文献笔记】\n{1}", [header, doc.notes.trim()]))
@@ -125,7 +126,15 @@ export async function buildContext(
     if (totalLen <= perDocBudget) {
       selected = chunks
     } else {
-      selected = [...chunks].sort((a, b) => b.score - a.score).slice(0, Math.max(2, Math.ceil(perDocBudget / 1300)))
+      if (!terms.length) {
+        // 固定前缀均匀覆盖全文，避免只留下开头几页。
+        const count = Math.min(chunks.length, Math.max(1, Math.floor(perDocBudget / 1450)))
+        selected = Array.from({ length: count }, (_, i) => chunks[
+          count === 1 ? 0 : Math.round(i * (chunks.length - 1) / (count - 1))
+        ])
+      } else {
+        selected = [...chunks].sort((a, b) => b.score - a.score).slice(0, Math.max(1, Math.ceil(perDocBudget / 1300)))
+      }
       selected.sort((a, b) => a.page - b.page || a.order - b.order)
       let len = 0
       const kept: Chunk[] = []
@@ -142,7 +151,42 @@ export async function buildContext(
     usedDocIds.push(doc.id)
   }
 
-  return { context: blocks.join('\n\n'), usedDocIds }
+  return { context: blocks.join('\n\n').slice(0, totalBudget), usedDocIds }
+}
+
+/** 文献前缀不随问题、选区或笔记变化；本轮资料放入 user 消息并随历史保存。 */
+export async function buildPromptContext(docIds: string[], query: string, budget: number, options: ChatContext): Promise<{
+  stable: string; turn: string
+}> {
+  if (options.contextMode === 'none') return { stable: '', turn: '' }
+  const ids = [...new Set(docIds)].sort()
+  const limit = resolveContextBudget(budget)
+  if (options.contextMode === 'page') {
+    const current = await buildContext(ids, query, limit, options)
+    return { stable: '', turn: t('本轮只依据当前页回答；该页无法回答时请明确说明。') + '\n' + current.context }
+  }
+  const full = await buildContext(ids, '', Number.POSITIVE_INFINITY, { contextMode: 'auto' })
+  // 固定预留本轮资料预算，不能因选区或笔记长度改变文献前缀。
+  const stableBudget = Number.isFinite(limit) ? Math.max(1, Math.floor(limit * 0.6)) : limit
+  const limited = full.context.length > stableBudget
+  const stable = limited
+    ? (await buildContext(ids, '', stableBudget, { contextMode: 'auto' })).context
+    : full.context
+  const extra: string[] = []
+  if (limited) {
+    extra.push((await buildContext(ids, query, Math.max(1, limit - stable.length), options)).context)
+  } else {
+    if (options.contextMode === 'selection' && options.selection?.trim()) {
+      extra.push(t('以下选中原文是本轮最高优先级依据（第 {0} 页）：\n{1}', [options.page ?? 1, options.selection.trim()]))
+    }
+    if (options.includeNotes) {
+      for (const id of ids) {
+        const doc = store.getDocument(id)
+        if (doc?.notes.trim()) extra.push(t('《{0}》文献笔记：\n{1}', [doc.title, doc.notes.trim()]))
+      }
+    }
+  }
+  return { stable, turn: extra.filter(Boolean).join('\n\n').slice(0, Math.max(0, limit - stable.length)) }
 }
 
 export async function buildChatTranscript(chatId: string, limit = 40000): Promise<string> {

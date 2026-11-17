@@ -119,6 +119,8 @@ export interface DocumentMeta {
   updatedAt: number
   fileName: string
   sourceFormat?: DocumentFormat
+  webCapturedAt?: number
+  webArchivedAt?: number
   pageCount: number
   starred: boolean
   readingStatus: ReadingStatus
@@ -131,7 +133,7 @@ export interface DocumentMeta {
 
 export type ReadingStatus = 'unread' | 'reading' | 'read'
 
-export type DocumentFormat = 'pdf' | 'docx' | 'doc' | 'txt' | 'md'
+export type DocumentFormat = 'pdf' | 'docx' | 'doc' | 'txt' | 'md' | 'web'
 
 export type DocumentToneId = 'original' | 'paper' | 'eye-care' | 'night' | 'high-contrast'
 
@@ -146,6 +148,9 @@ export interface ChatMessage {
   quotedText?: string
   quotedPage?: number
   attachments?: InboxAttachment[]
+  // 本轮实际发送的补充资料，重放历史时保持相同的模型输入。
+  promptContext?: string
+  promptImages?: InboxAttachment[]
 }
 
 export interface ChatSession {
@@ -458,13 +463,14 @@ export interface ChatContext {
   page?: number
   selection?: string
   includeNotes?: boolean
+  webVisual?: boolean
 }
 
 export interface ChatRequest {
   requestId: string
   chatId: string
   docIds: string[]
-  messages: { role: 'user' | 'assistant'; content: string; attachments?: InboxAttachment[] }[]
+  messages: { id?: string; role: 'user' | 'assistant'; content: string; attachments?: InboxAttachment[]; promptContext?: string; promptImages?: InboxAttachment[] }[]
   context?: ChatContext
 }
 

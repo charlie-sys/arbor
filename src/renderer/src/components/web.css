@@ -1,0 +1,12 @@
+.web-import-dialog { width: min(540px, 92vw); }
+.web-import-dialog h3 { display: flex; align-items: center; gap: 8px; }
+.web-import-body { padding: 16px 24px; display: grid; gap: 12px; }
+.web-error { color: var(--danger, #bd3b3b); padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; }
+.web-page-viewer { height: 100%; display: flex; flex-direction: column; min-height: 0; background: var(--panel, #fff); }
+.web-navigation { display: flex; align-items: center; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.web-navigation form { flex: 1; min-width: 160px; }
+.web-navigation input { width: 100%; font-size: 12px; }
+/* 与 .sidebar-edge 的 12px 热区保持一致，让网页左边缘仍可唤出应用侧栏。 */
+.web-page-host { flex: 1; min-height: 0; margin-left: 12px; }
+.web-snapshot-hint { padding: 7px 12px; color: var(--text-muted); font-size: 12px; border-bottom: 1px solid var(--border); }
+.web-source-label { color: var(--accent); margin-right: 6px; font-size: 11px; }

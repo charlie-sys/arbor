@@ -14,6 +14,7 @@ export default function DocumentToneMenu(props: Props): React.JSX.Element {
   return (
     <div
       className="reader-popover document-tone-menu"
+      data-web-overlay
       onMouseDown={(event) => event.stopPropagation()}
       role="menu"
       aria-label={t("文献色调")}

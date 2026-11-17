@@ -6,6 +6,8 @@ import type { TranslateEvent, UpdateInfo, UpdateProgress } from '@shared/api'
 import type { View } from './nav'
 import Sidebar from './components/Sidebar'
 import LibraryView from './components/LibraryView'
+import WebImportDialog from './components/WebImportDialog'
+import './components/web.css'
 import ReaderView from './components/ReaderView'
 import ChatPage from './components/ChatPage'
 import AliView from './components/AliView'
@@ -42,7 +44,10 @@ function ViewSlot({ active, children }: { active: boolean; children: ReactNode }
 export default function App(): React.JSX.Element {
   const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [data, setData] = useState<LibraryData | null>(null)
-  const [view, setViewState] = useState<View>({ name: 'library' })
+  const [view, setViewState] = useState<View>(() => {
+    const docId = new URLSearchParams(window.location.search).get('openDoc')
+    return docId ? { name: 'reader', docId } : { name: 'library' }
+  })
   const notifyRef = useRef<(message: string, kind?: 'info' | 'success' | 'error') => void>(() => {})
   const setView = useCallback((next: View | ((prev: View) => View)) => {
     if (hasUnsavedChanges()) {
@@ -56,6 +61,7 @@ export default function App(): React.JSX.Element {
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const [paletteMode, setPaletteMode] = useState<'search' | 'command' | null>(null)
   const [captureOpen, setCaptureOpen] = useState(false)
+  const [webImportOpen, setWebImportOpen] = useState(false)
   const [propertiesOpen, setPropertiesOpen] = useState(false)
   const [sidebarPeek, setSidebarPeek] = useState(false)
   const sidebarHideTimer = useRef<number | null>(null)
@@ -241,6 +247,8 @@ export default function App(): React.JSX.Element {
     })
   }, [refresh])
 
+  useEffect(() => window.api.events.onLibraryChanged(() => { void refresh() }), [refresh])
+
   useEffect(() => {
     void refresh().catch((err: Error) => notify(t("加载数据失败：{0}", [err.message]), 'error'))
   }, [refresh, notify])
@@ -293,6 +301,11 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (!event.altKey && event.shiftKey && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        void window.api.app.newWindow().catch((err: Error) => notifyRef.current(err.message, 'error'))
+        return
+      }
       if (event.altKey || event.shiftKey) return
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
         event.preventDefault()
@@ -535,6 +548,7 @@ export default function App(): React.JSX.Element {
     { id: 'canvas', label: t("打开主题画布"), hint: t("文献、摘录、问答卡片与连线的无限画布"), keywords: 'canvas 画布 主题 白板', run: () => setView({ name: 'canvas' }) },
     { id: 'reading-plan', label: t("打开主题阅读计划"), hint: t("按学习目标生成文献阅读顺序与问题清单"), keywords: 'reading plan 阅读计划 学习目标', run: () => setView({ name: 'readingPlan' }) },
     { id: 'import', label: t("导入文献"), hint: t("选择 PDF、Word、Markdown 或 TXT 加入文献库"), keywords: '导入 import pdf word docx markdown txt', run: () => importDocuments() },
+    { id: 'import-web', label: t('导入网页'), hint: t('根据网址保存网页正文'), keywords: '网页 网址 web url import', run: () => setWebImportOpen(true) },
     {
       id: 'import-bibtex',
       label: t("导入 BibTeX（Zotero 导出）"),
@@ -635,7 +649,7 @@ export default function App(): React.JSX.Element {
       <div className="sidebar-edge" title={t("移动到左侧显示侧栏")} onMouseEnter={showSidebar} />
       {sidebarPeek && (
         <>
-          <div className="sidebar-backdrop" />
+          <div className="sidebar-backdrop" data-web-overlay />
           <div
             className="sidebar-host drawer"
             style={{ width: sidebarWidth }}
@@ -675,6 +689,7 @@ export default function App(): React.JSX.Element {
             onOpen={(docId) => setView({ name: 'reader', docId })}
             onChat={startDocChat}
             onImport={() => void importDocuments()}
+            onImportWeb={() => setWebImportOpen(true)}
             onChanged={onChanged}
             onClearCollection={() => setView({ name: 'library' })}
             onSelectCollection={(collectionId) => setView({ name: 'library', collectionId })}
@@ -822,6 +837,13 @@ export default function App(): React.JSX.Element {
       {captureOpen && (
         <QuickCapture onClose={() => setCaptureOpen(false)} onSaved={refresh} notify={notify} />
       )}
+
+      {webImportOpen && <WebImportDialog onClose={() => setWebImportOpen(false)} onImported={async (docId) => {
+        await refresh()
+        setWebImportOpen(false)
+        setView({ name: 'reader', docId })
+        notify(t('网页导入成功'), 'success')
+      }} />}
 
       {propertiesOpen && data && (
         <PropertyManager

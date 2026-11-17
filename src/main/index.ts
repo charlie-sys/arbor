@@ -92,6 +92,7 @@ const MIME_TYPES: Record<string, string> = {
 }
 
 let mainWindow: BrowserWindow | null = null
+const mainWindows = new Set<BrowserWindow>()
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -105,15 +106,15 @@ function focusMainWindow(): void {
   mainWindow.focus()
 }
 
-function createMainWindow(): void {
+function createMainWindow(docId?: string): void {
   const workArea = screen.getPrimaryDisplay().workAreaSize
   const width = Math.min(1440, workArea.width, Math.max(720, Math.round(workArea.width * 0.92)))
   const height = Math.min(920, workArea.height, Math.max(520, Math.round(workArea.height * 0.92)))
 
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width,
     height,
-    minWidth: Math.min(1080, width),
+    minWidth: Math.min(720, width),
     minHeight: Math.min(680, height),
     title: t('Arbor — 文献阅读与 AI 研究工坊'),
     backgroundColor: '#f3f5f9',
@@ -126,26 +127,28 @@ function createMainWindow(): void {
       sandbox: false
     }
   })
-  mainWindow.center()
-  mainWindow.maximize()
+  mainWindows.add(win)
+  mainWindow = win
+  win.center()
+  if (mainWindows.size === 1) win.maximize()
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.on('closed', () => {
-    closeReaderPanel(true)
-    mainWindow = null
+  win.once('ready-to-show', () => win.show())
+  win.on('focus', () => { mainWindow = win })
+  win.on('closed', () => {
+    mainWindows.delete(win)
+    if (mainWindow === win) mainWindow = [...mainWindows].at(-1) ?? null
+    if (!mainWindows.size) closeReaderPanel(true)
   })
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
 
   const devUrl = process.env['ELECTRON_RENDERER_URL']
-  if (devUrl) {
-    void mainWindow.loadURL(devUrl)
-  } else {
-    void mainWindow.loadURL('zotapp://bundle/index.html')
-  }
+  const url = new URL(devUrl || 'zotapp://bundle/index.html')
+  if (docId) url.searchParams.set('openDoc', docId)
+  void win.loadURL(url.href)
 }
 
 async function serveFile(filePath: string): Promise<Response> {
@@ -220,8 +223,22 @@ if (gotLock) {
     registerProtocols()
     initCapture(() => mainWindow)
     initReaderPanel(() => mainWindow)
-    registerIpc()
+    registerIpc(createMainWindow)
+    store.onChanged(() => {
+      for (const win of mainWindows) {
+        if (!win.isDestroyed()) win.webContents.send('library:changed')
+      }
+    })
     registerReaderPanelIpc()
+    app.on('web-contents-created', (_event, contents) => {
+      contents.on('before-input-event', (event, input) => {
+        if (input.type === 'keyDown' && (input.control || input.meta) && input.shift && !input.alt && input.key.toLowerCase() === 'n'
+          && mainWindows.has(BrowserWindow.getFocusedWindow()!)) {
+          event.preventDefault()
+          createMainWindow()
+        }
+      })
+    })
     createMainWindow()
     initPet(path.join(__dirname, '../preload/index.js'), () => mainWindow)
 
@@ -233,7 +250,7 @@ if (gotLock) {
     }
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+      if (mainWindows.size === 0) createMainWindow()
     })
   })
 

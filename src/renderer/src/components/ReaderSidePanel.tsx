@@ -633,7 +633,7 @@ export default function ReaderSidePanel({
           <div className="panel-empty">
             <MessageSquarePlus size={26} />
             <h3>{t("针对本文提问")}</h3>
-            <p className="muted">{t("选中 PDF 中的文字可直接“问 Agent”；回答会标注原文页码。")}</p>
+            <p className="muted">{doc.sourceFormat === 'web' ? t('直接针对当前网页提问，或选中文字后点击“问选区”；回答会引用来源网址。') : t("选中正文中的文字可直接“问 Agent”；回答会标注原文页码。")}</p>
             <button className="btn primary" onClick={() => void createChat()}>
               <Plus size={15} /> {' '}{t("新建对话")}{' '}</button>
           </div>

@@ -268,6 +268,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   const [attaching, setAttaching] = useState(false)
   const [contextMode, setContextMode] = useState<'auto' | 'none' | 'page' | 'selection'>('auto')
   const [includeNotes, setIncludeNotes] = useState(false)
+  const webChat = docs.some((doc) => doc.sourceFormat === 'web')
+  const [webVisual, setWebVisual] = useState(true)
   const [selectionContext, setSelectionContext] = useState<{ text: string; page?: number } | null>(null)
   const [preview, setPreview] = useState<InboxAttachment | null>(null)
   const [zoomBadge, setZoomBadge] = useState<number | null>(null)
@@ -421,7 +423,12 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
   useEffect(() => {
     const off = window.api.events.onChat((event) => {
       if (!reqRef.current || event.requestId !== reqRef.current) return
-      if (event.type === 'delta') {
+      if (event.type === 'context') {
+        const list = messagesRef.current.map((message) => message.id === event.messageId
+          ? { ...message, promptContext: event.promptContext ?? '', promptImages: event.promptImages ?? [] } : message)
+        messagesRef.current = list
+        setMessages(list)
+      } else if (event.type === 'delta') {
         streamRef.current += event.delta ?? ''
         if (activeRef.current) scheduleStreamFlush()
       } else if (event.type === 'attachment') {
@@ -640,14 +647,17 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
       .slice(0, -1)
       .filter((message) => !(message.role === 'assistant' && (message.error || !message.content)))
       .map((message) => ({
+        id: message.id,
         role: (message.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: message.content,
+        promptContext: message.promptContext,
+        promptImages: message.promptImages,
         attachments: message.attachments
       }))
 
     const pageForContext = selectionContext?.page ?? currentPage
     const effectiveMode =
-      contextMode === 'selection' && !selectionContext?.text.trim() ? 'auto' : contextMode
+      contextMode === 'selection' && !selectionContext?.text.trim() && !webChat ? 'auto' : contextMode
     try {
       const result = await window.api.agent.send({
         requestId,
@@ -658,7 +668,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
           contextMode: active.docIds.length ? effectiveMode : 'none',
           page: pageForContext,
           selection: effectiveMode === 'selection' ? selectionContext?.text : undefined,
-          includeNotes: active.docIds.length > 0 && includeNotes
+          includeNotes: active.docIds.length > 0 && includeNotes,
+          webVisual
         }
       })
       if (!result.ok) throw new Error(t("请求未能启动"))
@@ -789,7 +800,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
             <div className="chat-empty">
               <div className="chat-empty-title">{t("向 AI 助手提问")}</div>
               <div className="chat-empty-sub">
-                {docs.length ? t("回答将严格依据所选文献，并标注原文页码。") : t("选择文献后可基于原文回答；也可以直接进行一般性讨论。")}
+                {webChat ? t('回答依据当前网页内容，并引用来源网址。') : docs.length ? t("回答将严格依据所选文献，并标注原文页码。") : t("选择文献后可基于原文回答；也可以直接进行一般性讨论。")}
               </div>
               <div className="suggestion-list">
                 {suggestions.map((suggestion) => (
@@ -915,15 +926,15 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
           <div className="context-mode-bar">
             <span className="context-mode-label">{t("上下文")}</span>
             {([
-              ['auto', t("整篇文献")],
-              ['page', t("当前页")],
+              ['auto', webChat ? t('整个网页') : t("整篇文献")],
+              ['page', webChat ? t('当前视区') : t("当前页")],
               ['selection', t("选中段落")],
               ['none', t("不引用")]
             ] as const).map(([mode, label]) => (
               <button
                 key={mode}
                 className={cx('ctx-chip', contextMode === mode && 'active')}
-                disabled={mode === 'page' && !(selectionContext?.page ?? currentPage)}
+                disabled={mode === 'page' && !webChat && !(selectionContext?.page ?? currentPage)}
                 onClick={() => setContextMode(mode)}
                 title={
                   mode === 'page'
@@ -939,6 +950,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
               </button>
             ))}
             <span className="ctx-divider" />
+            {webChat && <button className={cx('ctx-chip', webVisual && 'active')} disabled={contextMode === 'none'}
+              title={t('配置视觉模型后，附带当前可见网页截图以识别图片和布局')} onClick={() => setWebVisual((value) => !value)}>{t('页面截图（需视觉模型）')}</button>}
             <button
               className={cx('ctx-chip', includeNotes && 'active')}
               disabled={contextMode === 'none'}
@@ -987,6 +1000,8 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
           <div className="composer-hint">
             {streaming
               ? t("正在生成回答…")
+              : webChat && contextMode !== 'none'
+                ? t('直接读取当前网页；识图需在设置中配置视觉模型')
               : !docs.length
                 ? t("未引用文献，可直接对话")
                 : contextMode === 'none'

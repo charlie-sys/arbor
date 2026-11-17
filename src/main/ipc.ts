@@ -47,6 +47,11 @@ import type {
 import type { ChatEvent } from '../shared/api'
 import type { ComposeScope } from '../shared/compose'
 import { t } from '../shared/i18n'
+import { actOnWebPage, closeWebPage, importWebUrl, mountWebPage, navigateWebPage, saveWebPage, selectedWebText, setWebBounds, switchWebPageSource, webPageState } from './webPage'
+import { normalizeWebUrl, type WebBounds, type WebPageAction, type WebPageSource } from '../shared/web'
+import { randomUUID } from 'crypto'
+
+const webImports = new Map<string, { controller: AbortController; saving: boolean }>()
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'])
 
@@ -81,8 +86,49 @@ function resolveAttachmentPath(ownerId: string, file: string): string {
   return target
 }
 
-export function registerIpc(): void {
+export function registerIpc(createWindow: (docId?: string) => void): void {
+  ipcMain.handle('app:new-window', (_event, docId?: string) => {
+    if (docId !== undefined && (typeof docId !== 'string' || !store.getDocument(docId))) throw new Error(t('文献不存在'))
+    createWindow(docId)
+  })
   ipcMain.handle('library:get-state', () => store.data)
+  ipcMain.handle('library:import-url', async (event, input: string | { url: string; requestId?: string }) => {
+    const url = typeof input === 'string' ? input : input.url
+    const requestId = typeof input === 'string' ? randomUUID() : input.requestId ?? randomUUID()
+    const key = `${event.sender.id}:${requestId}`
+    if (webImports.has(key)) throw new Error(t('该导入任务已在进行中'))
+    const job = { controller: new AbortController(), saving: false }
+    webImports.set(key, job)
+    const cancel = (): void => { if (!job.saving) job.controller.abort() }
+    event.sender.once('destroyed', cancel)
+    event.sender.once('did-start-loading', cancel)
+    try {
+      return await importWebUrl(url, { signal: job.controller.signal, onSaving: () => { job.saving = true } })
+    } finally {
+      webImports.delete(key)
+      event.sender.removeListener('destroyed', cancel)
+      event.sender.removeListener('did-start-loading', cancel)
+    }
+  })
+  ipcMain.handle('library:cancel-import', (event, requestId: string) => {
+    const job = webImports.get(`${event.sender.id}:${requestId}`)
+    if (!job || job.saving) return { canceled: false }
+    job.controller.abort()
+    return { canceled: true }
+  })
+  ipcMain.handle('web:mount', (event, input: { docId: string; bounds: WebBounds; source?: WebPageSource }) => mountWebPage(event.sender, input.docId, input.bounds, input.source))
+  ipcMain.handle('web:unmount', (event) => closeWebPage(event.sender.id))
+  ipcMain.handle('web:bounds', (event, bounds: WebBounds | null) => setWebBounds(event.sender.id, bounds))
+  ipcMain.handle('web:navigate', (event, url: string) => navigateWebPage(event.sender.id, url))
+  ipcMain.handle('web:action', (event, action: WebPageAction) => actOnWebPage(event.sender.id, action))
+  ipcMain.handle('web:state', (event) => webPageState(event.sender.id))
+  ipcMain.handle('web:source', (event, source: WebPageSource) => {
+    if (source !== 'online' && source !== 'offline') throw new Error(t('网页来源无效'))
+    return switchWebPageSource(event.sender.id, source)
+  })
+  ipcMain.handle('web:capture', (event) => saveWebPage(event.sender.id))
+  ipcMain.handle('web:selection', (event) => selectedWebText(event.sender.id))
+  ipcMain.handle('web:open-external', (_event, url: string) => shell.openExternal(normalizeWebUrl(url)))
 
   ipcMain.handle('usage:snapshot', () => usage.snapshot())
 
@@ -686,6 +732,7 @@ export function registerIpc(): void {
     setPetBusy(req.requestId, true)
     const attachments: InboxAttachment[] = []
     void streamChat(req, {
+      onContext: (promptContext, messageId, promptImages) => send({ requestId: req.requestId, type: 'context', promptContext, messageId, promptImages }),
       onDelta: (delta) => send({ requestId: req.requestId, type: 'delta', delta }),
       onAttachment: (attachment) => {
         attachments.push(attachment)
@@ -700,7 +747,7 @@ export function registerIpc(): void {
         finish()
         send({ requestId: req.requestId, type: 'error', error, attachments })
       }
-    })
+    }, { webSenderId: sender.id })
     return { ok: true }
   })
 

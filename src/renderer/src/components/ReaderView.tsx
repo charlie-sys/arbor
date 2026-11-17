@@ -5,6 +5,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  ExternalLink,
+  Globe,
+  BookOpen,
   Highlighter,
   Maximize,
   Palette,
@@ -37,6 +40,7 @@ import type { ReaderPanelTab } from '@shared/api'
 import { AI_ACTIONS } from '@shared/aiActions'
 import PdfViewer, { type PdfOutlineItem, type PdfSelection, type PdfViewerHandle } from './PdfViewer'
 import TextViewer from './TextViewer'
+import WebPageViewer from './WebPageViewer'
 import { documentFormatOf } from '@shared/documents'
 import AiActionPanel from './AiActionPanel'
 import PaneResizer from './PaneResizer'
@@ -101,6 +105,8 @@ interface HighlightEditorState {
 export default function ReaderView({ doc, documents, chats, collections, highlights, excerpts, tasks, initialPage, translateBusy, translation, hasTranslation, onCloseTranslation, onRestoreTranslation, onOpenTranslations, onBack, onChanged, onOpenDoc, notify }: Props): React.JSX.Element {
   const pdfRef = useRef<PdfViewerHandle>(null)
   const docFormat = documentFormatOf(doc)
+  const [webMode, setWebMode] = useState(docFormat === 'web')
+  useEffect(() => { if (initialPage && doc.fileName.endsWith('.md')) setWebMode(false) }, [initialPage, doc.fileName])
   const [panel, setPanel] = useState<Panel>('agent')
   const [detached, setDetached] = useState(false)
   const livePageRef = useRef(1)
@@ -589,7 +595,10 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
       void window.api.library.update(doc.id, { lastPage: page })
     }, 900)
     return () => window.clearTimeout(timer)
-  }, [page, doc.id, doc.lastPage])
+    // Persist only this window's navigation; another window's saved position must
+    // not make an idle reader write its old page back repeatedly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, doc.id])
 
   const goToPage = (value: number): void => {
     const max = pageCount || doc.pageCount || 0
@@ -599,7 +608,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
     pdfRef.current?.goToPage(target)
   }
 
-  const openAgentQuote = async (text: string, pageNumber: number): Promise<void> => {
+  const openAgentQuote = async (text: string, pageNumber?: number): Promise<void> => {
     setPanel('agent')
     if (detached) {
       try {
@@ -751,10 +760,16 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
         </button>
         <div className="reader-title" title={doc.title}>
           {doc.title}
-          {doc.pageCount === 0 && <span className="warn-tag">{t("未提取文本")}</span>}
+          {doc.pageCount === 0 && docFormat !== 'web' && <span className="warn-tag">{t("未提取文本")}</span>}
         </div>
 
-        <div className="page-controls">
+        {docFormat === 'web' && doc.fileName.endsWith('.md') && <button className="btn ghost small" onClick={() => setWebMode((value) => !value)}>
+          {webMode ? <BookOpen size={15} /> : <Globe size={15} />}{webMode ? t('正文快照') : t('浏览原网页')}
+        </button>}
+        <button className="icon-btn" title={t('在新窗口打开')} onClick={() => void window.api.app.newWindow(doc.id).catch((err: Error) => notify(err.message, 'error'))}>
+          <ExternalLink size={17} />
+        </button>
+        <div className="page-controls" style={webMode ? { display: 'none' } : undefined}>
           <button className="icon-btn" onClick={() => pdfRef.current?.prevPage()} title={t("上一页")}>
             <ChevronLeft size={17} />
           </button>
@@ -774,7 +789,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
           </button>
         </div>
 
-        <div className="zoom-controls" title={t("Ctrl + 鼠标滚轮可缩放")}>
+        <div className="zoom-controls" style={webMode ? { display: 'none' } : undefined} title={t("Ctrl + 鼠标滚轮可缩放")}>
           <button className="icon-btn" onClick={() => pdfRef.current?.zoomOut()} title={t("缩小")}>
             <ZoomOut size={17} />
           </button>
@@ -927,11 +942,16 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
               onClose={exitAnnotating}
             />
           )}
-          {!doc.fileName ? (
+          {!doc.fileName && docFormat !== 'web' ? (
             <div className="empty-state" style={{ margin: 'auto' }}>
               <h2>{t("这是一条外部导入的文献记录")}</h2>
               <p className="muted">{t("尚未关联原始文件。你仍可查看右侧的文献信息、摘录与 AI 对话。")}</p>
             </div>
+          ) : webMode && docFormat === 'web' ? (
+          <WebPageViewer doc={doc} notify={notify} onQuote={(text) => openAgentQuote(text)} onCaptured={async (docId) => {
+            await onChanged()
+            onOpenDoc?.(docId)
+          }} />
           ) : docFormat === 'pdf' ? (
           <PdfViewer
             key={doc.id}
@@ -978,7 +998,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
             key={doc.id}
             ref={pdfRef}
             docId={doc.id}
-            markdown={docFormat === 'md'}
+            markdown={docFormat === 'md' || docFormat === 'web'}
             initialPage={startPage}
             highlights={docHighlights}
             flashHighlightId={flashHighlightId}
@@ -1040,7 +1060,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
                   goToPage(note.page)
                   flashStickyNote(note.id)
                 }}
-                onOpenDoc={(docId, targetPage) => onOpenDoc?.(docId, targetPage)}
+                onOpenDoc={(docId, targetPage) => { setWebMode(docFormat === 'web' && !doc.fileName.endsWith('.md')); onOpenDoc?.(docId, targetPage) }}
                 onDetach={(nextTab) => void detachPanel(nextTab)}
                 notify={notify}
               />

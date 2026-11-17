@@ -38,6 +38,7 @@ import type {
 } from './types'
 import type { ComposeScope } from './compose'
 import type { AliEvent, AliHelpSection, AliMemoryState, AliSendRequest, AliSession, AliSessionPatch, AliState, AliTestResult } from './ali'
+import type { WebBounds, WebPageState, WebPageAction, WebPageSource } from './web'
 import type {
   PetRuntimeConfig,
   PetSettings,
@@ -49,7 +50,10 @@ import type {
 
 export interface ChatEvent {
   requestId: string
-  type: 'delta' | 'attachment' | 'done' | 'error'
+  type: 'delta' | 'attachment' | 'done' | 'error' | 'context'
+  messageId?: string
+  promptContext?: string
+  promptImages?: InboxAttachment[]
   delta?: string
   content?: string
   error?: string
@@ -188,12 +192,26 @@ export interface ZotAgentApi {
     getState(): Promise<LibraryData>
     pickDocuments(): Promise<ImportCandidate[]>
     importDocument(filePath: string, title: string): Promise<DocumentMeta>
+    importUrl(url: string, requestId?: string): Promise<DocumentMeta>
+    cancelImport(requestId: string): Promise<{ canceled: boolean }>
     extractText(id: string): Promise<ExtractedDocument>
     setText(id: string, pages: string[], meta?: { title?: string; authors?: string }): Promise<void>
     update(id: string, patch: Partial<DocumentMeta>): Promise<DocumentMeta | undefined>
     remove(id: string): Promise<void>
     getTexts(id: string): Promise<string[]>
     pdfUrl(id: string): string
+  }
+  web: {
+    mount(docId: string, bounds: WebBounds, source?: WebPageSource): Promise<WebPageState>
+    unmount(): Promise<void>
+    bounds(bounds: WebBounds | null): Promise<void>
+    navigate(url: string): Promise<void>
+    action(action: WebPageAction): Promise<void>
+    state(): Promise<WebPageState>
+    source(source: WebPageSource): Promise<WebPageState>
+    capture(): Promise<DocumentMeta>
+    selection(): Promise<{ text: string; url: string; title: string }>
+    openExternal(url: string): Promise<void>
   }
   collections: {
     add(name: string, parentId?: string): Promise<Collection>
@@ -405,6 +423,7 @@ export interface ZotAgentApi {
     restore(name: string): Promise<void>
   }
   app: {
+    newWindow(docId?: string): Promise<void>
     showInFolder(filePath: string): Promise<void>
   }
   updates: {
@@ -429,6 +448,7 @@ export interface ZotAgentApi {
     sendOutline(docId: string, state: ReaderPanelOutlineState): void
   }
   events: {
+    onLibraryChanged(cb: () => void): () => void
     onChat(cb: (event: ChatEvent) => void): () => void
     onAli(cb: (event: AliEvent) => void): () => void
     onTranslate(cb: (event: TranslateEvent) => void): () => void

@@ -2,7 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import {
   BookOpen,
+  ExternalLink,
   FolderPlus,
+  Globe,
   Loader2,
   MessageSquare,
   Save,
@@ -30,6 +32,7 @@ interface Props {
   onOpen(docId: string): void
   onChat(docId: string): Promise<void> | void
   onImport(): void
+  onImportWeb(): void
   onChanged(): Promise<void> | void
   onClearCollection(): void
   onSelectCollection?(collectionId?: string): void
@@ -129,6 +132,7 @@ export default function LibraryView({
   onOpen,
   onChat,
   onImport,
+  onImportWeb,
   onChanged,
   onClearCollection,
   onSelectCollection,
@@ -518,6 +522,7 @@ export default function LibraryView({
             <span className="version-number">v{updateInfo?.currentVersion ?? '—'}</span>
             <span className="version-status">{updateLabel}</span>
           </button>
+          <button className="btn" onClick={onImportWeb} disabled={!!importing}><Globe size={16} />{t('导入网页')}</button>
           <button className="btn primary" onClick={onImport} disabled={!!importing}>
             {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
             {importing ? t("导入中 {0}/{1}", [importing.done, importing.total]) : t("导入文献")}
@@ -764,6 +769,7 @@ export default function LibraryView({
                       >
                         <Star size={14} fill={doc.starred ? 'currentColor' : 'none'} />
                       </button>
+                      {doc.sourceFormat === 'web' && <span className="web-source-label" title={doc.url}><Globe size={13} /></span>}
                       <span className="cell-title-text">{doc.title}</span>
                     </div>
                   </td>
@@ -814,6 +820,9 @@ export default function LibraryView({
                   ))}
                   <td className="cell-actions" onClick={(event) => event.stopPropagation()}>
                     <span className="row-actions">
+                      <button className="icon-btn tiny" title={t('在新窗口打开')} onClick={() => void window.api.app.newWindow(doc.id).catch((err: Error) => notify(err.message, 'error'))}>
+                        <ExternalLink size={14} />
+                      </button>
                       <button className="icon-btn tiny" title={t("加入分类")} onClick={() => setPickerDoc(doc)}>
                         <FolderPlus size={14} />
                       </button>

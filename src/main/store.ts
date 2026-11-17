@@ -7,6 +7,8 @@ import { normalizePricing } from '../shared/usage'
 import { defaultAliSettings, normalizeAliSettings } from '../shared/ali'
 import { localeFromStored, localeFromSystemTag, t, type Locale } from '../shared/i18n'
 import { defaultSystemPrompt, isDefaultSystemPrompt } from '../shared/i18n/defaults'
+import type { WebPageSnapshot } from '../shared/web'
+import { splitIntoPages } from './documentPages'
 import type {
   AppSettings,
   CanvasBoard,
@@ -88,6 +90,12 @@ class Store {
   attachmentsDir = ''
   data: LibraryData = emptyData()
   private saveChain: Promise<void> = Promise.resolve()
+  private changeListeners = new Set<() => void>()
+
+  onChanged(listener: () => void): () => void {
+    this.changeListeners.add(listener)
+    return () => { this.changeListeners.delete(listener) }
+  }
 
   get libraryFile(): string {
     return path.join(this.root, 'library.json')
@@ -200,10 +208,59 @@ class Store {
     const tmp = `${this.libraryFile}.tmp`
     await fs.writeFile(tmp, JSON.stringify(disk, null, 2), 'utf-8')
     await fs.rename(tmp, this.libraryFile)
+    for (const listener of this.changeListeners) listener()
   }
 
   getDocument(id: string): DocumentMeta | undefined {
     return this.data.documents.find((d) => d.id === id)
+  }
+
+  async addWebLink(metadata: { url: string; title: string; author: string }, archive?: (file: string) => Promise<void>): Promise<DocumentMeta> {
+    const id = uid()
+    const now = Date.now()
+    const doc: DocumentMeta = {
+      id, title: metadata.title, authors: metadata.author, year: '', journal: new URL(metadata.url).hostname,
+      abstract: '', doi: '', url: metadata.url, tags: [], collections: [], addedAt: now, updatedAt: now,
+      fileName: archive ? `${id}.mhtml` : '', sourceFormat: 'web', pageCount: 0,
+      ...(archive ? { webArchivedAt: now } : {}),
+      starred: false, readingStatus: 'unread', lastPage: 1, notes: ''
+    }
+    const file = archive ? path.join(this.filesDir, doc.fileName) : undefined
+    try {
+      if (archive && file) await archive(file)
+      this.data.documents.unshift(doc)
+      await this.save()
+      return doc
+    } catch (error) {
+      this.data.documents = this.data.documents.filter((item) => item.id !== id)
+      if (file) await fs.rm(file, { force: true })
+      throw error
+    }
+  }
+
+  async addWebDocument(snapshot: WebPageSnapshot): Promise<DocumentMeta> {
+    const id = uid()
+    const now = Date.now()
+    const pages = splitIntoPages(snapshot.text)
+    const doc: DocumentMeta = {
+      id, title: snapshot.title, authors: snapshot.author, year: '', journal: new URL(snapshot.url).hostname,
+      abstract: '', doi: '', url: snapshot.url, tags: [], collections: [], addedAt: now, updatedAt: now,
+      fileName: `${id}.md`, sourceFormat: 'web', webCapturedAt: now, pageCount: pages.length,
+      starred: false, readingStatus: 'unread', lastPage: 1, notes: ''
+    }
+    const file = path.join(this.filesDir, doc.fileName)
+    const textFile = path.join(this.textsDir, `${id}.json`)
+    try {
+      await fs.writeFile(file, snapshot.text, 'utf8')
+      await fs.writeFile(textFile, JSON.stringify(pages), 'utf8')
+      this.data.documents.unshift(doc)
+      await this.save()
+      return doc
+    } catch (error) {
+      this.data.documents = this.data.documents.filter((item) => item.id !== id)
+      await Promise.all([fs.rm(file, { force: true }), fs.rm(textFile, { force: true })])
+      throw error
+    }
   }
 
   getChat(id: string): ChatSession | undefined {

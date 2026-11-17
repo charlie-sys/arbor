@@ -16,6 +16,11 @@ let panelPinned = false
 let panelDirty = false
 let forceClose = false
 let getMainWindow: () => BrowserWindow | null = () => null
+let panelOwner: BrowserWindow | null = null
+
+function readerOwner(): BrowserWindow | null {
+  return panelOwner && !panelOwner.isDestroyed() ? panelOwner : getMainWindow()
+}
 
 export function initReaderPanel(getter: () => BrowserWindow | null): void {
   getMainWindow = getter
@@ -51,7 +56,7 @@ function sendToPanel(channel: string, payload: unknown): void {
 }
 
 function sendToMain(channel: string, payload: unknown): void {
-  const win = getMainWindow()
+  const win = readerOwner()
   if (!win || win.isDestroyed()) return
   win.webContents.send(channel, payload)
 }
@@ -59,26 +64,29 @@ function sendToMain(channel: string, payload: unknown): void {
 export function openReaderPanel(
   docId: string,
   tab: ReaderPanelTab,
-  activeChatId: string | null
+  activeChatId: string | null,
+  owner = getMainWindow()
 ): ReaderPanelState {
   if (panelWindow && !panelWindow.isDestroyed()) {
-    if (panelDocId === docId) {
+    if (panelDocId === docId && panelOwner === owner) {
       panelTab = tab
       panelChatId = activeChatId
       focusPanel()
       sendToPanel('reader-panel:refresh', null)
       return panelState()
     }
+    if (panelDirty) {
+      focusPanel()
+      sendToPanel('reader-panel:block-close', null)
+      throw new Error(t('有未保存的修改，请先保存'))
+    }
     const stale = panelWindow
     stale.removeAllListeners('close')
-    stale.removeAllListeners('closed')
-    panelWindow = null
-    panelDocId = null
-    panelDirty = false
     stale.destroy()
   }
 
-  const main = getMainWindow()
+  panelOwner = owner
+  const main = readerOwner()
   const anchor = main && !main.isDestroyed() ? main.getBounds() : screen.getPrimaryDisplay().workArea
   const workArea = screen.getDisplayMatching(anchor).workArea
   const width = Math.max(420, Math.min(720, Math.round(anchor.width * 0.35)))
@@ -117,6 +125,9 @@ export function openReaderPanel(
     }
   })
   panelWindow = win
+  const ownerClosed = (): void => { if (panelOwner === owner) closeReaderPanel(true) }
+  owner?.once('closed', ownerClosed)
+  win.once('closed', () => owner?.removeListener('closed', ownerClosed))
 
   win.once('ready-to-show', () => {
     win.show()
@@ -139,6 +150,7 @@ export function openReaderPanel(
     if (closedDocId) {
       sendToMain('reader-panel:closed', { docId: closedDocId, tab: closedTab, activeChatId: closedChatId })
     }
+    panelOwner = null
   })
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
@@ -161,13 +173,20 @@ export function closeReaderPanel(force = false): { ok: boolean } {
 }
 
 export function registerReaderPanelIpc(): void {
-  ipcMain.handle('reader-panel:open', (_event, payload: { docId: string; tab: ReaderPanelTab; activeChatId: string | null }) => {
-    return openReaderPanel(payload.docId, payload.tab, payload.activeChatId)
+  ipcMain.handle('reader-panel:open', (event, payload: { docId: string; tab: ReaderPanelTab; activeChatId: string | null }) => {
+    return openReaderPanel(payload.docId, payload.tab, payload.activeChatId, BrowserWindow.fromWebContents(event.sender))
   })
 
-  ipcMain.handle('reader-panel:close', () => closeReaderPanel())
+  ipcMain.handle('reader-panel:close', (event) => {
+    if (panelOwner && event.sender !== panelOwner.webContents && event.sender !== panelWindow?.webContents) return { ok: true }
+    return closeReaderPanel()
+  })
 
-  ipcMain.handle('reader-panel:state', () => panelState())
+  ipcMain.handle('reader-panel:state', (event) => {
+    const state = panelState()
+    return panelOwner && event.sender !== panelOwner.webContents && event.sender !== panelWindow?.webContents
+      ? { ...state, open: false, docId: null } : state
+  })
 
   ipcMain.handle('reader-panel:set-pinned', (_event, pinned: boolean) => {
     panelPinned = pinned
@@ -202,7 +221,7 @@ export function registerReaderPanelIpc(): void {
   })
 
   ipcMain.on('reader-panel:open-doc', (_event, payload: { docId: string; page?: number }) => {
-    const win = getMainWindow()
+    const win = readerOwner()
     if (win && !win.isDestroyed()) {
       if (win.isMinimized()) win.restore()
       win.show()
@@ -216,13 +235,13 @@ export function registerReaderPanelIpc(): void {
     sendToMain('reader-panel:ready-event', { docId })
   })
 
-  ipcMain.on('reader-panel:send-page', (_event, payload: { docId: string; page: number }) => {
-    if (panelDocId !== payload.docId) return
+  ipcMain.on('reader-panel:send-page', (event, payload: { docId: string; page: number }) => {
+    if (panelDocId !== payload.docId || event.sender !== panelOwner?.webContents) return
     sendToPanel('reader-panel:page', payload)
   })
 
-  ipcMain.on('reader-panel:send-outline', (_event, payload: { docId: string } & ReaderPanelOutlineState) => {
-    if (panelDocId !== payload.docId) return
+  ipcMain.on('reader-panel:send-outline', (event, payload: { docId: string } & ReaderPanelOutlineState) => {
+    if (panelDocId !== payload.docId || event.sender !== panelOwner?.webContents) return
     sendToPanel('reader-panel:outline', payload)
   })
 }
