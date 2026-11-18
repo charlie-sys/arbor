@@ -8,7 +8,7 @@ import AliVoiceSettings from './AliVoiceSettings'
 import { BatchDeleteDialog, useBatchSelection } from './batch'
 import { applyChatScale, getChatScale } from '../chatZoom'
 import { chunkSpeech } from '../speech'
-import { t } from '@shared/i18n'
+import { displayChatTitle, t } from '@shared/i18n'
 
 interface Props {
   visible?: boolean
@@ -350,8 +350,8 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
                 setActiveId(session.id)
               }}
             >
-              <input type="checkbox" className="session-batch-check" aria-label={t('选择阿栗会话：{0}', [session.title || t('新的对话')])} checked={selection.ids.includes(session.id)} onClick={event => event.stopPropagation()} onChange={() => selection.toggle(session.id)} />
-              <div className="session-title">{session.title || t('新的对话')}</div>
+              <input type="checkbox" className="session-batch-check" aria-label={t('选择阿栗会话：{0}', [displayChatTitle(session.title)])} checked={selection.ids.includes(session.id)} onClick={event => event.stopPropagation()} onChange={() => selection.toggle(session.id)} />
+              <div className="session-title">{displayChatTitle(session.title)}</div>
               <div className="session-meta">
                 <span>{t('{0} 条消息', [session.messages.length])}</span>
                 <span>{formatTime(session.updatedAt)}</span>
@@ -378,7 +378,7 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
             <div className="ali-head">
               <img className="ali-avatar" src="./pet/happy/0.png" alt="Ali" />
               <div className="ali-head-text">
-                <h2>{active.title || t('和阿栗聊天')}</h2>
+                <h2>{displayChatTitle(active.title)}</h2>
                 <div className="muted small">
                   {busy ? t('阿栗正在思考…') : t('陪伴聊天 · 软件使用助手')}
                   {' · '}
@@ -400,7 +400,7 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
                 >
                   {sessions.map((session) => (
                     <option key={session.id} value={session.id}>
-                      {session.title || t('新的对话')}
+                      {displayChatTitle(session.title)}
                     </option>
                   ))}
                 </select>
@@ -578,13 +578,13 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
           <div className="modal-head"><h3>{t('批量管理会话')}</h3></div>
           {batchToolbar}
           <div className="batch-dialog-body">{sessions.map(session => <label key={session.id}>
-            <input type="checkbox" aria-label={t('选择阿栗会话：{0}', [session.title || t('新的对话')])} checked={selection.ids.includes(session.id)} onChange={() => selection.toggle(session.id)} />
-            {session.title || t('新的对话')}
+            <input type="checkbox" aria-label={t('选择阿栗会话：{0}', [displayChatTitle(session.title)])} checked={selection.ids.includes(session.id)} onChange={() => selection.toggle(session.id)} />
+            {displayChatTitle(session.title)}
           </label>)}</div>
           <div className="modal-foot"><button className="btn ghost" onClick={() => setManageOpen(false)}>{t('关闭')}</button></div>
         </div>
       </div>}
-      {deleting && <BatchDeleteDialog titles={deleting.map(session => session.title || t('新的对话'))} kind="ali" onClose={() => setDeleting(null)} onConfirm={async () => {
+      {deleting && <BatchDeleteDialog titles={deleting.map(session => displayChatTitle(session.title))} kind="ali" onClose={() => setDeleting(null)} onConfirm={async () => {
         const count = await window.api.ali.batchDeleteSessions(deleting.map(session => session.id))
         if (deleting.some(session => session.id === activeId)) {
           cancelSpeech()

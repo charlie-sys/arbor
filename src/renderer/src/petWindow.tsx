@@ -11,6 +11,8 @@ try {
 }
 import './themes.css'
 import './pet.css'
+import { installUiLocale } from './locale'
+installUiLocale('桌面伙伴')
 
 interface StateDef {
   label: string
@@ -160,7 +162,7 @@ function PetWindow(): React.JSX.Element {
   useEffect(() => {
     if (!config.bubbles || Date.now() < config.quietUntil) return
     if (Date.now() - lastBubble.current < 15000) return
-    showBubble(t(pick(QUIPS[snapshot.state])))
+    showBubble(pick(QUIPS[snapshot.state]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot.state])
 
@@ -169,7 +171,7 @@ function PetWindow(): React.JSX.Element {
       if (!config.bubbles || Date.now() < config.quietUntil) return
       try {
         if (!localStorage.getItem(WELCOME_KEY)) {
-          showBubble(t('我是阿栗，陪你一起读论文～'))
+          showBubble('我是阿栗，陪你一起读论文～')
           localStorage.setItem(WELCOME_KEY, '1')
         }
       } catch {
@@ -254,7 +256,7 @@ function PetWindow(): React.JSX.Element {
   return (
     <div className="pet-stage">
       <div className={`pet-bubble${bubble ? ' show' : ''}`} data-pet-hit>
-        {bubble ?? ''}
+        {bubble ? t(bubble) : ''}
       </div>
       <div
         className={`pet-wrap${dragging ? ' dragging' : ''}`}

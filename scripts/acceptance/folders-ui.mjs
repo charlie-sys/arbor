@@ -14,7 +14,10 @@ export async function testFoldersAndFont({ evaluate, waitFor, capture, url, file
     node.dispatchEvent(new Event('input', {bubbles:true}));
   })()`)
   const select = (selector, value) => evaluate(`(() => { const node = document.querySelector(${JSON.stringify(selector)}); node.value = ${JSON.stringify(value)}; node.dispatchEvent(new Event('change', {bubbles:true})); })()`)
-  const click = (selector, text) => evaluate(`(() => { const button = [...document.querySelector(${JSON.stringify(selector)}).querySelectorAll('button')].find(b => b.textContent.trim() === ${JSON.stringify(text)}); if (!button || button.disabled) throw new Error('Missing button'); button.click() })()`)
+  const click = async (selector, text) => {
+    await waitFor(() => evaluate(`!![...(document.querySelector(${JSON.stringify(selector)})?.querySelectorAll('button') ?? [])].find(b => b.textContent.trim() === ${JSON.stringify(text)} && !b.disabled)`))
+    await evaluate(`(() => { const button = [...document.querySelector(${JSON.stringify(selector)}).querySelectorAll('button')].find(b => b.textContent.trim() === ${JSON.stringify(text)}); button.click() })()`)
+  }
   const row = id => `.library-folder-panel [data-folder-id="${id}"]`
   const manage = async id => {
     const beforeHeight = await evaluate('document.querySelector(".library-folder-panel").getBoundingClientRect().height')
@@ -111,6 +114,7 @@ export async function testFoldersAndFont({ evaluate, waitFor, capture, url, file
   await evaluate(`document.querySelector('.sidebar-edge')?.dispatchEvent(new MouseEvent('mouseover', {bubbles:true}))`)
   await waitFor(() => evaluate('!!document.querySelector(".sidebar-host.drawer")'))
   await evaluate(`document.querySelector('.sidebar [data-folder-id="${child.id}"] .folder-actions').scrollIntoView({block:'end'})`)
+  await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
   const sidebarHeight = await evaluate('document.querySelector(".sidebar .folder-tree").getBoundingClientRect().height')
   await evaluate(`document.querySelector('.sidebar [data-folder-id="${child.id}"] .folder-actions').click()`)
   await waitFor(() => evaluate('document.querySelector(".folder-action-list")?.dataset.surface === "sidebar"'))
@@ -161,6 +165,7 @@ export async function testFoldersAndFont({ evaluate, waitFor, capture, url, file
   assert.equal(await evaluate(`document.querySelector(${JSON.stringify(row(root.id))}).getAttribute('aria-selected')`), 'true',
     'Saved metadata updates to a hidden reader must not block folder navigation as unsaved changes')
   await navigate('设置')
+  await evaluate('document.querySelector("[data-settings-section=font]").click()')
   await waitFor(() => evaluate('!!document.querySelector("select[aria-label=\\"界面字号\\"]")'))
   await select('select[aria-label="界面字号"]', '20')
   await waitFor(() => evaluate('document.documentElement.dataset.uiFontSize === "20"'))
@@ -171,6 +176,9 @@ export async function testFoldersAndFont({ evaluate, waitFor, capture, url, file
     return node.getBoundingClientRect().height >= parseFloat(style.fontSize) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2;
   })()`), true, 'Large font size must not clip the selected text inside its control')
   await capture('font-size-settings')
+  await click('.settings-dialog .modal-foot', '完成')
+  await waitFor(() => evaluate('!document.querySelector(".settings-dialog")'))
+  await evaluate('document.querySelector("[data-settings-section=updates]").click()')
   await input('input[aria-label="更新下载源（可选）"]', 'https://downloads.example.com/arbor/')
   await click('.update-card', '保存下载源')
   await waitFor(() => evaluate('window.api.library.getState().then(s => s.settings.updateDownloadSource === "https://downloads.example.com/arbor")'))
@@ -179,6 +187,8 @@ export async function testFoldersAndFont({ evaluate, waitFor, capture, url, file
   await click('.update-card', '保存下载源')
   await waitFor(() => evaluate('window.api.library.getState().then(s => s.settings.updateDownloadSource === "")'))
   console.log('PASS: update source settings normalize HTTPS roots, save immediately and allow returning to GitHub')
+  await click('.settings-dialog .modal-foot', '完成')
+  await waitFor(() => evaluate('!document.querySelector(".settings-dialog")'))
   await navigate('文献库')
   await waitFor(() => evaluate('!!document.querySelector(".view-slot.active .library-view")'))
   assert.ok(Math.abs(await evaluate('parseFloat(getComputedStyle(document.querySelector(".library-folder-head strong")).fontSize)') - 20) < 0.1)

@@ -1,5 +1,5 @@
 import './polyfills'
-import { useRef, useState } from 'react'
+import { useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import AliView from './components/AliView'
 import './styles.css'
@@ -9,7 +9,8 @@ import { installUiFontSize } from './appearance'
 
 installUiFontSize()
 import { applyTheme, readTheme } from './themes'
-import { getLocale, localeFromStored, setLocale } from '@shared/i18n'
+import { getLocale, localeFromStored, setLocale, subscribeLocale } from '@shared/i18n'
+import { installUiLocale } from './locale'
 
 try {
   setLocale(localeFromStored(window.localStorage.getItem('arbor-locale')))
@@ -17,6 +18,7 @@ try {
   /* use the default locale */
 }
 applyTheme(readTheme())
+installUiLocale('阿栗 — Arbor')
 
 interface Toast {
   message: string
@@ -24,6 +26,7 @@ interface Toast {
 }
 
 function AliChatWindow(): React.JSX.Element {
+  useSyncExternalStore(subscribeLocale, getLocale)
   const [toast, setToast] = useState<Toast | null>(null)
   const timer = useRef<number | null>(null)
   const notify = (message: string, kind: 'info' | 'success' | 'error' = 'info'): void => {
@@ -40,5 +43,4 @@ function AliChatWindow(): React.JSX.Element {
   )
 }
 
-document.documentElement.lang = getLocale()
 createRoot(document.getElementById('root') as HTMLElement).render(<AliChatWindow />)

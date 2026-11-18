@@ -523,7 +523,7 @@ export default function App(): React.JSX.Element {
       '',
       t("## 阅读信息"),
       t("- 阅读状态：{0}", [statusText]),
-      t("- 当前页码：{0} / {1}", [activeDoc.lastPage || 1, activeDoc.pageCount || '未知']),
+      t("- 当前页码：{0} / {1}", [activeDoc.lastPage || 1, activeDoc.pageCount || t('未知')]),
       activeDoc.doi ? t('- DOI：{0}', [activeDoc.doi]) : ''
     ]
       .filter((line) => line !== undefined)
@@ -833,6 +833,7 @@ export default function App(): React.JSX.Element {
 
         <ViewSlot active={view.name === 'settings'}>
           <SettingsView
+            visible={view.name === 'settings'}
             settings={data.settings}
             onSaved={(settings) => setData((prev) => (prev ? { ...prev, settings } : prev))}
             updateInfo={updateInfo}

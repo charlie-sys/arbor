@@ -14,6 +14,8 @@ export function useBatchSelection(ids: string[]) {
       return next
     }),
     all: () => setSelected(new Set(ids)),
+    select: (subset: string[]) => setSelected(previous => new Set([...previous, ...subset.filter(id => ids.includes(id))])),
+    unselect: (subset: string[]) => setSelected(previous => new Set([...previous].filter(id => !subset.includes(id)))),
     clear: () => setSelected(new Set())
   }
 }

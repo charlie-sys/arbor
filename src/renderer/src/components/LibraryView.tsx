@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import {
   BookOpen,
@@ -29,6 +29,7 @@ import { collectionPath } from '@shared/collections'
 import './folders.css'
 import PropertyCell from './PropertyCell'
 import './properties.css'
+import LibraryPagination, { LIBRARY_PAGE_SIZE_KEY, LIBRARY_PAGE_SIZES, loadLibraryPageSize } from './LibraryPagination'
 import { cx, formatTime } from '../ui'
 import { localeTag, t } from '@shared/i18n'
 
@@ -88,7 +89,6 @@ const TABLE_COLUMNS: { key: TableSortKey; label: string }[] = [
 ]
 
 const COLUMN_WIDTH_KEY = 'arbor-list-column-widths'
-const LIST_WIDTH_KEY = 'arbor-list-width-ratio'
 const PROPERTY_COLUMN_WIDTH = 130
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   title: 360,
@@ -121,11 +121,6 @@ function loadColumnWidths(): Record<string, number> {
   } catch {
     return {}
   }
-}
-
-function loadListWidthRatio(): number {
-  const raw = Number(window.localStorage.getItem(LIST_WIDTH_KEY))
-  return Number.isFinite(raw) && raw >= 0.55 && raw <= 1 ? raw : 1
 }
 
 function optionLabel(property: Property, optionId: string): string {
@@ -173,8 +168,9 @@ export default function LibraryView({
   )
   const [tableSort, setTableSort] = useState(initialTableSort)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(loadColumnWidths)
-  const [listWidthRatio, setListWidthRatio] = useState<number>(loadListWidthRatio)
-  const listRegionRef = useRef<HTMLDivElement>(null)
+  const [pageSize, setPageSize] = useState(loadLibraryPageSize)
+  const [pagination, setPagination] = useState({ scope: '', page: 1 })
+  const tableScrollRef = useRef<HTMLDivElement>(null)
 
   const persistColumnWidths = (next: Record<string, number>): void => {
     try {
@@ -212,32 +208,6 @@ export default function LibraryView({
     const onUp = (): void => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }
-
-  const startListResize = (event: ReactPointerEvent<HTMLElement>): void => {
-    event.preventDefault()
-    event.stopPropagation()
-    const region = listRegionRef.current
-    if (!region) return
-    const rect = region.getBoundingClientRect()
-    const onMove = (move: PointerEvent): void => {
-      if (rect.width <= 0) return
-      setListWidthRatio(clamp((move.clientX - rect.left) / rect.width, 0.55, 1))
-    }
-    const onUp = (): void => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      setListWidthRatio((current) => {
-        try {
-          window.localStorage.setItem(LIST_WIDTH_KEY, String(current))
-        } catch {
-          /* localStorage is best-effort */
-        }
-        return current
-      })
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -389,8 +359,29 @@ export default function LibraryView({
     tableSort
   ])
 
+  const scope = JSON.stringify([query, starredOnly, activeCollection, savedViewId, statusFilter, yearFilter, tagFilter, propertyFilters, tableSort, pageSize])
+  const totalPages = Math.ceil(documents.length / pageSize)
+  const currentPage = pagination.scope === scope ? Math.min(Math.max(1, totalPages), pagination.page) : 1
+  const pageDocuments = documents.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const pageIds = pageDocuments.map(doc => doc.id)
+  useEffect(() => {
+    setPagination(previous => previous.scope === scope && previous.page === currentPage ? previous : { scope, page: currentPage })
+    tableScrollRef.current?.scrollTo({ top: 0 })
+  }, [scope, currentPage])
+  useEffect(() => {
+    const onStorage = (event: StorageEvent): void => { if (event.key === LIBRARY_PAGE_SIZE_KEY) setPageSize(loadLibraryPageSize()) }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+  const changePageSize = (size: number): void => {
+    if (!(LIBRARY_PAGE_SIZES as readonly number[]).includes(size)) return
+    setPageSize(size)
+    try { localStorage.setItem(LIBRARY_PAGE_SIZE_KEY, String(size)) } catch { /* Optional preference. */ }
+  }
   const selection = useBatchSelection(documents.map(doc => doc.id))
-  const selectedDocuments = documents.filter(doc => selection.ids.includes(doc.id))
+  const selectedIds = new Set(selection.ids)
+  const selectedOnPage = pageIds.filter(id => selectedIds.has(id)).length
+  const selectedDocuments = documents.filter(doc => selectedIds.has(doc.id))
   const hasFilters =
     !!query.trim() ||
     starredOnly ||
@@ -522,7 +513,7 @@ export default function LibraryView({
           <h1>{collectionName ? collectionName : t("文献库")}</h1>
           <p className="muted">
             {' '}{t("共")}{' '}{data.documents.length} {' '}{t("篇文献")}{' '}{collectionName ? t(" · 分类「{0}」", [collectionName]) : ''}
-            {documents.length !== data.documents.length ? t(" · 当前显示 {0} 篇", [documents.length]) : ''}
+            {documents.length !== data.documents.length ? t(' · 筛选结果 {0} 篇', [documents.length]) : ''}
           </p>
         </div>
         <div className="view-head-actions">
@@ -675,7 +666,8 @@ export default function LibraryView({
       )}
 
       <div className="batch-toolbar" aria-label={t('文献批量操作')}>
-        <button className="btn ghost small" disabled={!documents.length} onClick={selection.all}>{t('全选')}</button>
+        <button className="btn ghost small" disabled={!pageDocuments.length} onClick={() => selection.select(pageIds)}>{t('全选当前页')}</button>
+        {documents.length > pageSize && <button className="btn ghost small" disabled={selection.ids.length === documents.length} onClick={selection.all}>{t('全选筛选结果')}</button>}
         <button className="btn ghost small" disabled={!selection.ids.length} onClick={selection.clear}>{t('全不选')}</button>
         <span className="batch-count">{t('已选择 {0} / {1} 项（当前筛选结果）', [selection.ids.length, documents.length])}</span>
         <button className="btn small" disabled={!selection.ids.length} onClick={() => setBatchEditing(true)}>{t('批量修改')}</button>
@@ -710,9 +702,9 @@ export default function LibraryView({
           )}
         </div>
       ) : (
-        <div className="library-list-region" ref={listRegionRef}>
-          <div className="library-list-shell" style={{ width: `${listWidthRatio * 100}%` }}>
-            <div className="doc-table-wrap">
+        <div className="library-list-region">
+          <div className="library-list-shell">
+            <div className="doc-table-wrap" ref={tableScrollRef}>
               <table
                 className="doc-table table-view"
                 style={{ tableLayout: 'fixed', minWidth: totalColumnWidth }}
@@ -732,7 +724,7 @@ export default function LibraryView({
                 </colgroup>
                 <thead>
               <tr>
-                <th className="batch-selection-cell"><input type="checkbox" aria-label={t('全选当前文献')} checked={documents.length > 0 && selection.ids.length === documents.length} ref={node => { if (node) node.indeterminate = selection.ids.length > 0 && selection.ids.length < documents.length }} onChange={event => event.target.checked ? selection.all() : selection.clear()} /></th>
+                <th className="batch-selection-cell"><input type="checkbox" aria-label={t('全选当前页文献')} checked={pageIds.length > 0 && selectedOnPage === pageIds.length} ref={node => { if (node) node.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length }} onChange={event => event.target.checked ? selection.select(pageIds) : selection.unselect(pageIds)} /></th>
                 {TABLE_COLUMNS.map((column) => (
                   <th
                     key={column.key}
@@ -786,9 +778,9 @@ export default function LibraryView({
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc) => (
-                <tr key={doc.id} className={cx('doc-row', selection.ids.includes(doc.id) && 'batch-selected')} onClick={() => onOpen(doc.id)}>
-                  <td className="batch-selection-cell" onClick={event => event.stopPropagation()}><input type="checkbox" aria-label={t('选择文献：{0}', [doc.title])} checked={selection.ids.includes(doc.id)} onChange={() => selection.toggle(doc.id)} /></td>
+              {pageDocuments.map((doc) => (
+                <tr key={doc.id} className={cx('doc-row', selectedIds.has(doc.id) && 'batch-selected')} onClick={() => onOpen(doc.id)}>
+                  <td className="batch-selection-cell" onClick={event => event.stopPropagation()}><input type="checkbox" aria-label={t('选择文献：{0}', [doc.title])} checked={selectedIds.has(doc.id)} onChange={() => selection.toggle(doc.id)} /></td>
                   <td className="cell-title">
                     <div className="cell-title-inner">
                       <button
@@ -871,14 +863,10 @@ export default function LibraryView({
             </tbody>
               </table>
             </div>
-            <div
-              className="list-width-handle"
-              title={t("拖动调整列表宽度")}
-              onPointerDown={startListResize}
-            />
           </div>
         </div>
       )}
+      <LibraryPagination total={documents.length} page={currentPage} pageSize={pageSize} onPage={page => setPagination({ scope, page: Math.min(Math.max(1, totalPages), Math.max(1, page)) })} onPageSize={changePageSize} />
 
         </section>
       </div>

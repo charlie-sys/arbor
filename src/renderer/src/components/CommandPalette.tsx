@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Check, FileText, Folder, Loader2, MessageSquare, Palette, Quote, Search, StickyNote } from 'lucide-react'
 import type { SearchResult, SearchResultType } from '@shared/types'
 import { THEMES } from '../themes'
 import type { ThemeId } from '../themes'
-import { t } from '@shared/i18n'
+import { getLocale, subscribeLocale, t } from '@shared/i18n'
 
 export interface PaletteCommand {
   id: string
@@ -53,6 +53,7 @@ export default function CommandPalette({
   onCreateCollection,
   notify
 }: Props): React.JSX.Element {
+  const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -109,7 +110,7 @@ export default function CommandPalette({
     return THEMES.filter((theme) =>
       `${t(theme.name)} ${theme.name} ${theme.latin} ${t(theme.description)}`.toLowerCase().includes(keyword)
     )
-  }, [promptValue])
+  }, [promptValue, locale])
 
   const items: { key: string; run(): void }[] = useMemo(() => {
     if (promptKind === 'theme') {

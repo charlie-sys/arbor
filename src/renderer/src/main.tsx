@@ -7,6 +7,7 @@ import './styles.css'
 import './themes.css'
 import './ali.css'
 import { installUiFontSize } from './appearance'
+import { installUiLocale } from './locale'
 
 installUiFontSize()
 import { getLocale, localeFromStored, localeTag, setLocale, t } from '@shared/i18n'
@@ -18,6 +19,7 @@ try {
 }
 document.documentElement.lang = localeTag(getLocale())
 document.title = t('Arbor — 文献阅读与 AI 研究工坊')
+installUiLocale('Arbor — 文献阅读与 AI 研究工坊')
 
 const params = new URLSearchParams(window.location.search)
 const docId = params.get('docId')

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { t } from '../shared/i18n'
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 460
@@ -98,7 +99,7 @@ export function openAliChatWindow(inputPreload: string, anchor?: Anchor): Browse
     ...position,
     minWidth: Math.min(MIN_WIDTH, size.width),
     minHeight: Math.min(MIN_HEIGHT, size.height),
-    title: '阿栗 — Arbor',
+    title: t('阿栗 — Arbor'),
     backgroundColor: '#f3f5f9',
     autoHideMenuBar: true,
     alwaysOnTop: true,

@@ -5,7 +5,7 @@ import ChatThread from './ChatThread'
 import ComposeModal from './ComposeModal'
 import { BatchDeleteDialog, useBatchSelection } from './batch'
 import { cx, formatTime } from '../ui'
-import { t } from '@shared/i18n'
+import { displayChatTitle, t } from '@shared/i18n'
 
 interface Props {
   data: LibraryData
@@ -106,8 +106,8 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
               className={cx('session-item', chat.id === activeId && 'active', selection.ids.includes(chat.id) && 'batch-selected')}
               onClick={() => setActiveId(chat.id)}
             >
-              <input type="checkbox" className="session-batch-check" aria-label={t('选择会话：{0}', [chat.title])} checked={selection.ids.includes(chat.id)} onClick={event => event.stopPropagation()} onChange={() => selection.toggle(chat.id)} />
-              <div className="session-title">{chat.title}</div>
+              <input type="checkbox" className="session-batch-check" aria-label={t('选择会话：{0}', [displayChatTitle(chat.title)])} checked={selection.ids.includes(chat.id)} onClick={event => event.stopPropagation()} onChange={() => selection.toggle(chat.id)} />
+              <div className="session-title">{displayChatTitle(chat.title)}</div>
               <div className="session-meta">
                 <span>{chat.docIds.length ? t("{0} 篇文献", [chat.docIds.length]) : t("未引用文献")}</span>
                 <span>{formatTime(chat.updatedAt)}</span>
@@ -127,7 +127,7 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
         </div>
       </aside>
 
-      {deleting && <BatchDeleteDialog titles={deleting.map(chat => chat.title)} kind="chats" onClose={() => setDeleting(null)} onConfirm={async () => {
+      {deleting && <BatchDeleteDialog titles={deleting.map(chat => displayChatTitle(chat.title))} kind="chats" onClose={() => setDeleting(null)} onConfirm={async () => {
         const count = await window.api.chats.batchRemove(deleting.map(chat => chat.id))
         selection.clear()
         await onChanged()

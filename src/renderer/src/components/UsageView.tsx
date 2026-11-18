@@ -1,10 +1,10 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Activity, ArrowDownCircle, ArrowUpCircle, BarChart3, Database, Loader2, MessageSquare, RefreshCw, Trash2 } from 'lucide-react'
 import type { ActiveUsage, UsageKind, UsageRecord } from '@shared/types'
 import { cacheHitRate } from '@shared/usage'
 import { cx } from '../ui'
 import './UsageView.css'
-import { localeTag, t } from '@shared/i18n'
+import { getLocale, localeTag, subscribeLocale, t } from '@shared/i18n'
 
 type RangeId = '24h' | '7d' | '30d' | '90d' | 'all'
 
@@ -453,6 +453,7 @@ function readInitialRange(): RangeId {
 }
 
 export default function UsageView({ notify }: UsageViewProps): React.JSX.Element {
+  const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [snapshot, setSnapshot] = useState<{ records: UsageRecord[]; active: ActiveUsage[] }>({
     records: [],
     active: []
@@ -598,7 +599,7 @@ export default function UsageView({ notify }: UsageViewProps): React.JSX.Element
         }
       })
     return { modelList, kindList }
-  }, [records, stats])
+  }, [records, stats, locale])
 
   const recent = useMemo(
     () =>

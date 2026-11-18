@@ -352,7 +352,7 @@ export default function TopicsView({
         <MarkdownEditorModal
           key={editingExcerpt.id}
           heading={t("编辑主题摘录")}
-          subtitle={t("{0}{1}", [editingExcerpt.docTitle, editingExcerpt.page ? ` · 第 ${editingExcerpt.page} 页` : ''])}
+          subtitle={t("{0}{1}", [editingExcerpt.docTitle, editingExcerpt.page ? t(' · 第 {0} 页', [editingExcerpt.page]) : ''])}
           initialTitle={editingExcerpt.question}
           initialContent={editingExcerpt.answer}
           attachments={editingExcerpt.attachments ?? []}

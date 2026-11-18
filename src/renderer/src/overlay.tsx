@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { getLocale, localeFromStored, localeTag, setLocale, t } from '@shared/i18n'
+import { getLocale, localeFromStored, localeTag, setLocale, subscribeLocale, t } from '@shared/i18n'
+import { installUiLocale } from './locale'
 
 try {
   setLocale(localeFromStored(window.localStorage.getItem('arbor-locale')))
@@ -9,6 +10,7 @@ try {
 }
 document.documentElement.lang = localeTag(getLocale())
 document.title = t('截图翻译')
+installUiLocale('截图翻译')
 
 interface Point {
   x: number
@@ -25,6 +27,7 @@ function rectOf(a: Point, b: Point): { x: number; y: number; width: number; heig
 }
 
 function Overlay(): React.JSX.Element {
+  useSyncExternalStore(subscribeLocale, getLocale)
   const [start, setStart] = useState<Point | null>(null)
   const [current, setCurrent] = useState<Point | null>(null)
   const [done, setDone] = useState(false)

@@ -193,6 +193,11 @@ export function isDefaultChatTitle(title?: string | null): boolean {
   return !title || DEFAULT_CHAT_TITLES.has(title.trim())
 }
 
+/** Translate only built-in placeholders; authored conversation titles remain unchanged. */
+export function displayChatTitle(title?: string | null): string {
+  return isDefaultChatTitle(title) ? t('新的对话') : title!
+}
+
 /**
  * 以简体中文源码文案为键翻译界面文字。
  * - 简体中文：原样返回

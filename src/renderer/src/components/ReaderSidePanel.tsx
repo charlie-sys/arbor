@@ -38,7 +38,7 @@ import MarkdownEditorModal from './MarkdownEditorModal'
 import { useUnsavedChanges } from '../unsaved'
 import { useDraftField, sameStringSet } from '../useDraftField'
 import { cx, formatTime, Markdown } from '../ui'
-import { t } from '@shared/i18n'
+import { displayChatTitle, t } from '@shared/i18n'
 
 export interface ReaderPanelQuote {
   text: string
@@ -586,10 +586,10 @@ export default function ReaderSidePanel({
               <button
                 key={chat.id}
                 className={cx('chat-pill', chat.id === activeChatId && 'active')}
-                title={`${chat.title} · ${formatTime(chat.updatedAt)}`}
+                title={`${displayChatTitle(chat.title)} · ${formatTime(chat.updatedAt)}`}
                 onClick={() => onActiveChat(chat.id)}
               >
-                <span>{chat.title.length > 14 ? `${chat.title.slice(0, 14)}…` : chat.title}</span>
+                <span>{displayChatTitle(chat.title).length > 14 ? `${displayChatTitle(chat.title).slice(0, 14)}…` : displayChatTitle(chat.title)}</span>
                 <span
                   className="pill-delete"
                   role="button"

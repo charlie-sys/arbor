@@ -113,7 +113,7 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
                           <strong style={{ fontSize: 13.5 }}>{doc ? doc.title : t("文献已删除")}</strong>
                           <span className="muted small">
                             {index + 1}.
-                            {doc ? t(" {0}{1}", [doc.authors || '未知作者', doc.year ? ` · ${doc.year}` : '']) : ''}
+                            {doc ? t(" {0}{1}", [doc.authors || t('未知作者'), doc.year ? ` · ${doc.year}` : '']) : ''}
                           </span>
                           {doc && (
                             <button className="btn ghost" style={{ padding: '1px 8px', fontSize: 11 }} onClick={() => onOpenDoc(doc.id)}>

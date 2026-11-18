@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, HelpCircle, Lightbulb } from 'lucide-react'
 import type { AnnotationPoint, InkStroke, StickyNote } from '@shared/types'
 import { simplifyPoints, smoothPath } from '../annotations'
+import { t } from '@shared/i18n'
 
 export type AnnotationTool = 'select' | 'note' | 'pen' | 'marker' | 'eraser'
 
@@ -327,8 +328,8 @@ export default function PageAnnotationLayer(props: Props): React.JSX.Element {
                 props.flashNoteId === note.id ? ' flash' : ''
               }`}
               style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%` }}
-              title={note.text.slice(0, 120) || (note.kind === 'question' ? '问题' : '想法')}
-              aria-label={`第 ${note.page} 页${note.kind === 'question' ? '问题' : '想法'}`}
+              title={note.text.slice(0, 120) || t(note.kind === 'question' ? '问题' : '想法')}
+              aria-label={t('第 {0} 页 · {1}', [note.page, t(note.kind === 'question' ? '问题' : '想法')])}
               onPointerDown={(event) => startNoteDrag(event, note)}
               onPointerMove={moveNoteDrag}
               onPointerUp={(event) => endNoteDrag(event, note)}

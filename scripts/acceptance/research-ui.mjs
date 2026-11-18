@@ -10,6 +10,8 @@ import { testBatchUi } from './batch-ui.mjs'
 import { testFoldersAndFont } from './folders-ui.mjs'
 import { testUnsavedNavigation } from './unsaved-ui.mjs'
 import { testCitationIndicator } from './citation-ui.mjs'
+import { testSettingsListAndLocale } from './settings-ui.mjs'
+import { testLibraryPagination } from './pagination-ui.mjs'
 
 const require = createRequire(import.meta.url)
 const dir = await mkdtemp(join(tmpdir(), 'arbor-ui-'))
@@ -89,10 +91,45 @@ const click = (text) => evaluate(`(() => {
   const button = [...root.querySelectorAll('button')].find(b => b.getClientRects().length && b.textContent.trim() === ${JSON.stringify(text)});
   if (!button) throw new Error('Button missing: ' + ${JSON.stringify(text)}); button.click(); return true;
 })()`)
+async function verifySettings(capture) {
+  await testSettingsListAndLocale({ evaluate, waitFor, capture, inspectWindows: async () => {
+    const windows = (await targets()).filter(t => t.type === 'page' && (t.url.includes('index.html') || t.url.includes('ali-chat.html')))
+    return Promise.all(windows.map(async target => {
+      const connection = await connect(target)
+      try {
+        const result = await connection.call('Runtime.evaluate', {expression:'({lang:document.documentElement.lang,title:document.title})',returnByValue:true})
+        return result.result.value
+      } finally { connection.close() }
+    }))
+  } })
+}
 try {
   const target = await waitFor(async () => (await targets()).find((t) => t.type === 'page' && t.url.includes('index.html')))
   client = await connect(target)
   await waitFor(() => evaluate('!!window.api && !!document.querySelector(".library-view")'))
+  if (process.argv.includes('--settings-only') || process.argv.includes('--pagination-only')) {
+    const output = join(process.cwd(), 'scripts', 'acceptance', '.generated')
+    await mkdir(output, {recursive:true})
+    const source = join(dir, 'locale-fixture.txt')
+    await writeFile(source, '原始文献内容 Original source')
+    await evaluate(`(async () => {
+      const doc = await window.api.library.importDocument(${JSON.stringify(source)}, '原始文献标题');
+      await window.api.library.setText(doc.id, ['原始文献内容 Original source']);
+      await window.api.library.update(doc.id, {notes:'中文笔记',authors:'原始作者'});
+      await window.api.chats.create([doc.id]);
+      await window.api.app.newWindow(); window.api.pet.openAliChat();
+    })()`)
+    await waitFor(async () => (await targets()).some(t => t.url.includes('ali-chat.html')))
+    await client.call('Page.bringToFront')
+    const capture = async name => {
+      await client.call('Page.bringToFront')
+      await evaluate('[...document.querySelectorAll(".modal")].forEach(node => node.getAnimations().forEach(animation => { if (Number.isFinite(animation.effect.getComputedTiming().endTime)) animation.finish() }))')
+      const shot = await client.call('Page.captureScreenshot', {format:'png'})
+      await writeFile(join(output, name + '.png'), Buffer.from(shot.data, 'base64'))
+    }
+    if (process.argv.includes('--pagination-only')) await testLibraryPagination({evaluate,waitFor,capture,sourcePath:source})
+    else await verifySettings(capture)
+  } else {
   await click('导入网页')
   await waitFor(() => evaluate('!!document.querySelector("#web-import-url")'))
   await evaluate(`(() => {
@@ -260,14 +297,17 @@ try {
   const firstPdf = await waitFor(async () => (await targets()).find(t => t.url.includes('openDoc=' + pdfDoc.id)))
   const firstPdfClient = await connect(firstPdf)
   client = firstPdfClient
-  await waitFor(() => evaluate('document.querySelectorAll(".pdfViewer .page").length === 2'))
+  await client.call('Page.bringToFront')
+  await waitFor(() => evaluate('document.querySelectorAll(".pdfViewer .page").length === 2 && document.querySelector(".pdfViewer .page .textLayer")?.textContent.includes("Page one")'))
   await evaluate(`window.api.app.newWindow(${JSON.stringify(pdfDoc.id)})`)
   const secondPdf = await waitFor(async () => (await targets()).find(t => t.url.includes('openDoc=' + pdfDoc.id) && t.id !== firstPdf.id))
   const secondPdfClient = await connect(secondPdf)
   client = secondPdfClient
-  await waitFor(() => evaluate('document.querySelectorAll(".pdfViewer .page").length === 2'))
+  await client.call('Page.bringToFront')
+  await waitFor(() => evaluate('document.querySelectorAll(".pdfViewer .page").length === 2 && document.querySelector(".pdfViewer .page .textLayer")?.textContent.includes("Page one")'))
   client = firstPdfClient
-  await evaluate('document.querySelector("button[title=\\"下一页\\"]").click()')
+  await client.call('Page.bringToFront')
+  await evaluate('document.querySelector(".reader-view button[title=\\"下一页\\"]").click()')
   await waitFor(() => evaluate(`window.api.library.getState().then(s => s.documents.find(d => d.id === ${JSON.stringify(pdfDoc.id)}).lastPage === 2)`))
   client = secondPdfClient
   assert.equal(await evaluate('document.querySelector(".page-input").value'), '1')
@@ -337,7 +377,10 @@ try {
   await waitFor(() => evaluate('document.documentElement.dataset.uiFontSize === "14"'))
   fontClient.close()
   console.log('PASS: new and existing windows share persistent interface font settings')
+  await verifySettings(capture)
+  await testLibraryPagination({evaluate,waitFor,capture,sourcePath:pdfFile})
   await evaluate('window.api.library.getState().then(s => window.api.library.remove(s.documents[0].id))')
+  }
 } catch (error) {
   if (client) console.error(await evaluate('Promise.all([document.body.innerText.slice(-3500), window.api.web.state().catch(e => e.message), document.querySelector(".web-navigation input")?.value])').catch(() => 'UI unavailable'))
   throw error

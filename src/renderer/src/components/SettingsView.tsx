@@ -20,8 +20,10 @@ import { LOCALES, localeTag, setLocale, t, type Locale } from '@shared/i18n'
 import { isDefaultSystemPrompt } from '@shared/i18n/defaults'
 import { applyUiFontSize } from '../appearance'
 import { useDraftField } from '../useDraftField'
+import SettingsSection, { SettingsDialogContext } from './SettingsSection'
 
 interface Props {
+  visible?: boolean
   settings: AppSettings
   onSaved(settings: AppSettings): void
   updateInfo: UpdateInfo | null
@@ -68,6 +70,7 @@ const PRESETS = [
 ]
 
 export default function SettingsView({
+  visible = true,
   settings,
   onSaved,
   updateInfo,
@@ -81,6 +84,8 @@ export default function SettingsView({
   const [baseUrl, setBaseUrl, acceptBaseUrl] = useDraftField(settings.apiBaseUrl, 'settings')
   const [updateSource, setUpdateSource, acceptUpdateSource] = useDraftField(settings.updateDownloadSource ?? '', 'settings')
   const [sourceSaving, setSourceSaving] = useState(false)
+  const [activeSection, setActiveSection] = useState<string | null>(null)
+  useEffect(() => { if (!visible) setActiveSection(null) }, [visible])
   const [apiKey, setApiKey, acceptApiKey] = useDraftField(settings.apiKey, 'settings')
   const [chatModel, setChatModel, acceptChatModel] = useDraftField(settings.chatModel, 'settings')
   const [visionModel, setVisionModel, acceptVisionModel] = useDraftField(settings.visionModel, 'settings')
@@ -289,16 +294,17 @@ export default function SettingsView({
         </button>
       </header>
 
-      <div className="settings-grid">
-        <section className="card">
+      <SettingsDialogContext.Provider value={{ active: activeSection, open: setActiveSection, save, busy: saving || sourceSaving || fontSaving || testing || backingUp || !!restoring }}>
+      <div className="settings-list" aria-label={t('设置分组')}>
+        <SettingsSection id="font" title="界面字体大小" description="调整界面文字大小">
           <h2>{t('界面字体大小')}</h2>
           <p className="hint">{t('调整软件界面文字，立即生效并自动保存；网页与 PDF 的缩放仍可独立调整。')}</p>
           <label className="field"><span>{t('界面字号')}</span><select aria-label={t('界面字号')} className="select" value={settings.uiFontSize ?? 14} disabled={fontSaving} onChange={event => void changeFontSize(Number(event.target.value))}>
             {Array.from({ length: 9 }, (_, index) => index + 12).map(size => <option key={size} value={size}>{size} px{size === 14 ? ` (${t('默认')})` : ''}</option>)}
           </select></label>
           <button className="btn ghost small" disabled={fontSaving || settings.uiFontSize === 14} onClick={() => void changeFontSize(14)}>{t('恢复默认字号')}</button>
-        </section>
-        <section className="card">
+        </SettingsSection>
+        <SettingsSection id="language" title="界面语言" description="选择软件显示语言">
           <h2>{t("界面语言")}</h2>
           <p className="hint" style={{ marginTop: 0 }}>
             {' '}{t("切换后界面、系统对话框与 AI 回答语言会立即更新，并保存到本机。")}{' '}</p>
@@ -314,9 +320,9 @@ export default function SettingsView({
               </button>
             ))}
           </div>
-        </section>
+        </SettingsSection>
 
-        <section className="card">
+        <SettingsSection id="models" title="模型服务" description="配置服务地址、密钥和模型">
           <h2>{t("模型服务")}</h2>
           <div className="preset-row">
             {PRESETS.map((preset) => (
@@ -327,13 +333,13 @@ export default function SettingsView({
           </div>
 
           <label className="field">
-            <span>API Base URL</span>
+            <span>{t('API 服务地址')}</span>
             <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://api.deepseek.com/v1" />
             <small className="hint">{t("需包含 /v1，例如 https://api.deepseek.com/v1；兼容任意 OpenAI 接口服务。")}</small>
           </label>
 
           <label className="field">
-            <span>API Key</span>
+            <span>{t('API 密钥')}</span>
             <input
               type="password"
               value={apiKey}
@@ -396,9 +402,9 @@ export default function SettingsView({
               </div>
             )}
           </div>
-        </section>
+        </SettingsSection>
 
-        <section className="card">
+        <SettingsSection id="agent" title="Agent 行为" description="设置研究助手的系统提示词">
           <h2>{t("Agent 行为")}</h2>
           <label className="field">
             <span>{t("系统提示词")}</span>
@@ -406,9 +412,9 @@ export default function SettingsView({
             <small className="hint">
               {' '}{t("Agent 会自动附加检索到的文献原文片段（含页码），要求基于原文回答并标注引用。")}{' '}</small>
           </label>
-        </section>
+        </SettingsSection>
 
-        <section className="card">
+        <SettingsSection id="pet" title="桌面伙伴" description="设置阿栗的显示、气泡和位置">
           <h2>{t("桌面伙伴")}</h2>
           <p className="hint">
             {' '}{t("哈士奇「阿栗」住在桌面右下角，会用动作回应你的写作、阅读、思考与摸鱼。状态只依据输入节奏和当前页面，不读取任何内容。")}{' '}</p>
@@ -440,9 +446,9 @@ export default function SettingsView({
             <button className="btn ghost" onClick={() => void window.api.pet.window.reset()}>
               {' '}{t("把阿栗放回右下角")}{' '}</button>
           </div>
-        </section>
+        </SettingsSection>
 
-        <section className="card">
+        <SettingsSection id="data" title="数据与快捷键" description="查看数据目录与快捷键">
           <h2>{t("数据与快捷键")}</h2>
           <div className="kv-list">
             <div className="kv">
@@ -460,9 +466,9 @@ export default function SettingsView({
           </div>
           <p className="hint">
             {' '}{t("数据目录包含文献 PDF、全文缓存、对话记录与翻译截图。迁移或备份时复制整个目录即可；API Key 受系统加密保护，迁移到其他电脑后需要重新填写。")}{' '}</p>
-        </section>
+        </SettingsSection>
 
-        <section className="card update-card">
+        <SettingsSection id="updates" title="关于与更新" description="查看版本、下载更新与配置下载源" className="update-card">
           <div className="update-card-head">
             <h2>{t("关于与更新")}</h2>
             <span className={cx('update-state', updateState)}>{updateStatusText}</span>
@@ -545,9 +551,9 @@ export default function SettingsView({
               <div className="update-notes"><Markdown>{updateInfo.notes}</Markdown></div>
             </details>
           )}
-        </section>
+        </SettingsSection>
 
-        <section className="card">
+        <SettingsSection id="backup" title="自动备份" description="备份与恢复本地数据">
           <h2>{t("自动备份")}</h2>
           <p className="hint" style={{ marginTop: 0 }}>
             {' '}{t("每天首次启动时自动快照数据目录，保留最近 7 份；恢复前会为当前数据保留一份安全副本。")}{' '}</p>
@@ -574,8 +580,9 @@ export default function SettingsView({
               ))}
             </div>
           )}
-        </section>
+        </SettingsSection>
       </div>
+      </SettingsDialogContext.Provider>
     </div>
   )
 }
