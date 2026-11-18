@@ -31,6 +31,8 @@ import type {
   TranslationRecord
 } from '../shared/types'
 
+import { normalizeUpdateSource } from '../shared/updateSource'
+
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'zh-CN',
   uiFontSize: 14,
@@ -1048,6 +1050,7 @@ class Store {
   }
 
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+    if (patch.updateDownloadSource !== undefined) patch = { ...patch, updateDownloadSource: normalizeUpdateSource(patch.updateDownloadSource) }
     if (patch.uiFontSize !== undefined && (!Number.isInteger(patch.uiFontSize) || patch.uiFontSize < 12 || patch.uiFontSize > 20)) throw new Error(t('界面字号应在 12 到 20 之间'))
     const prev = this.data.settings
     const next: AppSettings = {

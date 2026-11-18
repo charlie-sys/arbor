@@ -1,7 +1,5 @@
 import { app, BrowserWindow, dialog, net, shell } from 'electron'
-import { createHash } from 'crypto'
-import { createWriteStream, existsSync, promises as fs } from 'fs'
-import { once } from 'events'
+import { existsSync } from 'fs'
 import path from 'path'
 import type {
   UpdateDownloadResult,
@@ -10,6 +8,9 @@ import type {
   UpdateProgress
 } from '../shared/api'
 import { t } from '../shared/i18n'
+import { store } from './store'
+import { normalizeUpdateSource } from '../shared/updateSource'
+import { downloadInstaller, fileDigest } from './updateDownload'
 
 const OWNER = 'charlie-sys'
 const REPO = 'arbor'
@@ -18,7 +19,6 @@ const LATEST_RELEASE_API = `https://api.github.com/repos/${OWNER}/${REPO}/releas
 const CACHE_TTL = 10 * 60 * 1000
 const ERROR_CACHE_TTL = 2 * 60 * 1000
 const REQUEST_TIMEOUT = 12 * 1000
-const DOWNLOAD_TIMEOUT = 10 * 60 * 1000
 
 interface GithubAsset {
   name?: unknown
@@ -41,12 +41,29 @@ interface GithubRelease {
 interface PendingInstaller {
   filePath: string
   version: string
+  digest: string
 }
 
 let cached: { info: UpdateInfo; expiresAt: number } | null = null
 let inFlight: Promise<UpdateInfo> | null = null
 let downloading = false
 let pendingInstaller: PendingInstaller | null = null
+let controller: AbortController | null = null
+let progress: UpdateProgress | null = null
+
+export function getUpdateProgress(): UpdateProgress | null { return progress }
+export function cancelUpdate(): void { controller?.abort() }
+
+async function checkForDownload(signal: AbortSignal): Promise<UpdateInfo> {
+  signal.throwIfAborted()
+  let abort: () => void
+  const canceled = new Promise<never>((_, reject) => {
+    abort = () => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+  })
+  try { return await Promise.race([checkForUpdates(true), canceled]) }
+  finally { signal.removeEventListener('abort', abort!) }
+}
 
 function normalizeVersion(raw: string): string {
   return raw.trim().replace(/^v/i, '')
@@ -116,10 +133,13 @@ function safeAssetUrl(raw: unknown): string | null {
 }
 
 function emitProgress(progress: UpdateProgress): void {
+  rememberProgress(progress)
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send('update:progress', progress)
   }
 }
+
+function rememberProgress(value: UpdateProgress): void { progress = value }
 
 function emptyInfo(currentVersion: string, error?: string): UpdateInfo {
   return {
@@ -218,108 +238,42 @@ export function checkForUpdates(force = false): Promise<UpdateInfo> {
 
 export async function downloadUpdate(): Promise<UpdateDownloadResult> {
   if (downloading) return { ok: false, message: t("更新包正在下载中，请稍候") }
-  if (pendingInstaller && existsSync(pendingInstaller.filePath)) {
-    emitProgress({
-      phase: 'ready',
-      percent: 100,
-      received: 0,
-      total: 0,
-      message: t("v{0} 已下载，可立即安装", [pendingInstaller.version])
-    })
-    return { ok: true, filePath: pendingInstaller.filePath, version: pendingInstaller.version }
-  }
-
-  const info = await checkForUpdates(true)
-  if (info.error) return { ok: false, message: info.error }
-  if (!info.hasUpdate) return { ok: false, message: t("当前已经是最新版本") }
-  if (!info.asset) {
-    await openReleasePage()
-    return { ok: false, message: t("该版本未提供 Windows 安装包，已打开 GitHub 发布页") }
-  }
-
-  const total = info.asset.size
-  const fileName = path.basename(info.asset.name).replace(/[^a-zA-Z0-9._-]/g, '_')
-  const dir = path.join(app.getPath('temp'), 'arbor-updater')
-  const filePath = path.join(dir, fileName)
-  const hash = createHash('sha256')
-  let received = 0
-  let lastEmit = 0
-
   downloading = true
-  pendingInstaller = null
-  emitProgress({ phase: 'downloading', percent: 0, received: 0, total })
-
+  controller = new AbortController()
+  const signal = controller.signal
+  emitProgress({ phase: 'checking', percent: 0, received: 0, total: 0 })
   try {
-    await fs.mkdir(dir, { recursive: true })
-    const response = await net.fetch(info.asset.url, {
-      headers: {
-        Accept: 'application/octet-stream',
-        'User-Agent': `Arbor/${info.currentVersion}`
-      },
-      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT)
-    })
-    if (!response.ok || !response.body) {
-      throw new Error(t("下载安装包失败（HTTP {0}）", [response.status]))
-    }
-
-    const stream = createWriteStream(filePath)
-    try {
-      const reader = response.body.getReader()
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (!value) continue
-        received += value.byteLength
-        hash.update(value)
-        if (!stream.write(Buffer.from(value))) await once(stream, 'drain')
-        const now = Date.now()
-        if (now - lastEmit > 200) {
-          lastEmit = now
-          emitProgress({
-            phase: 'downloading',
-            percent: total > 0 ? Math.min(99, Math.round((received / total) * 100)) : 0,
-            received,
-            total
-          })
-        }
-      }
-      stream.end()
-      await once(stream, 'finish')
-    } catch (error) {
-      stream.destroy()
-      throw error
-    }
-
-    if (total > 0 && received !== total) {
-      throw new Error(t("安装包不完整，请重试"))
-    }
-
-    emitProgress({ phase: 'verifying', percent: 100, received, total })
-    const expected = info.asset.digest?.match(/^sha256:([0-9a-f]{64})$/i)?.[1]
-    if (expected) {
-      const actual = hash.digest('hex')
-      if (actual.toLowerCase() !== expected.toLowerCase()) {
-        throw new Error(t("安装包校验失败，文件可能已损坏，请重试"))
-      }
-    }
-
-    pendingInstaller = { filePath, version: info.latestVersion }
+    const info = await checkForDownload(signal)
+    signal.throwIfAborted()
+    if (info.error) throw new Error(info.error)
+    if (!info.hasUpdate) throw new Error(t('当前已经是最新版本'))
+    if (!info.asset) throw new Error(t('该版本未提供 Windows 安装包'))
+    const source = normalizeUpdateSource(store.data.settings.updateDownloadSource)
+    const urls = [ ...(source ? [`${source}/v${info.latestVersion}/${encodeURIComponent(info.asset.name)}`] : []), info.asset.url ]
+    const filePath = await downloadInstaller({ asset: info.asset,
+      dir: path.join(app.getPath('userData'), 'updates'), urls, signal,
+      fetch: (url, init) => net.fetch(url, init),
+      onProgress: value => emitProgress({ ...value, message: value.message ? t(value.message) : undefined }) })
+    signal.throwIfAborted()
+    pendingInstaller = { filePath, version: info.latestVersion, digest: info.asset.digest!.slice(7).toLowerCase() }
     emitProgress({
       phase: 'ready',
       percent: 100,
-      received,
-      total,
+      received: info.asset.size,
+      total: info.asset.size,
       message: t("Arbor v{0} 已下载完成", [info.latestVersion])
     })
     return { ok: true, filePath, version: info.latestVersion }
   } catch (error) {
     pendingInstaller = null
-    await fs.rm(filePath, { force: true }).catch(() => undefined)
-    const message = describeError(error)
-    emitProgress({ phase: 'error', percent: 0, received, total, message })
-    return { ok: false, message }
+    const canceled = signal.aborted
+    const message = canceled ? t('已取消下载，下次更新将继续下载') : describeError(error)
+    const last = getUpdateProgress()
+    emitProgress({ ...last, phase: canceled ? 'paused' : 'error', percent: last?.percent ?? 0, received: last?.received ?? 0, total: last?.total ?? 0, bytesPerSecond: 0, remainingSeconds: undefined, message })
+    return { ok: false, canceled, message }
   } finally {
     downloading = false
+    controller = null
   }
 }
 
@@ -327,7 +281,13 @@ export async function installUpdate(): Promise<UpdateInstallResult> {
   if (!pendingInstaller) return { ok: false, message: t("尚未下载更新安装包") }
   if (!existsSync(pendingInstaller.filePath)) {
     pendingInstaller = null
+    emitProgress({ phase: 'error', percent: 0, received: 0, total: 0, message: t('更新安装包已不存在，请重新下载') })
     return { ok: false, message: t("更新安装包已不存在，请重新下载") }
+  }
+  if (await fileDigest(pendingInstaller.filePath) !== pendingInstaller.digest) {
+    pendingInstaller = null
+    emitProgress({ phase: 'error', percent: 0, received: 0, total: 0, message: t('安装包校验失败，请重新下载') })
+    throw new Error(t('安装包校验失败，请重新下载'))
   }
 
   const choice = await dialog.showMessageBox({

@@ -79,6 +79,8 @@ export default function SettingsView({
   notify
 }: Props): React.JSX.Element {
   const [baseUrl, setBaseUrl, acceptBaseUrl] = useDraftField(settings.apiBaseUrl, 'settings')
+  const [updateSource, setUpdateSource, acceptUpdateSource] = useDraftField(settings.updateDownloadSource ?? '', 'settings')
+  const [sourceSaving, setSourceSaving] = useState(false)
   const [apiKey, setApiKey, acceptApiKey] = useDraftField(settings.apiKey, 'settings')
   const [chatModel, setChatModel, acceptChatModel] = useDraftField(settings.chatModel, 'settings')
   const [visionModel, setVisionModel, acceptVisionModel] = useDraftField(settings.visionModel, 'settings')
@@ -98,6 +100,7 @@ export default function SettingsView({
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState<string | null>(null)
   const settingsDirty =
+    updateSource !== (settings.updateDownloadSource ?? '') ||
     baseUrl !== settings.apiBaseUrl ||
     apiKey !== settings.apiKey ||
     chatModel !== settings.chatModel ||
@@ -109,7 +112,7 @@ export default function SettingsView({
 
   const updatePhase = updateProgress?.phase
   const downloadPercent =
-    updatePhase === 'downloading'
+    updatePhase === 'downloading' || updatePhase === 'retrying' || updatePhase === 'paused'
       ? updateProgress?.percent ?? 0
       : updatePhase && updatePhase !== 'error'
         ? 100
@@ -130,7 +133,13 @@ export default function SettingsView({
           ? t("已是最新")
           : t("检查中…")
   const updateButtonLabel =
-    updatePhase === 'downloading'
+    updatePhase === 'paused' || updatePhase === 'error'
+      ? t('继续下载更新')
+      : updatePhase === 'checking'
+      ? t('正在准备下载…')
+      : updatePhase === 'retrying'
+      ? t('正在重试…')
+      : updatePhase === 'downloading'
       ? t("下载中 {0}%", [downloadPercent])
       : updatePhase === 'verifying'
         ? t("校验安装包…")
@@ -140,7 +149,7 @@ export default function SettingsView({
             ? t("安装 v{0}", [updateInfo?.latestVersion ?? ''])
             : t("更新到 v{0}", [updateInfo?.latestVersion ?? ''])
   const showProgress =
-    updateBusy && (updatePhase === 'downloading' || updatePhase === 'verifying' || updatePhase === 'installing')
+    updateBusy && (updatePhase === 'downloading' || updatePhase === 'retrying' || updatePhase === 'verifying' || updatePhase === 'installing')
 
   useEffect(() => {
     void window.api.settings.info().then(setInfo)
@@ -197,6 +206,7 @@ export default function SettingsView({
     setSaving(true)
     try {
       const updated = await window.api.settings.save({
+          updateDownloadSource: updateSource.trim(),
         apiBaseUrl: baseUrl.trim(),
         apiKey: apiKey.trim(),
         chatModel: chatModel.trim(),
@@ -207,6 +217,7 @@ export default function SettingsView({
       })
       onSaved(updated)
       acceptBaseUrl(baseUrl)
+        acceptUpdateSource(updateSource)
       acceptApiKey(apiKey)
       acceptChatModel(chatModel)
       acceptVisionModel(visionModel)
@@ -481,11 +492,16 @@ export default function SettingsView({
               <div className="update-progress-bar" style={{ width: `${downloadPercent}%` }} />
             </div>
           )}
-          {updateBusy && updateProgress?.phase === 'downloading' && (
+          {updateBusy && updateProgress && ['downloading', 'retrying'].includes(updateProgress.phase) && (
             <p className="hint">
               {' '}{t("正在下载安装包：")}{formatSize(updateProgress.received)} / {formatSize(updateProgress.total)}
+              {' · '}{updateProgress.mode === 'differential' ? t('差分更新') : t('完整安装包')}
+              {' · '}{formatSize(updateProgress.bytesPerSecond ?? 0)}/s
+              {updateProgress.remainingSeconds !== undefined && <> · {t('预计剩余 {0} 秒', [updateProgress.remainingSeconds])}</>}
+              {updateProgress.source && <> · {updateProgress.source}</>}
             </p>
           )}
+          {updateProgress?.message && updateProgress.phase !== 'ready' && <p className="hint" role="status">{updateProgress.message}</p>}
           {updateProgress?.phase === 'ready' && (
             <p className="hint">{updateProgress.message ?? t("安装包已下载完成，可立即安装。")}</p>
           )}
@@ -502,6 +518,26 @@ export default function SettingsView({
             <button className="btn ghost" onClick={() => void window.api.updates.openRelease()}>
               <ExternalLink size={15} /> {' '}{t("发布说明")}{' '}</button>
           </div>
+
+          {updateBusy && ['checking', 'downloading', 'retrying', 'verifying'].includes(updatePhase ?? '') && (
+            <button className="btn ghost" onClick={() => void window.api.updates.cancel()}>{t('取消下载')}</button>
+          )}
+          <label className="field" style={{ marginTop: 16 }}>
+            <span>{t('更新下载源（可选）')}</span>
+            <input aria-label={t('更新下载源（可选）')} value={updateSource} placeholder="https://downloads.example.com/arbor" disabled={updateBusy || sourceSaving}
+              onChange={event => setUpdateSource(event.target.value)} />
+          </label>
+          <p className="hint">{t('留空使用 GitHub。自有 HTTPS 下载源需提供 v版本号/安装包文件名 和对应 .blockmap；失败时自动回退 GitHub，并校验文件完整性。')}</p>
+          <button className="btn ghost" disabled={updateBusy || sourceSaving} onClick={() => void (async () => {
+            setSourceSaving(true)
+            try {
+              const saved = await window.api.settings.save({ updateDownloadSource: updateSource.trim() })
+              acceptUpdateSource(updateSource)
+              onSaved(saved)
+              notify(t('下载源已保存'), 'success')
+            } catch (error) { notify((error as Error).message, 'error') }
+            finally { setSourceSaving(false) }
+          })()}>{t('保存下载源')}</button>
 
           {updateInfo?.notes && (
             <details className="update-notes-wrap">

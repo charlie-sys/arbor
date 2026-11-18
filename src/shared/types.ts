@@ -16,6 +16,7 @@ export interface UsagePricing {
 export interface AppSettings {
   language: Locale
   uiFontSize: number
+  updateDownloadSource?: string
   apiBaseUrl: string
   apiKey: string
   chatModel: string

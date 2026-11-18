@@ -101,15 +101,20 @@ export interface UpdateInfo {
 }
 
 export interface UpdateProgress {
-  phase: 'downloading' | 'verifying' | 'ready' | 'installing' | 'error'
+  phase: 'checking' | 'downloading' | 'retrying' | 'paused' | 'verifying' | 'ready' | 'installing' | 'error'
   percent: number
   received: number
   total: number
+  bytesPerSecond?: number
+  remainingSeconds?: number
+  mode?: 'full' | 'differential'
+  source?: string
   message?: string
 }
 
 export interface UpdateDownloadResult {
   ok: boolean
+  canceled?: boolean
   message?: string
   filePath?: string
   version?: string
@@ -434,6 +439,8 @@ export interface ZotAgentApi {
   updates: {
     check(force?: boolean): Promise<UpdateInfo>
     download(): Promise<UpdateDownloadResult>
+    cancel(): Promise<void>
+    progress(): Promise<UpdateProgress | null>
     install(): Promise<UpdateInstallResult>
     openRelease(): Promise<void>
   }

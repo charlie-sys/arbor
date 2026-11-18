@@ -274,6 +274,8 @@ const api: ZotAgentApi = {
   updates: {
     check: (force?: boolean) => ipcRenderer.invoke('update:check', force === true),
     download: () => ipcRenderer.invoke('update:download'),
+    cancel: () => ipcRenderer.invoke('update:cancel'),
+    progress: () => ipcRenderer.invoke('update:progress-state'),
     install: () => ipcRenderer.invoke('update:install'),
     openRelease: () => ipcRenderer.invoke('update:open-release')
   },

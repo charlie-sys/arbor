@@ -20,7 +20,7 @@ import { importBibtexDialog, importReadwiseDialog } from './importers'
 import { listBackups, restoreBackup, runBackup } from './backup'
 import { runAiAction } from './aiActions'
 import { exportAttachmentZip } from './attachmentExport'
-import { checkForUpdates, downloadUpdate, installUpdate, openReleasePage } from './updater'
+import { checkForUpdates, downloadUpdate, installUpdate, openReleasePage, cancelUpdate, getUpdateProgress } from './updater'
 import { applyPetSettings, celebratePet, setPetBusy } from './pet'
 import { aliStore } from './ali/store'
 import { cancelAli, cancelAliSessions, getAliState, sendAli, testAliConnection, consolidateMemory } from './ali/service'
@@ -951,6 +951,8 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
 
   ipcMain.handle('update:check', (_event, force: unknown) => checkForUpdates(force === true))
   ipcMain.handle('update:download', () => downloadUpdate())
+  ipcMain.handle('update:cancel', () => cancelUpdate())
+  ipcMain.handle('update:progress-state', () => getUpdateProgress())
   ipcMain.handle('update:install', () => installUpdate())
   ipcMain.handle('update:open-release', () => openReleasePage())
 }

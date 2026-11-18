@@ -193,15 +193,19 @@ export default function App(): React.JSX.Element {
     }
   }, [checkUpdates])
 
-  useEffect(
-    () =>
-      window.api.events.onUpdateProgress((progress) => {
+  useEffect(() => {
+      const apply = (progress: UpdateProgress): void => {
         setUpdateProgress(progress)
+        if (['checking', 'downloading', 'retrying', 'verifying'].includes(progress.phase)) setUpdateReady(false)
+        setUpdateBusy(['checking', 'downloading', 'retrying', 'verifying', 'installing'].includes(progress.phase))
         if (progress.phase === 'ready') setUpdateReady(true)
-        if (progress.phase === 'error') setUpdateReady(false)
-      }),
-    []
-  )
+        if (progress.phase === 'error' || progress.phase === 'paused') setUpdateReady(false)
+      }
+      let changed = false
+      const off = window.api.events.onUpdateProgress(value => { changed = true; apply(value) })
+      void window.api.updates.progress().then(value => { if (value && !changed) apply(value) })
+      return off
+  }, [])
 
   const checkUpdatesManually = useCallback(async (): Promise<void> => {
     const info = await checkUpdates(true)
@@ -217,16 +221,17 @@ export default function App(): React.JSX.Element {
       if (!updateReady) {
         const downloaded = await window.api.updates.download()
         if (!downloaded.ok) {
-          notify(downloaded.message ?? t("下载更新失败"), 'error')
+          notify(downloaded.message ?? t("下载更新失败"), downloaded.canceled ? 'info' : 'error')
           return
         }
       }
       const installed = await window.api.updates.install()
       if (!installed.ok) {
-        setUpdateReady(true)
+        setUpdateReady((await window.api.updates.progress())?.phase === 'ready')
         notify(installed.message ?? t("安装已取消"), 'info')
       }
     } catch (err) {
+      setUpdateReady(false)
       notify(t("更新失败：{0}", [(err as Error).message]), 'error')
     } finally {
       setUpdateBusy(false)
