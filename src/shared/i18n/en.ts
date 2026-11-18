@@ -1,5 +1,6 @@
 /** 英文词典：键为简体中文源码文案，值为英文译文。 */
 export const EN: Record<string, string> = {
+  '引用位置 · 第 {0} 页': 'Reference location · Page {0}',
   '继续下载更新': 'Resume update download',
   '正在准备下载…': 'Preparing download…',
   '正在重试…': 'Retrying…',

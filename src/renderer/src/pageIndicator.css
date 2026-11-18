@@ -1,0 +1,30 @@
+.text-doc-sheet { position: relative; }
+.reference-page-indicator {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  user-select: none;
+  border: 3px solid #d98d16;
+  box-shadow: inset 0 0 18px #eaa82355;
+  animation: reference-page-pulse 900ms ease-in-out 3;
+}
+.reference-page-indicator > span {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #754700;
+  color: #fff;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  line-height: 1.5;
+  box-shadow: 0 2px 8px #0003;
+}
+@keyframes reference-page-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reference-page-indicator { animation: none; }
+}

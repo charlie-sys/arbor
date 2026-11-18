@@ -9,6 +9,7 @@ import type { DocumentAnnotations, Highlight, HighlightRect, InkStroke, StickyNo
 import { t } from '@shared/i18n'
 import PageAnnotationLayer, { type AnnotationTool } from './PageAnnotationLayer'
 import { isDocumentToneId, paintToneImagePreserve } from '../documentTone'
+import { usePageIndicator } from '../usePageIndicator'
 
 export interface PdfSelection {
   text: string
@@ -67,6 +68,7 @@ function clamp01(value: number): number {
 }
 
 const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, ref) {
+  const indicator = usePageIndicator()
   const scrollRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const viewerObj = useRef<any>(null)
@@ -191,8 +193,10 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     }
   }
 
-  const goToPage = (value: number): void => {
+  const goToPage = (value: number, indicate = true): void => {
     const requested = Math.max(1, Math.round(value))
+    if (indicate) indicator.request(requested)
+    else indicator.clear()
     const viewer = viewerObj.current
     const total = viewer?.pagesCount || 0
     // 文档尚未初始化完成时先记下目标页，pagesinit 时再应用，避免被 initialPage 覆盖
@@ -202,6 +206,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     }
     pendingPageRef.current = null
     const target = Math.min(total, requested)
+    if (indicate) indicator.request(target)
     try {
       viewer.currentPageNumber = target
     } catch {
@@ -222,6 +227,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
       if (parent === container && Math.abs(container.scrollTop - offsetY) > 4) {
         container.scrollTop = offsetY
       }
+      if (viewer.getPageView(target - 1)?.renderingState === 3) indicator.show(pageDiv, target)
     })
   }
 
@@ -232,12 +238,12 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
     nextPage() {
       const viewer = viewerObj.current
       const current = viewer?.currentPageNumber || pageRef.current
-      goToPage(current + 1)
+      goToPage(current + 1, false)
     },
     prevPage() {
       const viewer = viewerObj.current
       const current = viewer?.currentPageNumber || pageRef.current
-      goToPage(current - 1)
+      goToPage(current - 1, false)
     },
     zoomIn() {
       const viewer = viewerObj.current
@@ -333,6 +339,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
           const pageView = viewer.getPageView(event.pageNumber - 1)
           const pageDiv = pageView?.div as HTMLElement | undefined
           if (pageDiv) ensurePageHost(event.pageNumber, pageDiv)
+          indicator.show(pageDiv, event.pageNumber)
           const toneLayer = toneLayersRef.current.get(event.pageNumber)
           if (toneLayer) delete toneLayer.dataset.renderKey
           paintToneLayers()
@@ -348,7 +355,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
           pagesReadyRef.current = true
           const pending = pendingPageRef.current ?? callbacks.current.initialPage ?? 1
           pendingPageRef.current = null
-          viewer.currentPageNumber = Math.min(pending, pdf.numPages)
+          goToPage(pending, indicator.pending.current !== null)
           callbacks.current.onPagesLoaded(pdf.numPages)
           if (!cancelled) setLoading(false)
           paintHighlights()

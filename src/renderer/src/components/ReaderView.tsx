@@ -64,6 +64,7 @@ interface Props {
   excerpts: Excerpt[]
   tasks: TaskItem[]
   initialPage?: number
+  navigationId?: number
   translateBusy: boolean
   translation?: TranslationRecord | null
   hasTranslation?: boolean
@@ -102,7 +103,7 @@ interface HighlightEditorState {
   top: number
 }
 
-export default function ReaderView({ doc, documents, chats, collections, highlights, excerpts, tasks, initialPage, translateBusy, translation, hasTranslation, onCloseTranslation, onRestoreTranslation, onOpenTranslations, onBack, onChanged, onOpenDoc, notify }: Props): React.JSX.Element {
+export default function ReaderView({ doc, documents, chats, collections, highlights, excerpts, tasks, initialPage, navigationId, translateBusy, translation, hasTranslation, onCloseTranslation, onRestoreTranslation, onOpenTranslations, onBack, onChanged, onOpenDoc, notify }: Props): React.JSX.Element {
   const pdfRef = useRef<PdfViewerHandle>(null)
   const docFormat = documentFormatOf(doc)
   const [webMode, setWebMode] = useState(docFormat === 'web')
@@ -537,7 +538,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
       setPageInput(String(initialPage))
       pdfRef.current?.goToPage(initialPage)
     }
-  }, [initialPage])
+  }, [initialPage, navigationId])
 
   useEffect(() => {
     if (!outlineLoaded || outline.length > 0) return

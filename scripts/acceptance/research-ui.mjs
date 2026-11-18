@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 import { testBatchUi } from './batch-ui.mjs'
 import { testFoldersAndFont } from './folders-ui.mjs'
 import { testUnsavedNavigation } from './unsaved-ui.mjs'
+import { testCitationIndicator } from './citation-ui.mjs'
 
 const require = createRequire(import.meta.url)
 const dir = await mkdtemp(join(tmpdir(), 'arbor-ui-'))
@@ -274,6 +275,15 @@ try {
   assert.equal(await evaluate(`window.api.library.getState().then(s => s.documents.find(d => d.id === ${JSON.stringify(pdfDoc.id)}).lastPage)`), 2,
     'An idle window must not overwrite another window’s saved page')
   console.log('PASS: two real PDF readers render independently and retain separate pages without fighting over the saved reading position')
+  const citationText = join(dir, 'citation.txt')
+  await writeFile(citationText, 'Text first page\nText second page')
+  client = firstPdfClient
+  await client.call('Page.bringToFront')
+  await testCitationIndicator({ evaluate, waitFor, pdfDoc, textPath: citationText, capture: async name => {
+    await client.call('Page.bringToFront')
+    const shot = await client.call('Page.captureScreenshot', {format:'png'})
+    await writeFile(join(output, name + '.png'), Buffer.from(shot.data, 'base64'))
+  } })
   firstPdfClient.close()
   secondPdfClient.close()
   client = otherClient

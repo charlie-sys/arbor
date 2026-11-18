@@ -4,6 +4,7 @@ import type { Highlight, HighlightRect } from '@shared/types'
 import type { PdfOutlineItem, PdfSelection, PdfViewerHandle } from './PdfViewer'
 import { Markdown } from '../ui'
 import { t } from '@shared/i18n'
+import { usePageIndicator } from '../usePageIndicator'
 
 interface Props {
   docId: string
@@ -36,6 +37,7 @@ function buildOutline(pages: string[]): PdfOutlineItem[] {
 }
 
 const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props, ref) {
+  const indicator = usePageIndicator()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const pagesRef = useRef<string[]>([])
@@ -50,19 +52,25 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
   const callbacks = useRef(props)
   callbacks.current = props
 
-  const goToPage = useCallback((value: number): void => {
+  const goToPage = useCallback((value: number, indicate = true): void => {
     const total = pagesRef.current.length
     const requested = Math.max(1, Math.round(value))
+    if (indicate) indicator.request(requested)
+    else indicator.clear()
     if (!total) {
       pendingPageRef.current = requested
       return
     }
     pendingPageRef.current = null
     const target = Math.min(total, Math.max(1, requested))
+    if (indicate || indicator.pending.current !== null) indicator.request(target)
     pageRef.current = target
     setPage(target)
     callbacks.current.onPageChange(target)
     scrollRef.current?.scrollTo({ top: 0 })
+    window.requestAnimationFrame(() => {
+      if (pageRef.current === target) indicator.show(contentRef.current?.parentElement, target)
+    })
   }, [])
 
   useEffect(() => {
@@ -85,7 +93,7 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
         setPages(result)
         callbacks.current.onPagesLoaded(result.length)
         callbacks.current.onOutline(props.markdown ? buildOutline(result) : [])
-        goToPage(pendingPageRef.current ?? (props.initialPage || 1))
+        goToPage(pendingPageRef.current ?? (props.initialPage || 1), indicator.pending.current !== null)
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message || t("读取正文失败"))
@@ -101,7 +109,8 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
-  }, [page])
+    indicator.show(contentRef.current?.parentElement, page)
+  }, [page, pages])
 
   useEffect(() => {
     const container = scrollRef.current
@@ -120,8 +129,8 @@ const TextViewer = forwardRef<PdfViewerHandle, Props>(function TextViewer(props,
     ref,
     () => ({
       goToPage,
-      nextPage: () => goToPage(pageRef.current + 1),
-      prevPage: () => goToPage(pageRef.current - 1),
+      nextPage: () => goToPage(pageRef.current + 1, false),
+      prevPage: () => goToPage(pageRef.current - 1, false),
       zoomIn: () => setScale((value) => Math.min(1.8, Number((value + 0.1).toFixed(2)))),
       zoomOut: () => setScale((value) => Math.max(0.7, Number((value - 0.1).toFixed(2)))),
       fitWidth: () => setScale(1)

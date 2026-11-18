@@ -50,12 +50,19 @@ export default function App(): React.JSX.Element {
     return docId ? { name: 'reader', docId } : { name: 'library' }
   })
   const notifyRef = useRef<(message: string, kind?: 'info' | 'success' | 'error') => void>(() => {})
+  const navigationCounter = useRef(0)
   const setView = useCallback((next: View | ((prev: View) => View)) => {
     if (hasUnsavedChanges()) {
       notifyRef.current(t("有未保存的修改，请先保存"), 'info')
       return
     }
-    setViewState(next)
+    const navigationId = ++navigationCounter.current
+    setViewState(prev => {
+      const target = typeof next === 'function' ? next(prev) : next
+      return target !== prev && target.name === 'reader' && target.page
+        ? { ...target, navigationId }
+        : target
+    })
   }, [])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [translateStatus, setTranslateStatus] = useState<TranslateEvent | null>(null)
@@ -730,6 +737,7 @@ export default function App(): React.JSX.Element {
               excerpts={data.excerpts}
               tasks={data.tasks}
               initialPage={view.name === 'reader' ? view.page : undefined}
+              navigationId={view.name === 'reader' ? view.navigationId : undefined}
               translateBusy={translateBusy}
               translation={data.translations.find((item) => item.id === readerTranslationId) ?? null}
               hasTranslation={
