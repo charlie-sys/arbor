@@ -272,6 +272,7 @@ interface EmbeddedPage {
   docId: string
   source: WebPageSource
   archiveUrl?: string
+  bounds?: WebBounds
   readable?: boolean
   navigation: number
   error?: string
@@ -310,11 +311,17 @@ export function setWebBounds(senderId: number, bounds: WebBounds | null): void {
   const page = pages.get(senderId)
   if (!page) return
   if (!bounds || !Object.values(bounds).every(Number.isFinite)) { page.view.setVisible(false); return }
+  page.bounds = { ...bounds }
+  // Renderer rectangles use CSS pixels; native View bounds use DIP. Only the
+  // application renderer's zoom belongs here, not webpage zoom or display DPI.
+  const zoom = page.sender.getZoomFactor()
   const [width, height] = page.owner.getContentSize()
-  const x = Math.min(width, Math.max(0, Math.round(bounds.x)))
-  const y = Math.min(height, Math.max(0, Math.round(bounds.y)))
-  const w = Math.min(width - x, Math.max(0, Math.round(bounds.width)))
-  const h = Math.min(height - y, Math.max(0, Math.round(bounds.height)))
+  const x = Math.min(width, Math.max(0, Math.round(bounds.x * zoom)))
+  const y = Math.min(height, Math.max(0, Math.round(bounds.y * zoom)))
+  const right = Math.min(width, Math.round((bounds.x + bounds.width) * zoom))
+  const bottom = Math.min(height, Math.round((bounds.y + bounds.height) * zoom))
+  const w = Math.max(0, right - x)
+  const h = Math.max(0, bottom - y)
   page.view.setBounds({ x, y, width: w, height: h })
   page.view.setVisible(w > 0 && h > 0)
 }
@@ -382,7 +389,7 @@ export function mountWebPage(sender: WebContents, docId: string, bounds: WebBoun
 
 export function switchWebPageSource(senderId: number, source: WebPageSource, targetUrl?: string): WebPageState {
   const current = getPage(senderId)
-  const bounds = current.view.getBounds()
+  const bounds = current.bounds ?? { x: 0, y: 0, width: 0, height: 0 }
   const visible = current.view.getVisible()
   const next = mountWebPage(current.sender, current.docId, bounds, source, targetUrl)
   if (!visible) setWebBounds(senderId, null)

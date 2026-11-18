@@ -6,7 +6,7 @@ import http from 'node:http'
 import { store } from '../../src/main/store'
 import { streamChat, type ChatHandlers } from '../../src/main/llm'
 import type { ChatRequest } from '../../src/shared/types'
-import { importWebUrl, captureWebContents, readPageScript, mountWebPage, webPageState, navigateWebPage, actOnWebPage, saveWebPage, closeWebPage, setWebBounds } from '../../src/main/webPage'
+import { importWebUrl, captureWebContents, readPageScript, mountWebPage, webPageState, navigateWebPage, actOnWebPage, saveWebPage, closeWebPage, setWebBounds, switchWebPageSource } from '../../src/main/webPage'
 import { selectChatHistory } from '../../src/shared/chatPrompt'
 import { normalizeWebUrl } from '../../src/shared/web'
 import { usageFromApi } from '../../src/main/usage'
@@ -179,6 +179,21 @@ async function run(): Promise<void> {
     }
   }
   await waitFor(() => !view.webContents.isLoading() && view.webContents.getURL().endsWith('/article'))
+  await owner.webContents.executeJavaScript(`document.body.innerHTML = '<div id="web-host" style="position:absolute;left:12px;top:80px;width:60vw;height:65vh"></div>'`)
+  for (const zoom of [0.8, 1.25, 1]) {
+    owner.webContents.setZoomFactor(zoom)
+    const box = await owner.webContents.executeJavaScript(`(() => {
+      const r = document.querySelector('#web-host').getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    })()`)
+    setWebBounds(owner.webContents.id, box)
+    const native = view.getBounds()
+    assert.ok(Math.abs(native.x + native.width - (box.x + box.width) * zoom) <= 1,
+      `Native webpage must stop at the reader divider after app zoom: ${JSON.stringify({ zoom, box, native })}`)
+    assert.ok(Math.abs(native.y - box.y * zoom) <= 1, 'Webpage must stay below the toolbar after app zoom')
+  }
+  setWebBounds(owner.webContents.id, { x: 0, y: 0, width: 600, height: 400 })
+  console.log('PASS: native webpage stays inside its reader at 80%, 125% and 100% application zoom')
   const checkWheelZoom = async (contents: Electron.WebContents) => {
     owner.focus()
     contents.focus()
@@ -263,7 +278,25 @@ async function run(): Promise<void> {
   mountWebPage(owner.webContents, archive.id, { x: 0, y: 0, width: 600, height: 400 }, 'offline')
   const offline = owner.contentView.children.find((child) => child instanceof WebContentsView) as WebContentsView
   await waitFor(() => !offline.webContents.isLoading() && offline.webContents.getURL().endsWith('.mhtml'))
-  const restored = await readPageScript(offline.webContents, `({
+  assert.equal(webRequests.length, requestsBeforeOffline, 'Offline reading must not fetch source assets')
+  owner.webContents.setZoomFactor(0.8)
+  setWebBounds(owner.webContents.id, { x: 12, y: 80, width: 600, height: 400 })
+  const scaledArchiveBounds = offline.getBounds()
+  assert.deepEqual(scaledArchiveBounds, { x: 10, y: 64, width: 480, height: 320 })
+  setWebBounds(owner.webContents.id, null)
+  switchWebPageSource(owner.webContents.id, 'online')
+  const switchedOnline = owner.contentView.children.find((child) => child instanceof WebContentsView) as WebContentsView
+  assert.deepEqual(switchedOnline.getBounds(), scaledArchiveBounds, 'Switching sources must not apply app zoom twice')
+  assert.equal(switchedOnline.getVisible(), false, 'Source switching must preserve a hidden native view')
+  await waitFor(() => !switchedOnline.webContents.isLoading())
+  switchWebPageSource(owner.webContents.id, 'offline')
+  const switchedArchive = owner.contentView.children.find((child) => child instanceof WebContentsView) as WebContentsView
+  assert.deepEqual(switchedArchive.getBounds(), scaledArchiveBounds)
+  owner.webContents.setZoomFactor(1)
+  setWebBounds(owner.webContents.id, { x: 0, y: 0, width: 600, height: 400 })
+  await waitFor(() => !switchedArchive.webContents.isLoading())
+  console.log('PASS: source switches preserve scaled bounds and visibility without applying zoom twice')
+  const restored = await readPageScript(switchedArchive.webContents, `({
     image: document.querySelector('#diagram')?.naturalWidth,
     color: getComputedStyle(document.querySelector('h1')).color,
     text: document.body.innerText
@@ -271,16 +304,19 @@ async function run(): Promise<void> {
   assert.ok(restored.image > 0, 'Archived image must load without the origin server')
   assert.equal(restored.color, 'rgb(13, 80, 100)')
   assert.match(restored.text, /Interaction worked/)
-  assert.equal(webRequests.length, requestsBeforeOffline, 'Offline reading must not fetch source assets')
-  await checkWheelZoom(offline.webContents)
+  // The explicit online-source switch above may request the original URL; the
+  // archive reload itself must still avoid requesting its source assets.
+  const requestsBeforeOfflineQuestion = webRequests.length
+  await checkWheelZoom(switchedArchive.webContents)
   console.log('PASS: Ctrl + wheel zoom also works in script-disabled offline archives')
   const archiveChat = await store.createChat([archive.id])
   await streamChat({ ...first, chatId: archiveChat.id, docIds: [archive.id] }, handlers, { webSenderId: owner.webContents.id })
+  assert.equal(webRequests.length, requestsBeforeOfflineQuestion, 'Offline reading and Q&A must not fetch source assets')
   assert.match(JSON.stringify(requests[requests.length - 1].messages), /Interaction worked/)
   assert.doesNotMatch(JSON.stringify(requests[requests.length - 1].messages), /file:/)
   console.log('PASS: offline MHTML restores images, styles and current DOM and supports Q&A without network access')
   networkUnavailable = false
-  await readPageScript(offline.webContents, 'document.querySelector("#link").click()')
+  await readPageScript(switchedArchive.webContents, 'document.querySelector("#link").click()')
   await waitFor(() => webPageState(owner.webContents.id).source === 'online' && webPageState(owner.webContents.id).url.endsWith('/linked'))
   console.log('PASS: external links from offline archives open in the online reader')
   const currentView = owner.contentView.children.find((child) => child instanceof WebContentsView) as WebContentsView

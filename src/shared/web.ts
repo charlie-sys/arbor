@@ -10,6 +10,7 @@ export interface WebPageSnapshot {
 
 export type WebPageSource = 'online' | 'offline'
 
+/** Rectangle in application-renderer CSS pixels, before its zoom is applied. */
 export interface WebBounds {
   x: number
   y: number
