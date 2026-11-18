@@ -5,6 +5,7 @@ import { Markdown, cx, formatTime } from '../ui'
 import AliHelpModal from './AliHelpModal'
 import AliMemoryPanel from './AliMemoryPanel'
 import AliVoiceSettings from './AliVoiceSettings'
+import { BatchDeleteDialog, useBatchSelection } from './batch'
 import { applyChatScale, getChatScale } from '../chatZoom'
 import { chunkSpeech } from '../speech'
 import { t } from '@shared/i18n'
@@ -23,6 +24,8 @@ interface StreamState {
 
 export default function AliView({ notify, compact = false }: Props): React.JSX.Element {
   const [state, setState] = useState<AliState | null>(null)
+  const [deleting, setDeleting] = useState<AliSession[] | null>(null)
+  const [manageOpen, setManageOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -48,6 +51,7 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
     [state?.sessions]
   )
   const active = sessions.find((session) => session.id === activeId) ?? null
+  const selection = useBatchSelection(sessions.map(session => session.id))
   activeRef.current = activeId
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -65,6 +69,8 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  useEffect(() => window.api.events.onAliSessionsChanged(() => { void refresh() }), [refresh])
 
   useEffect(() => {
     if (state?.settings) setTtsOn(Boolean(state.settings.ttsEnabled))
@@ -301,6 +307,16 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
     </>
   )
 
+  const batchToolbar = <div className="batch-toolbar" aria-label={t('阿栗会话批量操作')}>
+    <button className="btn ghost small" disabled={!sessions.length} onClick={selection.all}>{t('全选')}</button>
+    <button className="btn ghost small" disabled={!selection.ids.length} onClick={selection.clear}>{t('全不选')}</button>
+    <span className="batch-count">{t('已选择 {0} 项', [selection.ids.length])}</span>
+    <button className="btn small" disabled={!selection.ids.length} onClick={() => {
+      setManageOpen(false)
+      setDeleting(sessions.filter(session => selection.ids.includes(session.id)))
+    }}>{t('批量删除')}</button>
+  </div>
+
   return (
     <div className={cx('view chat-page ali-view', compact && 'compact')} data-testid="ali-view">
       {!compact && (
@@ -314,6 +330,7 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
             <Plus size={14} /> {t('新建')}
           </button>
         </div>
+        {batchToolbar}
         <div className="sessions-list" data-testid="ali-session-list">
           {sessions.length === 0 && (
             <div className="sessions-empty">
@@ -327,12 +344,13 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
           {sessions.map((session) => (
             <div
               key={session.id}
-              className={cx('session-item', session.id === activeId && 'active')}
+              className={cx('session-item', session.id === activeId && 'active', selection.ids.includes(session.id) && 'batch-selected')}
               onClick={() => {
                 cancelSpeech()
                 setActiveId(session.id)
               }}
             >
+              <input type="checkbox" className="session-batch-check" aria-label={t('选择阿栗会话：{0}', [session.title || t('新的对话')])} checked={selection.ids.includes(session.id)} onClick={event => event.stopPropagation()} onChange={() => selection.toggle(session.id)} />
               <div className="session-title">{session.title || t('新的对话')}</div>
               <div className="session-meta">
                 <span>{t('{0} 条消息', [session.messages.length])}</span>
@@ -371,6 +389,7 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
             </div>
             {compact && (
               <div className="ali-compact-toolbar">
+                <button className="icon-btn" title={t('批量管理会话')} onClick={() => setManageOpen(true)}><Trash2 size={15} /></button>
                 <select
                   data-testid="ali-session-select"
                   value={active.id}
@@ -554,6 +573,30 @@ export default function AliView({ notify, compact = false }: Props): React.JSX.E
           </>
         )}
       </section>
+      {compact && manageOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setManageOpen(false) }}>
+        <div className="modal batch-delete-dialog" role="dialog" aria-modal="true" aria-label={t('批量管理会话')}>
+          <div className="modal-head"><h3>{t('批量管理会话')}</h3></div>
+          {batchToolbar}
+          <div className="batch-dialog-body">{sessions.map(session => <label key={session.id}>
+            <input type="checkbox" aria-label={t('选择阿栗会话：{0}', [session.title || t('新的对话')])} checked={selection.ids.includes(session.id)} onChange={() => selection.toggle(session.id)} />
+            {session.title || t('新的对话')}
+          </label>)}</div>
+          <div className="modal-foot"><button className="btn ghost" onClick={() => setManageOpen(false)}>{t('关闭')}</button></div>
+        </div>
+      </div>}
+      {deleting && <BatchDeleteDialog titles={deleting.map(session => session.title || t('新的对话'))} kind="ali" onClose={() => setDeleting(null)} onConfirm={async () => {
+        const count = await window.api.ali.batchDeleteSessions(deleting.map(session => session.id))
+        if (deleting.some(session => session.id === activeId)) {
+          cancelSpeech()
+          setInput('')
+          setError('')
+          setUndo(null)
+        }
+        if (stream && deleting.some(session => session.id === stream.sessionId)) { setBusy(false); setStream(null); setActiveTool(null) }
+        selection.clear()
+        await refresh()
+        notify(t('已删除 {0} 个阿栗会话', [count]), 'success')
+      }} />}
       {helpTitle && <AliHelpModal title={helpTitle} onClose={() => setHelpTitle(null)} />}
       {memoryOpen && <AliMemoryPanel onClose={() => setMemoryOpen(false)} notify={notify} />}
       {voiceOpen && state && (

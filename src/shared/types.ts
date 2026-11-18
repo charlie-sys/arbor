@@ -15,6 +15,7 @@ export interface UsagePricing {
 
 export interface AppSettings {
   language: Locale
+  uiFontSize: number
   apiBaseUrl: string
   apiKey: string
   chatModel: string
@@ -193,6 +194,7 @@ export interface Collection {
   name: string
   parentId?: string
   includeChildren?: boolean
+  color?: string
   createdAt: number
 }
 

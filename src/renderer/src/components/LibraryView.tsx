@@ -4,6 +4,8 @@ import {
   BookOpen,
   ExternalLink,
   FolderPlus,
+  Folder,
+  Plus,
   Globe,
   Loader2,
   MessageSquare,
@@ -19,6 +21,12 @@ import {
 import type { DocumentMeta, LibraryData, Property, PropertyValue, ReadingStatus, SavedViewConfig } from '@shared/types'
 import type { UpdateInfo } from '@shared/api'
 import CollectionPicker from './CollectionPicker'
+import { BatchDeleteDialog, useBatchSelection } from './batch'
+import DocumentBatchDialog from './DocumentBatchDialog'
+import CollectionTree from './CollectionTree'
+import FolderEditor from './FolderEditor'
+import { collectionPath } from '@shared/collections'
+import './folders.css'
 import PropertyCell from './PropertyCell'
 import './properties.css'
 import { cx, formatTime } from '../ui'
@@ -31,8 +39,8 @@ interface Props {
   importing: { done: number; total: number } | null
   onOpen(docId: string): void
   onChat(docId: string): Promise<void> | void
-  onImport(): void
-  onImportWeb(): void
+  onImport(collectionId?: string): void
+  onImportWeb(collectionId?: string): void
   onChanged(): Promise<void> | void
   onClearCollection(): void
   onSelectCollection?(collectionId?: string): void
@@ -152,6 +160,9 @@ export default function LibraryView({
   const [query, setQuery] = useState(savedConfig?.query ?? '')
   const [starredOnly, setStarredOnly] = useState(savedConfig?.starredOnly ?? false)
   const [pickerDoc, setPickerDoc] = useState<DocumentMeta | null>(null)
+  const [batchEditing, setBatchEditing] = useState(false)
+  const [newFolder, setNewFolder] = useState(false)
+  const [deleting, setDeleting] = useState<DocumentMeta[] | null>(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
   const [saveViewName, setSaveViewName] = useState('')
   const [statusFilter, setStatusFilter] = useState<ReadingStatus | 'all'>(savedConfig?.status ?? 'all')
@@ -303,7 +314,7 @@ export default function LibraryView({
 
     const collectionLabels = (doc: DocumentMeta): string =>
       doc.collections
-        .map((id) => data.collections.find((collection) => collection.id === id)?.name ?? '')
+        .map((id) => collectionPath(data.collections, id))
         .filter(Boolean)
         .join(t('、'))
 
@@ -378,6 +389,8 @@ export default function LibraryView({
     tableSort
   ])
 
+  const selection = useBatchSelection(documents.map(doc => doc.id))
+  const selectedDocuments = documents.filter(doc => selection.ids.includes(doc.id))
   const hasFilters =
     !!query.trim() ||
     starredOnly ||
@@ -452,7 +465,7 @@ export default function LibraryView({
   const totalColumnWidth =
     TABLE_COLUMNS.reduce((sum, column) => sum + columnWidthOf(columnWidths, column.key), 0) +
     data.properties.reduce((sum, property) => sum + columnWidthOf(columnWidths, `prop:${property.id}`), 0) +
-    PROPERTY_COLUMN_WIDTH
+    PROPERTY_COLUMN_WIDTH + 44
 
   const saveView = async (): Promise<void> => {
     const name = saveViewName.trim()
@@ -480,7 +493,7 @@ export default function LibraryView({
 
   const collectionNames = (doc: DocumentMeta): string =>
     doc.collections
-      .map((id) => data.collections.find((collection) => collection.id === id)?.name ?? '')
+      .map((id) => collectionPath(data.collections, id))
       .filter(Boolean)
       .join(t('、'))
 
@@ -522,14 +535,23 @@ export default function LibraryView({
             <span className="version-number">v{updateInfo?.currentVersion ?? '—'}</span>
             <span className="version-status">{updateLabel}</span>
           </button>
-          <button className="btn" onClick={onImportWeb} disabled={!!importing}><Globe size={16} />{t('导入网页')}</button>
-          <button className="btn primary" onClick={onImport} disabled={!!importing}>
+          <button className="btn" onClick={() => onImportWeb(activeCollection)} disabled={!!importing}><Globe size={16} />{t('导入网页')}</button>
+          <button className="btn primary" onClick={() => onImport(activeCollection)} disabled={!!importing}>
             {importing ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
             {importing ? t("导入中 {0}/{1}", [importing.done, importing.total]) : t("导入文献")}
           </button>
         </div>
       </header>
 
+      <div className="library-workspace">
+        <aside className="library-folder-panel" aria-label={t('文件夹目录')}>
+          <div className="library-folder-head"><strong>{t('文献文件夹')}</strong><button className="icon-btn" title={t('新建文件夹')} onClick={() => setNewFolder(true)}><Plus size={16} /></button></div>
+          <button className="btn ghost small" onClick={() => onSelectCollection?.(undefined)}><BookOpen size={15} />{t('全部文献')}</button>
+          <CollectionTree collections={data.collections} documents={data.documents} activeId={activeCollection} onNavigate={id => onSelectCollection?.(id)} onChanged={onChanged} onActiveRemoved={id => { if (activeCollection === id) onClearCollection() }} notify={notify} />
+          {!data.collections.length && <div className="collections-empty">{t('点击 + 新建文件夹，可继续创建子文件夹')}</div>}
+        </aside>
+        <section className="library-documents">
+          {activeCollection && <div className="folder-breadcrumbs"><button className="link-btn" onClick={() => onSelectCollection?.(undefined)}>{t('全部文献')}</button><span>/</span><Folder size={14} style={{ color: data.collections.find(item => item.id === activeCollection)?.color || 'var(--accent)' }} /><span>{collectionPath(data.collections, activeCollection)}</span></div>}
       <div className="library-toolbar">
         <div className="search-box">
           <Search size={16} />
@@ -552,7 +574,7 @@ export default function LibraryView({
             <option value="">{t("全部分类")}</option>
             {data.collections.map((collection) => (
               <option key={collection.id} value={collection.id}>
-                {collection.name}
+                {collectionPath(data.collections, collection.id)}
               </option>
             ))}
           </select>
@@ -652,6 +674,13 @@ export default function LibraryView({
         </div>
       )}
 
+      <div className="batch-toolbar" aria-label={t('文献批量操作')}>
+        <button className="btn ghost small" disabled={!documents.length} onClick={selection.all}>{t('全选')}</button>
+        <button className="btn ghost small" disabled={!selection.ids.length} onClick={selection.clear}>{t('全不选')}</button>
+        <span className="batch-count">{t('已选择 {0} / {1} 项（当前筛选结果）', [selection.ids.length, documents.length])}</span>
+        <button className="btn small" disabled={!selection.ids.length} onClick={() => setBatchEditing(true)}>{t('批量修改')}</button>
+        <button className="btn small" disabled={!selection.ids.length} onClick={() => setDeleting(selectedDocuments)}>{t('批量删除')}</button>
+      </div>
       {documents.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">
@@ -672,7 +701,7 @@ export default function LibraryView({
                 : t("当前筛选条件下没有结果，试试更换关键词或清除筛选条件。")}
           </p>
           {data.documents.length === 0 && (
-            <button className="btn primary" onClick={onImport}>
+            <button className="btn primary" onClick={() => onImport(activeCollection)}>
               <Upload size={16} /> {' '}{t("导入文献")}{' '}</button>
           )}
           {data.documents.length > 0 && hasFilters && (
@@ -689,6 +718,7 @@ export default function LibraryView({
                 style={{ tableLayout: 'fixed', minWidth: totalColumnWidth }}
               >
                 <colgroup>
+                  <col style={{ width: 44 }} />
                   {TABLE_COLUMNS.map((column) => (
                     <col key={column.key} style={{ width: columnWidthOf(columnWidths, column.key) }} />
                   ))}
@@ -702,6 +732,7 @@ export default function LibraryView({
                 </colgroup>
                 <thead>
               <tr>
+                <th className="batch-selection-cell"><input type="checkbox" aria-label={t('全选当前文献')} checked={documents.length > 0 && selection.ids.length === documents.length} ref={node => { if (node) node.indeterminate = selection.ids.length > 0 && selection.ids.length < documents.length }} onChange={event => event.target.checked ? selection.all() : selection.clear()} /></th>
                 {TABLE_COLUMNS.map((column) => (
                   <th
                     key={column.key}
@@ -756,7 +787,8 @@ export default function LibraryView({
             </thead>
             <tbody>
               {documents.map((doc) => (
-                <tr key={doc.id} className="doc-row" onClick={() => onOpen(doc.id)}>
+                <tr key={doc.id} className={cx('doc-row', selection.ids.includes(doc.id) && 'batch-selected')} onClick={() => onOpen(doc.id)}>
+                  <td className="batch-selection-cell" onClick={event => event.stopPropagation()}><input type="checkbox" aria-label={t('选择文献：{0}', [doc.title])} checked={selection.ids.includes(doc.id)} onChange={() => selection.toggle(doc.id)} /></td>
                   <td className="cell-title">
                     <div className="cell-title-inner">
                       <button
@@ -848,6 +880,9 @@ export default function LibraryView({
         </div>
       )}
 
+        </section>
+      </div>
+      {newFolder && <FolderEditor collections={data.collections} parentId={activeCollection} onClose={() => setNewFolder(false)} onChanged={onChanged} />}
       {saveViewOpen && (
         <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setSaveViewOpen(false)}>
           <div className="modal save-view-modal">
@@ -885,6 +920,18 @@ export default function LibraryView({
         </div>
       )}
 
+      {batchEditing && <DocumentBatchDialog count={selection.ids.length} collections={data.collections} onClose={() => setBatchEditing(false)} onSave={async patch => {
+        const count = await window.api.library.batchUpdate(selection.ids, patch)
+        selection.clear()
+        await onChanged()
+        notify(t('已更新 {0} 篇文献', [count]), 'success')
+      }} />}
+      {deleting && <BatchDeleteDialog titles={deleting.map(doc => doc.title)} kind="documents" onClose={() => setDeleting(null)} onConfirm={async () => {
+        const count = await window.api.library.batchRemove(deleting.map(doc => doc.id))
+        selection.clear()
+        await onChanged()
+        notify(t('已删除 {0} 篇文献', [count]), 'success')
+      }} />}
       {pickerDoc && (
         <CollectionPicker
           doc={pickerDoc}

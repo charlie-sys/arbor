@@ -222,9 +222,10 @@ function loadReadablePage(win: BrowserWindow, url: string): Promise<void> {
   })
 }
 
-export async function importWebUrl(input: string, options: { signal?: AbortSignal; onSaving?: () => void } = {}): Promise<DocumentMeta> {
+export async function importWebUrl(input: string, options: { signal?: AbortSignal; onSaving?: () => void; collectionId?: string } = {}): Promise<DocumentMeta> {
   const { signal } = options
   if (signal?.aborted) throw new Error(t('网页导入已取消'))
+  if (options.collectionId && !store.data.collections.some(item => item.id === options.collectionId)) throw new Error(t('目标文件夹不存在，请重新选择导入位置'))
   const url = normalizeWebUrl(input)
   const win = new BrowserWindow({ show: false, webPreferences: webPreferences() })
   restrictNavigation(win.webContents)
@@ -254,7 +255,7 @@ export async function importWebUrl(input: string, options: { signal?: AbortSigna
     options.onSaving?.()
     clearTimeout(timeout)
     signal?.removeEventListener('abort', cancel)
-    return await store.addWebLink({ ...snapshot, url: normalizeWebUrl(snapshot.url) })
+    return await store.addWebLink({ ...snapshot, url: normalizeWebUrl(snapshot.url) }, undefined, options.collectionId)
   } catch (error) {
     if (signal?.aborted) throw new Error(t('网页导入已取消'))
     throw new Error(t('网页导入失败：{0}', [(error as Error).message]))

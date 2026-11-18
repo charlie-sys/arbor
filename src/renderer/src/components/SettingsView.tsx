@@ -15,9 +15,11 @@ import {
 import type { AppSettings, BackupInfo } from '@shared/types'
 import type { AppInfo, TestResult, UpdateInfo, UpdateProgress } from '@shared/api'
 import { useUnsavedChanges } from '../unsaved'
-import { cx } from '../ui'
+import { cx, Markdown } from '../ui'
 import { LOCALES, localeTag, setLocale, t, type Locale } from '@shared/i18n'
 import { isDefaultSystemPrompt } from '@shared/i18n/defaults'
+import { applyUiFontSize } from '../appearance'
+import { useDraftField } from '../useDraftField'
 
 interface Props {
   settings: AppSettings
@@ -76,15 +78,15 @@ export default function SettingsView({
   onUpdate,
   notify
 }: Props): React.JSX.Element {
-  const [baseUrl, setBaseUrl] = useState(settings.apiBaseUrl)
-  const [apiKey, setApiKey] = useState(settings.apiKey)
-  const [chatModel, setChatModel] = useState(settings.chatModel)
-  const [visionModel, setVisionModel] = useState(settings.visionModel)
-  const [temperature, setTemperature] = useState(String(settings.temperature))
-  const [maxContextChars, setMaxContextChars] = useState(
-    settings.maxContextChars > 0 ? String(settings.maxContextChars) : ''
+  const [baseUrl, setBaseUrl, acceptBaseUrl] = useDraftField(settings.apiBaseUrl, 'settings')
+  const [apiKey, setApiKey, acceptApiKey] = useDraftField(settings.apiKey, 'settings')
+  const [chatModel, setChatModel, acceptChatModel] = useDraftField(settings.chatModel, 'settings')
+  const [visionModel, setVisionModel, acceptVisionModel] = useDraftField(settings.visionModel, 'settings')
+  const [temperature, setTemperature, acceptTemperature] = useDraftField(String(settings.temperature), 'settings')
+  const [maxContextChars, setMaxContextChars, acceptMaxContext] = useDraftField(
+    settings.maxContextChars > 0 ? String(settings.maxContextChars) : '', 'settings'
   )
-  const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt)
+  const [systemPrompt, setSystemPrompt, acceptSystemPrompt] = useDraftField(settings.systemPrompt, 'settings')
   const [petEnabled, setPetEnabled] = useState(settings.petEnabled)
   const [petBubbles, setPetBubbles] = useState(settings.petBubbles)
   const [saving, setSaving] = useState(false)
@@ -92,6 +94,7 @@ export default function SettingsView({
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [backups, setBackups] = useState<BackupInfo[]>([])
+  const [fontSaving, setFontSaving] = useState(false)
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState<string | null>(null)
   const settingsDirty =
@@ -203,13 +206,13 @@ export default function SettingsView({
         systemPrompt
       })
       onSaved(updated)
-      setBaseUrl(updated.apiBaseUrl)
-      setApiKey(updated.apiKey)
-      setChatModel(updated.chatModel)
-      setVisionModel(updated.visionModel)
-      setTemperature(String(updated.temperature))
-      setMaxContextChars(updated.maxContextChars > 0 ? String(updated.maxContextChars) : '')
-      setSystemPrompt(updated.systemPrompt)
+      acceptBaseUrl(baseUrl)
+      acceptApiKey(apiKey)
+      acceptChatModel(chatModel)
+      acceptVisionModel(visionModel)
+      acceptTemperature(temperature)
+      acceptMaxContext(maxContextChars)
+      acceptSystemPrompt(systemPrompt)
       notify(t("设置已保存"), 'success')
     } catch (err) {
       notify(t("保存失败：{0}", [(err as Error).message]), 'error')
@@ -245,6 +248,16 @@ export default function SettingsView({
     }
   }
 
+  const changeFontSize = async (size: number): Promise<void> => {
+    setFontSaving(true)
+    try {
+      const updated = await window.api.settings.save({ uiFontSize: size })
+      applyUiFontSize(updated.uiFontSize)
+      onSaved(updated)
+    } catch (err) { notify((err as Error).message, 'error') }
+    finally { setFontSaving(false) }
+  }
+
   const applyPreset = (preset: (typeof PRESETS)[number]): void => {
     setBaseUrl(preset.baseUrl)
     setChatModel(preset.chatModel)
@@ -266,6 +279,14 @@ export default function SettingsView({
       </header>
 
       <div className="settings-grid">
+        <section className="card">
+          <h2>{t('界面字体大小')}</h2>
+          <p className="hint">{t('调整软件界面文字，立即生效并自动保存；网页与 PDF 的缩放仍可独立调整。')}</p>
+          <label className="field"><span>{t('界面字号')}</span><select aria-label={t('界面字号')} className="select" value={settings.uiFontSize ?? 14} disabled={fontSaving} onChange={event => void changeFontSize(Number(event.target.value))}>
+            {Array.from({ length: 9 }, (_, index) => index + 12).map(size => <option key={size} value={size}>{size} px{size === 14 ? ` (${t('默认')})` : ''}</option>)}
+          </select></label>
+          <button className="btn ghost small" disabled={fontSaving || settings.uiFontSize === 14} onClick={() => void changeFontSize(14)}>{t('恢复默认字号')}</button>
+        </section>
         <section className="card">
           <h2>{t("界面语言")}</h2>
           <p className="hint" style={{ marginTop: 0 }}>
@@ -485,7 +506,7 @@ export default function SettingsView({
           {updateInfo?.notes && (
             <details className="update-notes-wrap">
               <summary>{t("更新内容")}</summary>
-              <div className="update-notes">{updateInfo.notes}</div>
+              <div className="update-notes"><Markdown>{updateInfo.notes}</Markdown></div>
             </details>
           )}
         </section>

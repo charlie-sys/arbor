@@ -3,7 +3,9 @@ import { Globe, Loader2 } from 'lucide-react'
 import { t } from '@shared/i18n'
 import { normalizeWebUrl } from '@shared/web'
 
-export default function WebImportDialog({ onClose, onImported }: {
+export default function WebImportDialog({ onClose, onImported, collectionId, collectionName }: {
+  collectionId?: string
+  collectionName?: string
   onClose(): void
   onImported(docId: string): Promise<void>
 }): React.JSX.Element {
@@ -42,7 +44,7 @@ export default function WebImportDialog({ onClose, onImported }: {
     const requestId = crypto.randomUUID()
     request.current = requestId
     try {
-      const doc = await window.api.library.importUrl(normalizeWebUrl(url), requestId)
+      const doc = await window.api.library.importUrl(normalizeWebUrl(url), requestId, collectionId)
       if (!alive.current || request.current !== requestId) return
       await onImported(doc.id)
     } catch (err) { if (alive.current && request.current === requestId) setError((err as Error).message) }
@@ -56,6 +58,7 @@ export default function WebImportDialog({ onClose, onImported }: {
       onSubmit={(e) => { e.preventDefault(); void submit() }} onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); void cancel() } }}>
       <div className="modal-head"><h3><Globe size={18} /> {t('导入网页')}</h3></div>
       <div className="web-import-body">
+        <p className="muted">{collectionId ? t('导入到文件夹：{0}', [collectionName || collectionId]) : t('导入位置：文献库（不归入文件夹）')}</p>
         <label htmlFor="web-import-url">{t('网页地址')}</label>
         <input id="web-import-url" ref={input} className="input" value={url} disabled={busy}
           onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/article" autoComplete="url" />

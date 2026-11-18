@@ -6,6 +6,9 @@ import type { ReaderPanelTab } from '@shared/api'
 import './styles.css'
 import './themes.css'
 import './ali.css'
+import { installUiFontSize } from './appearance'
+
+installUiFontSize()
 import { getLocale, localeFromStored, localeTag, setLocale, t } from '@shared/i18n'
 
 try {

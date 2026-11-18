@@ -38,7 +38,7 @@
   border-radius: var(--pill, 999px);
   background: var(--panel);
   color: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .property-input:focus {
@@ -75,7 +75,7 @@
 .property-item-name {
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--ui-font-scale, 1));
 }
 
 .property-item-actions {
@@ -99,7 +99,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-soft);
   white-space: nowrap;
 }
@@ -111,7 +111,7 @@
 }
 
 .property-filter > span {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-soft);
   white-space: nowrap;
 }
@@ -127,7 +127,7 @@
   border-radius: var(--pill, 999px);
   background: var(--panel);
   color: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .property-filter-input:focus {
@@ -148,7 +148,7 @@
   border-radius: var(--pill, 999px);
   background: transparent;
   color: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .prop-cell-input:hover,
@@ -160,7 +160,7 @@
 
 .prop-multi {
   position: relative;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .prop-multi > summary {

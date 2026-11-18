@@ -36,6 +36,7 @@ import ChatThread from './ChatThread'
 import ComposeModal from './ComposeModal'
 import MarkdownEditorModal from './MarkdownEditorModal'
 import { useUnsavedChanges } from '../unsaved'
+import { useDraftField, sameStringSet } from '../useDraftField'
 import { cx, formatTime, Markdown } from '../ui'
 import { t } from '@shared/i18n'
 
@@ -177,16 +178,16 @@ export default function ReaderSidePanel({
   const [notesDirty, setNotesDirty] = useState(false)
   const [notesPreview, setNotesPreview] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [title, setTitle] = useState(doc.title)
-  const [authors, setAuthors] = useState(doc.authors)
-  const [year, setYear] = useState(doc.year)
-  const [journal, setJournal] = useState(doc.journal)
-  const [doi, setDoi] = useState(doc.doi)
-  const [url, setUrl] = useState(doc.url)
-  const [abstract, setAbstract] = useState(doc.abstract)
-  const [tags, setTags] = useState(doc.tags.join(', '))
-  const [selectedCollections, setSelectedCollections] = useState<string[]>(doc.collections)
-  const [readingStatus, setReadingStatus] = useState(doc.readingStatus ?? 'unread')
+  const [title, setTitle, acceptTitle] = useDraftField(doc.title, doc.id)
+  const [authors, setAuthors, acceptAuthors] = useDraftField(doc.authors, doc.id)
+  const [year, setYear, acceptYear] = useDraftField(doc.year, doc.id)
+  const [journal, setJournal, acceptJournal] = useDraftField(doc.journal, doc.id)
+  const [doi, setDoi, acceptDoi] = useDraftField(doc.doi, doc.id)
+  const [url, setUrl, acceptUrl] = useDraftField(doc.url, doc.id)
+  const [abstract, setAbstract, acceptAbstract] = useDraftField(doc.abstract, doc.id)
+  const [tags, setTags, acceptTags] = useDraftField(doc.tags.join(', '), doc.id)
+  const [selectedCollections, setSelectedCollections, acceptCollections] = useDraftField(doc.collections, doc.id, sameStringSet)
+  const [readingStatus, setReadingStatus, acceptStatus] = useDraftField(doc.readingStatus ?? 'unread', doc.id)
   const [fallbackOpen, setFallbackOpen] = useState(false)
   const [taskTitle, setTaskTitle] = useState('')
   const [taskDue, setTaskDue] = useState('')
@@ -284,16 +285,6 @@ export default function ReaderSidePanel({
   }, [dirty])
 
   useEffect(() => {
-    setTitle(doc.title)
-    setAuthors(doc.authors)
-    setYear(doc.year)
-    setJournal(doc.journal)
-    setDoi(doc.doi)
-    setUrl(doc.url)
-    setAbstract(doc.abstract)
-    setTags(doc.tags.join(', '))
-    setSelectedCollections(doc.collections)
-    setReadingStatus(doc.readingStatus ?? 'unread')
     setNotes(doc.notes)
     setNotesDirty(false)
     setEditingExcerpt(null)
@@ -304,9 +295,6 @@ export default function ReaderSidePanel({
     if (!notesDirty) setNotes(doc.notes)
   }, [doc.notes, notesDirty])
 
-  useEffect(() => {
-    setReadingStatus(doc.readingStatus ?? 'unread')
-  }, [doc.readingStatus])
 
   const now = new Date()
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -375,6 +363,16 @@ export default function ReaderSidePanel({
       })
       await onChanged()
       notify(t("文献信息已保存"), 'success')
+      acceptTitle(title)
+      acceptAuthors(authors)
+      acceptYear(year)
+      acceptJournal(journal)
+      acceptDoi(doi)
+      acceptUrl(url)
+      acceptAbstract(abstract)
+      acceptTags(tags)
+      acceptCollections(selectedCollections)
+      acceptStatus(readingStatus)
     } catch (err) {
       notify(t("保存失败：{0}", [(err as Error).message]), 'error')
     } finally {

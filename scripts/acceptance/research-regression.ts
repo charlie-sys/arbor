@@ -149,6 +149,16 @@ async function run(): Promise<void> {
   for (const url of ['file:///C:/Windows/win.ini', 'javascript:alert(1)', 'https://user:password@example.com']) {
     assert.throws(() => normalizeWebUrl(url))
   }
+  const importFolder = await store.addCollection('Web import destination')
+  const folderWeb = await importWebUrl(`${base}/article?folder-context=1`, { collectionId: importFolder.id })
+  assert.deepEqual(folderWeb.collections, [importFolder.id])
+  await store.deleteDocument(folderWeb.id)
+  const docCountBeforeDeletedDestination = store.data.documents.length
+  const deletedDestinationImport = importWebUrl(`${base}/article`, { collectionId: importFolder.id })
+  await store.deleteCollection(importFolder.id)
+  await assert.rejects(deletedDestinationImport, /目标文件夹不存在/)
+  assert.equal(store.data.documents.length, docCountBeforeDeletedDestination, 'A deleted destination must not silently import an unfiled document')
+  console.log('PASS: web import persists its destination and rejects a destination deleted while loading')
   const web = await importWebUrl(`${base}/article`)
   assert.equal(web.sourceFormat, 'web')
   assert.equal(web.authors, 'Researcher')

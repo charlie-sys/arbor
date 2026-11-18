@@ -1,6 +1,6 @@
 {
   "name": "arbor-desktop",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Arbor — 文献阅读、知识整理与 AI 研究工坊",
   "author": "Arbor",
   "main": "./out/main/index.js",
@@ -14,6 +14,7 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test:research": "node scripts/acceptance/research-regression.mjs",
+    "test:batch": "node scripts/acceptance/research-regression.mjs scripts/acceptance/batch-regression.ts",
     "start": "electron-vite preview",
     "dist": "npm run prepare:pdfjs && electron-vite build && electron-builder --win nsis",
     "progress:sync": "node scripts/progress.mjs sync",

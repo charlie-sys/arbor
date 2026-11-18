@@ -1,269 +1,68 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronRight, ListTree, MoveRight, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, Folder, FolderOpen, MoreHorizontal, Plus, Palette, ListTree, Trash2 } from 'lucide-react'
 import type { Collection, DocumentMeta } from '@shared/types'
+import { collectionDescendants, collectionPath } from '@shared/collections'
 import { cx } from '../ui'
 import { t } from '@shared/i18n'
+import FolderEditor from './FolderEditor'
+import FolderMenu from './FolderMenu'
+import './folders.css'
 
 interface Props {
-  collections: Collection[]
-  documents: DocumentMeta[]
-  activeId?: string
-  onNavigate(id: string): void
-  onChanged(): Promise<void> | void
-  onActiveRemoved(id: string): void
+  collections: Collection[]; documents: DocumentMeta[]; activeId?: string
+  onNavigate(id: string): void; onChanged(): Promise<void> | void; onActiveRemoved(id: string): void
   notify(message: string, kind?: 'info' | 'success' | 'error'): void
 }
 
-interface Node {
-  collection: Collection
-  depth: number
-}
-
-export default function CollectionTree({
-  collections,
-  documents,
-  activeId,
-  onNavigate,
-  onChanged,
-  onActiveRemoved,
-  notify
-}: Props): React.JSX.Element {
+export default function CollectionTree({ collections, documents, activeId, onNavigate, onChanged, onActiveRemoved, notify }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const [movingId, setMovingId] = useState<string | null>(null)
-  const [addingParentId, setAddingParentId] = useState<string | null>(null)
-  const [childName, setChildName] = useState('')
-
-  const known = new Set(collections.map((collection) => collection.id))
-  const childrenOf = new Map<string, Collection[]>()
-  const roots: Collection[] = []
-  for (const collection of collections) {
-    const parentId = collection.parentId && known.has(collection.parentId) ? collection.parentId : undefined
-    if (!parentId) {
-      roots.push(collection)
-      continue
-    }
-    const list = childrenOf.get(parentId) ?? []
-    list.push(collection)
-    childrenOf.set(parentId, list)
+  const [menu, setMenu] = useState<string | null>(null)
+  const anchor = useRef<HTMLButtonElement | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
+  const [editor, setEditor] = useState<{ folder?: Collection; parentId?: string } | null>(null)
+  const known = new Set(collections.map(item => item.id))
+  const children = (id: string) => collections.filter(item => item.parentId === id)
+  const nodes: { folder: Collection; depth: number }[] = []
+  const seen = new Set<string>()
+  const flatten = (folder: Collection, depth: number, hidden = false) => {
+    if (seen.has(folder.id)) return
+    seen.add(folder.id)
+    if (!hidden) nodes.push({ folder, depth })
+    for (const child of children(folder.id)) flatten(child, depth + 1, hidden || collapsed.has(folder.id))
   }
-
-  const flatten = (list: Collection[], depth: number, out: Node[], guard: Set<string>): void => {
-    for (const collection of list) {
-      if (guard.has(collection.id)) continue
-      guard.add(collection.id)
-      out.push({ collection, depth })
-      const children = childrenOf.get(collection.id)
-      if (children) flatten(children, depth + 1, out, guard)
-    }
+  collections.filter(item => !item.parentId || !known.has(item.parentId)).forEach(item => flatten(item, 0))
+  collections.filter(item => !seen.has(item.id)).forEach(item => flatten(item, 0))
+  const edit = (value: { folder?: Collection; parentId?: string }) => { setMenu(null); setEditor(value) }
+  const remove = async (folder: Collection) => {
+    setMenu(null)
+    if (!window.confirm(t('删除文件夹「{0}」？子文件夹会上移一级，文献本身不会被删除。', [folder.name]))) return
+    try { await window.api.collections.remove(folder.id); await onChanged(); onActiveRemoved(folder.id); setMenu(null) }
+    catch (err) { notify((err as Error).message, 'error') }
   }
-
-  const nodes: Node[] = []
-  flatten(roots, 0, nodes, new Set())
-
-  const ownCounts = new Map<string, number>()
-  for (const doc of documents) {
-    for (const collectionId of doc.collections) {
-      ownCounts.set(collectionId, (ownCounts.get(collectionId) ?? 0) + 1)
-    }
-  }
-
-  const effectiveCount = (id: string, guard = new Set<string>()): number => {
-    if (guard.has(id)) return 0
-    guard.add(id)
-    const collection = collections.find((item) => item.id === id)
-    if (!collection || collection.includeChildren === false) return ownCounts.get(id) ?? 0
-    const children = childrenOf.get(id) ?? []
-    return children.reduce((total, child) => total + effectiveCount(child.id, guard), ownCounts.get(id) ?? 0)
-  }
-
-  const descendantIds = (id: string): Set<string> => {
-    const result = new Set<string>()
-    const walk = (parentId: string): void => {
-      for (const child of childrenOf.get(parentId) ?? []) {
-        if (result.has(child.id)) continue
-        result.add(child.id)
-        walk(child.id)
-      }
-    }
-    walk(id)
-    return result
-  }
-
-  const toggleCollapsed = (id: string): void => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const move = async (id: string, parentId: string): Promise<void> => {
-    setMovingId(null)
-    try {
-      await window.api.collections.update(id, { parentId })
+  return <div className="collection-tree folder-tree" role="tree" aria-label={t('文献文件夹')}>
+    {nodes.map(({ folder, depth }) => {
+      const hasChildren = children(folder.id).length > 0
+      const isCollapsed = collapsed.has(folder.id)
+      const scope = folder.includeChildren === false ? new Set([folder.id]) : collectionDescendants(collections, folder.id)
+      const count = documents.filter(doc => doc.collections.some(id => scope.has(id))).length
+      return <div key={folder.id}>
+        <div className={cx('collection-item', activeId === folder.id && 'active')} role="treeitem" aria-level={depth + 1} aria-selected={activeId === folder.id} aria-expanded={hasChildren ? !isCollapsed : undefined} data-folder-id={folder.id} tabIndex={0} title={collectionPath(collections, folder.id)} style={{ paddingLeft: 6 + Math.min(depth, 10) * 14 }} onClick={() => onNavigate(folder.id)} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onNavigate(folder.id) } }}>
+          {hasChildren ? <button className="icon-btn tiny folder-chevron" aria-label={t(isCollapsed ? '展开文件夹：{0}' : '收起文件夹：{0}', [folder.name])} onClick={event => { event.stopPropagation(); setCollapsed(previous => { const next = new Set(previous); if (next.has(folder.id)) next.delete(folder.id); else next.add(folder.id); return next }) }}>{isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}</button> : <span className="folder-chevron" />}
+          {activeId === folder.id ? <FolderOpen className="folder-icon" size={16} style={{ color: folder.color || 'var(--accent)' }} /> : <Folder className="folder-icon" size={16} style={{ color: folder.color || 'var(--accent)' }} />}
+          <span className="collection-name">{folder.name}</span><span className="nav-count">{count}</span>
+          <button className="icon-btn tiny folder-actions" aria-label={t('管理文件夹：{0}', [folder.name])} aria-expanded={menu === folder.id} onClick={event => { event.stopPropagation(); anchor.current = event.currentTarget; setMenu(menu === folder.id ? null : folder.id) }}><MoreHorizontal size={15} /></button>
+        </div>
+        {menu === folder.id && anchor.current && <FolderMenu anchor={anchor.current} onClose={closeMenu}>
+          <button role="menuitem" className="btn ghost small" onClick={() => edit({ parentId: folder.id })}><Plus size={13} />{t('新建子文件夹')}</button>
+          <button role="menuitem" className="btn ghost small" onClick={() => edit({ folder })}><Palette size={13} />{t('编辑名称、颜色与位置')}</button>
+          <button role="menuitem" className="btn ghost small" onClick={async () => { setMenu(null); try { await window.api.collections.update(folder.id, { includeChildren: folder.includeChildren === false }); await onChanged() } catch (err) { notify((err as Error).message, 'error') } }}><ListTree size={13} />{folder.includeChildren === false ? t('包含子文件夹文献') : t('仅显示本文件夹文献')}</button>
+          <button role="menuitem" className="btn ghost small" onClick={() => void remove(folder)}><Trash2 size={13} />{t('删除文件夹')}</button>
+        </FolderMenu>}
+      </div>
+    })}
+    {editor && <FolderEditor collections={collections} {...editor} onClose={() => setEditor(null)} onChanged={async () => {
+      if (editor.parentId) setCollapsed(previous => { const next = new Set(previous); next.delete(editor.parentId!); return next })
       await onChanged()
-    } catch (err) {
-      notify(t("移动分类失败：{0}", [(err as Error).message]), 'error')
-    }
-  }
-
-  const toggleIncludeChildren = async (collection: Collection): Promise<void> => {
-    try {
-      await window.api.collections.update(collection.id, { includeChildren: collection.includeChildren === false })
-      await onChanged()
-    } catch (err) {
-      notify(t("更新分类失败：{0}", [(err as Error).message]), 'error')
-    }
-  }
-
-  const createChild = async (parentId: string): Promise<void> => {
-    const name = childName.trim()
-    if (!name) {
-      setAddingParentId(null)
-      return
-    }
-    try {
-      await window.api.collections.add(name, parentId)
-      setChildName('')
-      setAddingParentId(null)
-      setCollapsed((prev) => {
-        const next = new Set(prev)
-        next.delete(parentId)
-        return next
-      })
-      await onChanged()
-    } catch (err) {
-      notify(t("创建子分类失败：{0}", [(err as Error).message]), 'error')
-    }
-  }
-
-  const remove = async (collection: Collection): Promise<void> => {
-    if (!window.confirm(t("删除分类「{0}」？子分类会上移一级，文献本身不会被删除。", [collection.name]))) return
-    try {
-      await window.api.collections.remove(collection.id)
-      await onChanged()
-      onActiveRemoved(collection.id)
-    } catch (err) {
-      notify(t("删除失败：{0}", [(err as Error).message]), 'error')
-    }
-  }
-
-  return (
-    <div className="collection-tree">
-      {nodes.map(({ collection, depth }) => {
-        const children = childrenOf.get(collection.id) ?? []
-        const hasChildren = children.length > 0
-        const isCollapsed = collapsed.has(collection.id)
-        const excluded = descendantIds(collection.id)
-        const moveOptions = collections.filter((item) => item.id !== collection.id && !excluded.has(item.id))
-        return (
-          <div key={collection.id}>
-            <div
-              className={cx('collection-item', activeId === collection.id && 'active')}
-              style={{ paddingLeft: 8 + depth * 14 }}
-              onClick={() => onNavigate(collection.id)}
-            >
-              {hasChildren ? (
-                <button
-                  className="icon-btn tiny"
-                  title={isCollapsed ? t("展开子分类") : t("收起子分类")}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    toggleCollapsed(collection.id)
-                  }}
-                >
-                  {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                </button>
-              ) : (
-                <span className="collection-dot" />
-              )}
-              <span className="collection-name">{collection.name}</span>
-              <span className="nav-count">{effectiveCount(collection.id)}</span>
-              <button
-                className="icon-btn tiny collection-delete"
-                title={t("新建子分类")}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setMovingId(null)
-                  setAddingParentId(addingParentId === collection.id ? null : collection.id)
-                  setChildName('')
-                }}
-              >
-                <Plus size={12} />
-              </button>
-              <button
-                className="icon-btn tiny collection-delete"
-                title={t("移动到其他分类")}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setAddingParentId(null)
-                  setMovingId(movingId === collection.id ? null : collection.id)
-                }}
-              >
-                <MoveRight size={12} />
-              </button>
-              {hasChildren && (
-                <button
-                  className={cx('icon-btn tiny collection-delete', collection.includeChildren !== false && 'active')}
-                  title={collection.includeChildren === false ? t("显示子分类文献（当前关闭）") : t("显示子分类文献（当前开启）")}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void toggleIncludeChildren(collection)
-                  }}
-                >
-                  <ListTree size={12} />
-                </button>
-              )}
-              <button
-                className="icon-btn tiny collection-delete"
-                title={t("删除分类")}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  void remove(collection)
-                }}
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-            {movingId === collection.id && (
-              <select
-                className="collection-input"
-                autoFocus
-                value={collection.parentId ?? ''}
-                onChange={(event) => void move(collection.id, event.target.value)}
-                onBlur={() => setMovingId(null)}
-              >
-                <option value="">{t("移到根级")}</option>
-                {moveOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {' '}{t("移到「")}{item.name}」
-                  </option>
-                ))}
-              </select>
-            )}
-            {addingParentId === collection.id && (
-              <input
-                className="collection-input"
-                autoFocus
-                value={childName}
-                placeholder={t("「{0}」下的子分类，回车确认", [collection.name])}
-                onChange={(event) => setChildName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') void createChild(collection.id)
-                  if (event.key === 'Escape') {
-                    setAddingParentId(null)
-                    setChildName('')
-                  }
-                }}
-                onBlur={() => {
-                  if (!childName.trim()) setAddingParentId(null)
-                }}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
+    }} />}
+  </div>
 }

@@ -33,6 +33,7 @@ import type {
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'zh-CN',
+  uiFontSize: 14,
   apiBaseUrl: 'https://api.deepseek.com/v1',
   apiKey: '',
   chatModel: 'deepseek-chat',
@@ -116,6 +117,7 @@ class Store {
       const raw = await fs.readFile(this.libraryFile, 'utf-8')
       const parsed = JSON.parse(raw) as StoredData
       const settings: AppSettings = { ...DEFAULT_SETTINGS, ...parsed.settings }
+      if (!Number.isInteger(settings.uiFontSize) || settings.uiFontSize < 12 || settings.uiFontSize > 20) settings.uiFontSize = 14
       settings.ali = normalizeAliSettings(parsed.settings.ali)
       // 旧数据没有语言字段：保留用户已有的简体中文界面，避免升级后被自动切换。
       settings.language =
@@ -215,12 +217,18 @@ class Store {
     return this.data.documents.find((d) => d.id === id)
   }
 
-  async addWebLink(metadata: { url: string; title: string; author: string }, archive?: (file: string) => Promise<void>): Promise<DocumentMeta> {
+  private importCollections(collectionId?: string): string[] {
+    if (collectionId === undefined || collectionId === '') return []
+    if (typeof collectionId !== 'string' || !this.data.collections.some(item => item.id === collectionId)) throw new Error(t('目标文件夹不存在，请重新选择导入位置'))
+    return [collectionId]
+  }
+
+  async addWebLink(metadata: { url: string; title: string; author: string }, archive?: (file: string) => Promise<void>, collectionId?: string): Promise<DocumentMeta> {
     const id = uid()
     const now = Date.now()
     const doc: DocumentMeta = {
       id, title: metadata.title, authors: metadata.author, year: '', journal: new URL(metadata.url).hostname,
-      abstract: '', doi: '', url: metadata.url, tags: [], collections: [], addedAt: now, updatedAt: now,
+      abstract: '', doi: '', url: metadata.url, tags: [], collections: this.importCollections(collectionId), addedAt: now, updatedAt: now,
       fileName: archive ? `${id}.mhtml` : '', sourceFormat: 'web', pageCount: 0,
       ...(archive ? { webArchivedAt: now } : {}),
       starred: false, readingStatus: 'unread', lastPage: 1, notes: ''
@@ -228,6 +236,7 @@ class Store {
     const file = archive ? path.join(this.filesDir, doc.fileName) : undefined
     try {
       if (archive && file) await archive(file)
+      doc.collections = this.importCollections(collectionId)
       this.data.documents.unshift(doc)
       await this.save()
       return doc
@@ -267,13 +276,17 @@ class Store {
     return this.data.chats.find((c) => c.id === id)
   }
 
-  async addDocument(filePath: string, title: string): Promise<DocumentMeta> {
+  async addDocument(filePath: string, title: string, collectionId?: string): Promise<DocumentMeta> {
+    this.importCollections(collectionId)
     const sourceFormat = formatFromFileName(filePath)
     if (!sourceFormat) throw new Error(t("不支持的文献格式，请选择 PDF、Word、Markdown 或 TXT 文件"))
     const id = uid()
     const extension = path.extname(filePath).toLowerCase() || '.pdf'
     const fileName = `${id}${extension}`
     await fs.copyFile(filePath, path.join(this.filesDir, fileName))
+    let collections: string[]
+    try { collections = this.importCollections(collectionId) }
+    catch (error) { await fs.rm(path.join(this.filesDir, fileName), { force: true }); throw error }
     const now = Date.now()
     const doc: DocumentMeta = {
       id,
@@ -285,7 +298,7 @@ class Store {
       doi: '',
       url: '',
       tags: [],
-      collections: [],
+      collections,
       addedAt: now,
       updatedAt: now,
       fileName,
@@ -322,7 +335,7 @@ class Store {
     }
   }
 
-  async updateDocument(id: string, patch: Partial<DocumentMeta>): Promise<DocumentMeta | undefined> {
+  async updateDocument(id: string, patch: Partial<DocumentMeta>, persist = true): Promise<DocumentMeta | undefined> {
     const doc = this.getDocument(id)
     if (!doc) return undefined
     if (Array.isArray(patch.tags)) {
@@ -333,11 +346,11 @@ class Store {
       }
     }
     Object.assign(doc, patch, { id: doc.id, updatedAt: Date.now() })
-    await this.save()
+    if (persist) await this.save()
     return doc
   }
 
-  async deleteDocument(id: string): Promise<void> {
+  async deleteDocument(id: string, persist = true): Promise<void> {
     const removed = this.getDocument(id)
     this.data.documents = this.data.documents.filter((d) => d.id !== id)
     this.data.chats.forEach((chat) => {
@@ -357,7 +370,7 @@ class Store {
       fs.unlink(path.join(this.filesDir, removed?.fileName || `${id}.pdf`)),
       fs.unlink(path.join(this.textsDir, `${id}.json`))
     ])
-    await this.save()
+    if (persist) await this.save()
   }
 
   getHighlights(docId: string): Highlight[] {    return this.data.highlights
@@ -677,9 +690,14 @@ class Store {
     await this.save()
   }
 
-  async addCollection(name: string, parentId?: string): Promise<Collection> {
+  async addCollection(name: string, parentId?: string, color?: string): Promise<Collection> {
+    if (typeof name !== 'string' || !name.trim()) throw new Error(t('文件夹名称不能为空'))
+    if (parentId && !this.data.collections.some(c => c.id === parentId)) throw new Error(t('父文件夹不存在'))
+    if (color && !/^#[0-9a-f]{6}$/i.test(color)) throw new Error(t('请输入有效的 HEX 颜色'))
+    name = name.trim()
     const collection: Collection = { id: uid(), name, createdAt: Date.now() }
     if (parentId && this.data.collections.some((c) => c.id === parentId)) collection.parentId = parentId
+    if (color) collection.color = color.toLowerCase()
     this.data.collections.push(collection)
     await this.save()
     return collection
@@ -687,17 +705,16 @@ class Store {
 
   async updateCollection(
     id: string,
-    patch: Partial<Pick<Collection, 'name' | 'parentId' | 'includeChildren'>>
+    patch: Partial<Pick<Collection, 'name' | 'parentId' | 'includeChildren' | 'color'>>
   ): Promise<Collection | undefined> {
     const collection = this.data.collections.find((c) => c.id === id)
     if (!collection) return undefined
-    if (patch.name !== undefined && patch.name.trim()) collection.name = patch.name.trim()
-    if (patch.includeChildren !== undefined) collection.includeChildren = patch.includeChildren
+    if (patch.name !== undefined && (typeof patch.name !== 'string' || !patch.name.trim())) throw new Error(t('文件夹名称不能为空'))
+    if (patch.color !== undefined && (typeof patch.color !== 'string' || patch.color !== '' && !/^#[0-9a-f]{6}$/i.test(patch.color))) throw new Error(t('请输入有效的 HEX 颜色'))
+    if (patch.includeChildren !== undefined && typeof patch.includeChildren !== 'boolean') throw new Error(t('请求参数无效'))
     if (patch.parentId !== undefined) {
       const nextParentId = patch.parentId
-      if (!nextParentId || nextParentId === id) {
-        delete collection.parentId
-      } else {
+      if (nextParentId) {
         const parent = this.data.collections.find((c) => c.id === nextParentId)
         let cyclic = !parent
         let cursor = parent
@@ -711,9 +728,18 @@ class Store {
           const parentId = cursor.parentId
           cursor = parentId ? this.data.collections.find((c) => c.id === parentId) : undefined
         }
-        if (cyclic) return collection
-        collection.parentId = nextParentId
+        if (cyclic) throw new Error(t('不能将文件夹移到自身或子文件夹中，请选择有效的父文件夹'))
       }
+    }
+    if (patch.name !== undefined) collection.name = patch.name.trim()
+    if (patch.includeChildren !== undefined) collection.includeChildren = patch.includeChildren
+    if (patch.parentId !== undefined) {
+      if (patch.parentId) collection.parentId = patch.parentId
+      else delete collection.parentId
+    }
+    if (patch.color !== undefined) {
+      if (patch.color) collection.color = patch.color.toLowerCase()
+      else delete collection.color
     }
     await this.save()
     return collection
@@ -995,12 +1021,12 @@ class Store {
     await fs.rm(path.join(this.attachmentsDir, chatId, file), { force: true }).catch(() => undefined)
   }
 
-  async deleteChat(id: string): Promise<void> {
+  async deleteChat(id: string, persist = true): Promise<void> {
     this.data.chats = this.data.chats.filter((c) => c.id !== id)
     this.data.researchTopics.forEach((topic) => {
       if (topic.chatId === id) delete topic.chatId
     })
-    await this.save()
+    if (persist) await this.save()
     await fs.rm(path.join(this.attachmentsDir, id), { recursive: true, force: true }).catch(() => undefined)
   }
 
@@ -1022,6 +1048,7 @@ class Store {
   }
 
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+    if (patch.uiFontSize !== undefined && (!Number.isInteger(patch.uiFontSize) || patch.uiFontSize < 12 || patch.uiFontSize > 20)) throw new Error(t('界面字号应在 12 到 20 之间'))
     const prev = this.data.settings
     const next: AppSettings = {
       ...prev,

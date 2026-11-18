@@ -23,7 +23,7 @@ import { exportAttachmentZip } from './attachmentExport'
 import { checkForUpdates, downloadUpdate, installUpdate, openReleasePage } from './updater'
 import { applyPetSettings, celebratePet, setPetBusy } from './pet'
 import { aliStore } from './ali/store'
-import { cancelAli, getAliState, sendAli, testAliConnection, consolidateMemory } from './ali/service'
+import { cancelAli, cancelAliSessions, getAliState, sendAli, testAliConnection, consolidateMemory } from './ali/service'
 import { removeMemoryLines, restoreMemoryLine } from './ali/memoryOps'
 import { loadHelpSections } from './ali/help'
 import { aliMemory } from './ali/memory'
@@ -50,6 +50,9 @@ import { t } from '../shared/i18n'
 import { actOnWebPage, closeWebPage, importWebUrl, mountWebPage, navigateWebPage, saveWebPage, selectedWebText, setWebBounds, switchWebPageSource, webPageState } from './webPage'
 import { normalizeWebUrl, type WebBounds, type WebPageAction, type WebPageSource } from '../shared/web'
 import { randomUUID } from 'crypto'
+
+import { updateDocuments, deleteDocuments, deleteChats } from './batch'
+import type { DocumentBatchPatch } from '../shared/batch'
 
 const webImports = new Map<string, { controller: AbortController; saving: boolean }>()
 
@@ -87,12 +90,15 @@ function resolveAttachmentPath(ownerId: string, file: string): string {
 }
 
 export function registerIpc(createWindow: (docId?: string) => void): void {
+  ipcMain.handle('library:batch-update', (_event, input: { ids: string[]; patch: DocumentBatchPatch }) => updateDocuments(input.ids, input.patch))
+  ipcMain.handle('library:batch-delete', (_event, ids: string[]) => deleteDocuments(ids))
+  ipcMain.handle('chat:batch-delete', (_event, ids: string[]) => deleteChats(ids))
   ipcMain.handle('app:new-window', (_event, docId?: string) => {
     if (docId !== undefined && (typeof docId !== 'string' || !store.getDocument(docId))) throw new Error(t('文献不存在'))
     createWindow(docId)
   })
   ipcMain.handle('library:get-state', () => store.data)
-  ipcMain.handle('library:import-url', async (event, input: string | { url: string; requestId?: string }) => {
+  ipcMain.handle('library:import-url', async (event, input: string | { url: string; requestId?: string; collectionId?: string }) => {
     const url = typeof input === 'string' ? input : input.url
     const requestId = typeof input === 'string' ? randomUUID() : input.requestId ?? randomUUID()
     const key = `${event.sender.id}:${requestId}`
@@ -103,7 +109,7 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
     event.sender.once('destroyed', cancel)
     event.sender.once('did-start-loading', cancel)
     try {
-      return await importWebUrl(url, { signal: job.controller.signal, onSaving: () => { job.saving = true } })
+      return await importWebUrl(url, { signal: job.controller.signal, onSaving: () => { job.saving = true }, collectionId: typeof input === 'string' ? undefined : input.collectionId })
     } finally {
       webImports.delete(key)
       event.sender.removeListener('destroyed', cancel)
@@ -159,8 +165,8 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
     })
   })
 
-  ipcMain.handle('library:import-document', async (_event, payload: { filePath: string; title: string }) => {
-    return store.addDocument(payload.filePath, payload.title)
+  ipcMain.handle('library:import-document', async (_event, payload: { filePath: string; title: string; collectionId?: string }) => {
+    return store.addDocument(payload.filePath, payload.title, payload.collectionId)
   })
 
   ipcMain.handle('library:extract-text', (_event, id: string) => extractDocumentText(id))
@@ -185,15 +191,15 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
     return store.getDocumentTexts(id)
   })
 
-  ipcMain.handle('collection:add', async (_event, payload: string | { name: string; parentId?: string }) => {
+  ipcMain.handle('collection:add', async (_event, payload: string | { name: string; parentId?: string; color?: string }) => {
     const name = typeof payload === 'string' ? payload : payload.name
     const parentId = typeof payload === 'string' ? undefined : payload.parentId
-    return store.addCollection(name, parentId)
+    return store.addCollection(name, parentId, typeof payload === 'string' ? undefined : payload.color)
   })
 
   ipcMain.handle(
     'collection:update',
-    async (_event, payload: { id: string; patch: { name?: string; parentId?: string; includeChildren?: boolean } }) => {
+    async (_event, payload: { id: string; patch: { name?: string; parentId?: string; includeChildren?: boolean; color?: string } }) => {
       return store.updateCollection(payload.id, payload.patch)
     }
   )
@@ -583,18 +589,35 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
 
   ipcMain.handle('ali:get-state', () => getAliState())
 
-  ipcMain.handle('ali:session:create', () => aliStore.create())
+  ipcMain.handle('ali:session:create', async () => {
+    const session = await aliStore.create()
+    broadcast('ali:sessions-changed', null)
+    return session
+  })
 
   ipcMain.handle('ali:session:update', async (_event, payload: { id: string; patch: AliSessionPatch }) => {
     if (!payload || typeof payload.id !== 'string' || !payload.patch || typeof payload.patch !== 'object') {
       throw new Error(t("请求参数无效"))
     }
-    return aliStore.update(payload.id, payload.patch)
+    const updated = await aliStore.update(payload.id, payload.patch)
+    broadcast('ali:sessions-changed', null)
+    return updated
   })
 
   ipcMain.handle('ali:session:delete', async (_event, id: string) => {
     if (typeof id !== 'string' || !id) throw new Error(t("请求参数无效"))
+    cancelAliSessions([id])
     await aliStore.remove(id)
+    broadcast('ali:sessions-changed', null)
+  })
+
+  ipcMain.handle('ali:session:batch-delete', async (_event, ids: string[]) => {
+    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) throw new Error(t('批量操作参数无效'))
+    const existing = [...new Set(ids)].filter(id => !!aliStore.get(id))
+    cancelAliSessions(existing)
+    const count = await aliStore.removeMany(existing)
+    broadcast('ali:sessions-changed', null)
+    return count
   })
 
   ipcMain.handle('ali:send', async (event, req: AliSendRequest) => {

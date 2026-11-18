@@ -3,6 +3,7 @@ import { FileText, MessagesSquare, Plus, Sparkles, Trash2, X } from 'lucide-reac
 import type { ChatSession, LibraryData } from '@shared/types'
 import ChatThread from './ChatThread'
 import ComposeModal from './ComposeModal'
+import { BatchDeleteDialog, useBatchSelection } from './batch'
 import { cx, formatTime } from '../ui'
 import { t } from '@shared/i18n'
 
@@ -23,9 +24,11 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
   const [selectedDocs, setSelectedDocs] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
   const [composeChat, setComposeChat] = useState<ChatSession | null>(null)
+  const [deleting, setDeleting] = useState<ChatSession[] | null>(null)
 
   const chats = useMemo(() => [...data.chats].sort((a, b) => b.updatedAt - a.updatedAt), [data.chats])
   const activeChat = chats.find((chat) => chat.id === activeId) ?? null
+  const selection = useBatchSelection(chats.map(chat => chat.id))
 
   useEffect(() => {
     if (initialChatId) setActiveId(initialChatId)
@@ -82,6 +85,12 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
           <button className="btn primary small" onClick={() => setShowNew(true)}>
             <Plus size={14} /> {' '}{t("新建")}{' '}</button>
         </div>
+        <div className="batch-toolbar" aria-label={t('会话批量操作')}>
+          <button className="btn ghost small" disabled={!chats.length} onClick={selection.all}>{t('全选')}</button>
+          <button className="btn ghost small" disabled={!selection.ids.length} onClick={selection.clear}>{t('全不选')}</button>
+          <span className="batch-count">{t('已选择 {0} 项', [selection.ids.length])}</span>
+          <button className="btn small" disabled={!selection.ids.length} onClick={() => setDeleting(chats.filter(chat => selection.ids.includes(chat.id)))}>{t('批量删除')}</button>
+        </div>
         <div className="sessions-list">
           {chats.length === 0 && (
             <div className="sessions-empty">
@@ -94,9 +103,10 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
           {chats.map((chat) => (
             <div
               key={chat.id}
-              className={cx('session-item', chat.id === activeId && 'active')}
+              className={cx('session-item', chat.id === activeId && 'active', selection.ids.includes(chat.id) && 'batch-selected')}
               onClick={() => setActiveId(chat.id)}
             >
+              <input type="checkbox" className="session-batch-check" aria-label={t('选择会话：{0}', [chat.title])} checked={selection.ids.includes(chat.id)} onClick={event => event.stopPropagation()} onChange={() => selection.toggle(chat.id)} />
               <div className="session-title">{chat.title}</div>
               <div className="session-meta">
                 <span>{chat.docIds.length ? t("{0} 篇文献", [chat.docIds.length]) : t("未引用文献")}</span>
@@ -117,6 +127,12 @@ export default function ChatPage({ data, initialChatId, initialQuestion, visible
         </div>
       </aside>
 
+      {deleting && <BatchDeleteDialog titles={deleting.map(chat => chat.title)} kind="chats" onClose={() => setDeleting(null)} onConfirm={async () => {
+        const count = await window.api.chats.batchRemove(deleting.map(chat => chat.id))
+        selection.clear()
+        await onChanged()
+        notify(t('已删除 {0} 个会话', [count]), 'success')
+      }} />}
       <section className="chat-main">
         {activeChat ? (
           <>

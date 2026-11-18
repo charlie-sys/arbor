@@ -118,9 +118,16 @@ class AliStore {
   }
 
   async remove(id: string): Promise<void> {
+    await this.removeMany([id])
+  }
+
+  async removeMany(ids: string[]): Promise<number> {
+    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) throw new Error(t('批量操作参数无效'))
+    const selected = new Set(ids)
     const before = this.sessions.length
-    this.sessions = this.sessions.filter((session) => session.id !== id)
+    this.sessions = this.sessions.filter((session) => !selected.has(session.id))
     if (this.sessions.length !== before) await this.save()
+    return before - this.sessions.length
   }
 
   private async readSessions(): Promise<AliSession[]> {

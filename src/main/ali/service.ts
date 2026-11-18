@@ -15,6 +15,14 @@ import type { AliEvent, AliSendRequest, AliSession, AliSource, AliState, AliTest
 import { outputLanguageName } from '../../shared/i18n'
 
 const controllers = new Map<string, AbortController>()
+const requestSessions = new Map<string, string>()
+
+export function cancelAliSessions(sessionIds: string[]): void {
+  for (const sessionId of sessionIds) clearIdleTimer(sessionId)
+  for (const [requestId, sessionId] of requestSessions) {
+    if (sessionIds.includes(sessionId)) cancelAli(requestId)
+  }
+}
 const summaries = new Set<string>()
 const extracting = new Set<string>()
 const judging = new Set<string>()
@@ -496,6 +504,7 @@ export async function sendAli(req: AliSendRequest, emit: AliEmit): Promise<void>
 
   const controller = new AbortController()
   controllers.set(requestId, controller)
+  requestSessions.set(requestId, sessionId)
   clearIdleTimer(sessionId)
   try {
     const userMessage = {
@@ -562,6 +571,7 @@ export async function sendAli(req: AliSendRequest, emit: AliEmit): Promise<void>
     else emit({ ...base, type: 'error', error: (error as Error).message || '阿栗请求失败' })
   } finally {
     controllers.delete(requestId)
+    requestSessions.delete(requestId)
   }
 }
 

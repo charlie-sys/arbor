@@ -4,6 +4,7 @@ import type { LibraryData } from '@shared/types'
 import type { View } from '../nav'
 import { cx } from '../ui'
 import CollectionTree from './CollectionTree'
+import FolderEditor from './FolderEditor'
 import { t } from '@shared/i18n'
 
 interface Props {
@@ -18,23 +19,6 @@ interface Props {
 
 export default function Sidebar({ data, view, importing, onNavigate, onImport, onChanged, notify }: Props): React.JSX.Element {
   const [adding, setAdding] = useState(false)
-  const [name, setName] = useState('')
-
-  const submitCollection = async (): Promise<void> => {
-    const value = name.trim()
-    if (!value) {
-      setAdding(false)
-      return
-    }
-    try {
-      await window.api.collections.add(value)
-      setName('')
-      setAdding(false)
-      await onChanged()
-    } catch (err) {
-      notify(t("创建分类失败：{0}", [(err as Error).message]), 'error')
-    }
-  }
 
   const deleteSavedView = async (id: string, title: string): Promise<void> => {
     if (!window.confirm(t("删除保存视图「{0}」？", [title]))) return
@@ -112,30 +96,12 @@ export default function Sidebar({ data, view, importing, onNavigate, onImport, o
 
       <div className="collections">
         <div className="collections-head">
-          <span>{t("分类")}</span>
-          <button className="icon-btn tiny" title={t("新建分类（支持层级）")} onClick={() => setAdding(true)}>
+          <span>{t('文献文件夹')}</span>
+          <button className="icon-btn tiny" title={t('新建文件夹')} onClick={() => setAdding(true)}>
             <Plus size={14} />
           </button>
         </div>
-        {adding && (
-          <input
-            className="collection-input"
-            autoFocus
-            value={name}
-            placeholder={t("分类名称，回车确认")}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void submitCollection()
-              if (event.key === 'Escape') {
-                setAdding(false)
-                setName('')
-              }
-            }}
-            onBlur={() => {
-              if (!name.trim()) setAdding(false)
-            }}
-          />
-        )}
+        {adding && <FolderEditor collections={data.collections} onClose={() => setAdding(false)} onChanged={onChanged} />}
         {data.collections.length === 0 && !adding && <div className="collections-empty">{t("暂无分类，点击 + 新建")}</div>}
         <CollectionTree
           collections={data.collections}

@@ -25,6 +25,7 @@ import PaneResizer from './components/PaneResizer'
 import { hasUnsavedChanges } from './unsaved'
 import { extractPdf } from './pdf'
 import { documentFormatOf } from '@shared/documents'
+import { collectionPath } from '@shared/collections'
 import { renderTranslatedImage } from './renderTranslated'
 import { applyTheme, persistTheme, readTheme, themeById } from './themes'
 import type { ThemeId } from './themes'
@@ -62,6 +63,7 @@ export default function App(): React.JSX.Element {
   const [paletteMode, setPaletteMode] = useState<'search' | 'command' | null>(null)
   const [captureOpen, setCaptureOpen] = useState(false)
   const [webImportOpen, setWebImportOpen] = useState(false)
+  const [webImportCollectionId, setWebImportCollectionId] = useState<string | undefined>()
   const [propertiesOpen, setPropertiesOpen] = useState(false)
   const [sidebarPeek, setSidebarPeek] = useState(false)
   const sidebarHideTimer = useRef<number | null>(null)
@@ -79,6 +81,7 @@ export default function App(): React.JSX.Element {
     cancelSidebarHide()
     sidebarHideTimer.current = window.setTimeout(() => {
       sidebarHideTimer.current = null
+      if (document.querySelector('[data-sidebar-overlay]')) { scheduleSidebarHide(); return }
       setSidebarPeek(false)
     }, 220)
   }
@@ -370,7 +373,16 @@ export default function App(): React.JSX.Element {
     })
   }, [])
 
-  const importDocuments = async (): Promise<void> => {
+  const currentImportCollection = (): string | undefined => view.name === 'library'
+    ? view.collectionId ?? data?.savedViews.find(item => item.id === view.savedViewId)?.config.collectionId
+    : undefined
+
+  const openWebImport = (collectionId = currentImportCollection()): void => {
+    setWebImportCollectionId(collectionId)
+    setWebImportOpen(true)
+  }
+
+  const importDocuments = async (collectionId = currentImportCollection()): Promise<void> => {
     if (importing) return
     try {
       const candidates = await window.api.library.pickDocuments()
@@ -380,7 +392,7 @@ export default function App(): React.JSX.Element {
       for (let index = 0; index < candidates.length; index++) {
         const candidate = candidates[index]
         try {
-          const doc = await window.api.library.importDocument(candidate.filePath, candidate.title)
+          const doc = await window.api.library.importDocument(candidate.filePath, candidate.title, collectionId)
           succeeded += 1
           try {
             if (documentFormatOf(doc) === 'pdf') {
@@ -548,7 +560,7 @@ export default function App(): React.JSX.Element {
     { id: 'canvas', label: t("打开主题画布"), hint: t("文献、摘录、问答卡片与连线的无限画布"), keywords: 'canvas 画布 主题 白板', run: () => setView({ name: 'canvas' }) },
     { id: 'reading-plan', label: t("打开主题阅读计划"), hint: t("按学习目标生成文献阅读顺序与问题清单"), keywords: 'reading plan 阅读计划 学习目标', run: () => setView({ name: 'readingPlan' }) },
     { id: 'import', label: t("导入文献"), hint: t("选择 PDF、Word、Markdown 或 TXT 加入文献库"), keywords: '导入 import pdf word docx markdown txt', run: () => importDocuments() },
-    { id: 'import-web', label: t('导入网页'), hint: t('根据网址保存网页正文'), keywords: '网页 网址 web url import', run: () => setWebImportOpen(true) },
+    { id: 'import-web', label: t('导入网页'), hint: t('根据网址导入网页'), keywords: '网页 网址 web url import', run: () => openWebImport() },
     {
       id: 'import-bibtex',
       label: t("导入 BibTeX（Zotero 导出）"),
@@ -688,8 +700,8 @@ export default function App(): React.JSX.Element {
             importing={importing}
             onOpen={(docId) => setView({ name: 'reader', docId })}
             onChat={startDocChat}
-            onImport={() => void importDocuments()}
-            onImportWeb={() => setWebImportOpen(true)}
+            onImport={(collectionId) => void importDocuments(collectionId)}
+            onImportWeb={(collectionId) => openWebImport(collectionId)}
             onChanged={onChanged}
             onClearCollection={() => setView({ name: 'library' })}
             onSelectCollection={(collectionId) => setView({ name: 'library', collectionId })}
@@ -838,7 +850,7 @@ export default function App(): React.JSX.Element {
         <QuickCapture onClose={() => setCaptureOpen(false)} onSaved={refresh} notify={notify} />
       )}
 
-      {webImportOpen && <WebImportDialog onClose={() => setWebImportOpen(false)} onImported={async (docId) => {
+      {webImportOpen && <WebImportDialog collectionId={webImportCollectionId} collectionName={data && webImportCollectionId ? collectionPath(data.collections, webImportCollectionId) : undefined} onClose={() => setWebImportOpen(false)} onImported={async (docId) => {
         await refresh()
         setWebImportOpen(false)
         setView({ name: 'reader', docId })

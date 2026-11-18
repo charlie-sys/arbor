@@ -1,0 +1,16 @@
+.batch-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.batch-toolbar .batch-count { color: var(--text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
+.batch-dialog-body { padding: 16px 24px; display: grid; gap: 12px; max-height: 65vh; overflow: auto; }
+.batch-dialog-body p { margin: 0; }
+.batch-dialog-body ul { margin: 0; padding-left: 20px; overflow-wrap: anywhere; }
+.batch-dialog-body label { display: flex; gap: 8px; align-items: center; }
+.batch-delete-dialog, .batch-edit-dialog { width: min(560px, 94vw); }
+.batch-delete-code { letter-spacing: 6px; font-size: calc(26px * var(--ui-font-scale, 1)); text-align: center; user-select: all; }
+.batch-selection-cell { text-align: center; }
+.doc-table .batch-selection-cell { padding: 8px; text-overflow: clip; }
+.doc-row.batch-selected { background: var(--accent-soft); }
+.session-item.batch-selected { outline: 1px solid var(--accent); }
+.session-batch-check { float: left; margin: 4px 9px 0 0; }
+.batch-collection-list { max-height: 180px; overflow: auto; display: grid; gap: 7px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+.batch-field { display: grid; gap: 6px; }
+.batch-dialog-body .batch-field { display: grid; align-items: stretch; }

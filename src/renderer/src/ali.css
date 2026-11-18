@@ -41,7 +41,7 @@
 }
 
 .ali-suggestions-title {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-faintest);
 }
 
@@ -60,7 +60,7 @@
   background: var(--accent-soft);
   color: var(--text-soft);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .ali-memory-undo .link-btn {
@@ -77,7 +77,7 @@
   border-radius: var(--pill);
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   cursor: pointer;
 }
 
@@ -96,7 +96,7 @@
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: var(--surface-soft);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--ui-font-scale, 1));
 }
 
 .ali-tool-dot {
@@ -133,7 +133,7 @@
 
 .ali-source-link {
   color: var(--accent-strong);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--ui-font-scale, 1));
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -159,7 +159,7 @@
   border-radius: var(--pill);
   background: transparent;
   color: var(--text-soft);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   cursor: pointer;
 }
 
@@ -188,7 +188,7 @@
   gap: 16px;
   padding: 9px 0;
   border-bottom: 1px dashed var(--border-soft);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ui-font-scale, 1));
 }
 
 .ali-voice-row > span {
@@ -214,7 +214,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface-soft);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ui-font-scale, 1));
 }
 
 .ali-voice-row select:focus,
@@ -271,7 +271,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 2px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ui-font-scale, 1));
 }
 
 .ali-help-modal {
@@ -302,7 +302,7 @@
   border: 0;
   background: transparent;
   color: var(--text-soft);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   cursor: pointer;
   border-bottom: 2px solid transparent;
 }
@@ -316,7 +316,7 @@
   display: flex;
   gap: 18px;
   padding: 8px 2px;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   color: var(--text-faintest);
   font-variant-numeric: tabular-nums;
 }
@@ -331,7 +331,7 @@
   background: var(--surface-soft);
   color: var(--text);
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.7;
   font-family: inherit;
   outline: none;
@@ -376,7 +376,7 @@
 }
 
 .ali-topic-title {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ui-font-scale, 1));
   font-weight: 500;
 }
 
@@ -391,7 +391,7 @@
 
 .ali-archive-item {
   cursor: default;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .ali-memory-foot {
@@ -471,7 +471,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface-soft);
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .ali-compact-toolbar .icon-btn,
@@ -489,7 +489,7 @@
   }
 
   .ali-view .sessions-title {
-    font-size: 15px;
+    font-size: calc(15px * var(--ui-font-scale, 1));
   }
 
   .ali-view .session-item {
@@ -506,7 +506,7 @@
   }
 
   .ali-view .ali-head-text h2 {
-    font-size: 14px;
+    font-size: calc(14px * var(--ui-font-scale, 1));
     max-width: 32vw;
   }
 

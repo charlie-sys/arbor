@@ -15,6 +15,13 @@ import type { ComposeScope } from '../shared/compose'
 import { alternateLanguageName, outputLanguageName, t } from '../shared/i18n'
 
 const controllers = new Map<string, AbortController>()
+const requestChats = new Map<string, string>()
+
+export function cancelChats(chatIds: string[]): void {
+  for (const [requestId, chatId] of requestChats) {
+    if (chatIds.includes(chatId)) cancelChat(requestId)
+  }
+}
 
 function endpoint(base: string, path: string): string {
   let b = base.trim().replace(/\/+$/, '')
@@ -224,6 +231,7 @@ export async function streamChat(req: ChatRequest, handlers: ChatHandlers, sourc
   const settings = store.data.settings
   const controller = new AbortController()
   controllers.set(req.requestId, controller)
+  requestChats.set(req.requestId, req.chatId)
   let usedModel = settings.chatModel
   let promptEstimate = 0
   let apiUsage: { promptTokens: number; completionTokens: number; cachedTokens?: number } | null = null
@@ -367,6 +375,7 @@ export async function streamChat(req: ChatRequest, handlers: ChatHandlers, sourc
       usage.cancel(req.requestId)
     }
     controllers.delete(req.requestId)
+    requestChats.delete(req.requestId)
   }
 }
 

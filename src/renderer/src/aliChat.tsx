@@ -5,6 +5,9 @@ import AliView from './components/AliView'
 import './styles.css'
 import './themes.css'
 import './ali.css'
+import { installUiFontSize } from './appearance'
+
+installUiFontSize()
 import { applyTheme, readTheme } from './themes'
 import { getLocale, localeFromStored, setLocale } from '@shared/i18n'
 

@@ -37,6 +37,7 @@ import type {
   UsageRecord
 } from './types'
 import type { ComposeScope } from './compose'
+import type { DocumentBatchPatch } from './batch'
 import type { AliEvent, AliHelpSection, AliMemoryState, AliSendRequest, AliSession, AliSessionPatch, AliState, AliTestResult } from './ali'
 import type { WebBounds, WebPageState, WebPageAction, WebPageSource } from './web'
 import type {
@@ -189,10 +190,12 @@ export interface UsageRecordedEvent {
 
 export interface ZotAgentApi {
   library: {
+    batchUpdate(ids: string[], patch: DocumentBatchPatch): Promise<number>
+    batchRemove(ids: string[]): Promise<number>
     getState(): Promise<LibraryData>
     pickDocuments(): Promise<ImportCandidate[]>
-    importDocument(filePath: string, title: string): Promise<DocumentMeta>
-    importUrl(url: string, requestId?: string): Promise<DocumentMeta>
+    importDocument(filePath: string, title: string, collectionId?: string): Promise<DocumentMeta>
+    importUrl(url: string, requestId?: string, collectionId?: string): Promise<DocumentMeta>
     cancelImport(requestId: string): Promise<{ canceled: boolean }>
     extractText(id: string): Promise<ExtractedDocument>
     setText(id: string, pages: string[], meta?: { title?: string; authors?: string }): Promise<void>
@@ -214,10 +217,10 @@ export interface ZotAgentApi {
     openExternal(url: string): Promise<void>
   }
   collections: {
-    add(name: string, parentId?: string): Promise<Collection>
+    add(name: string, parentId?: string, color?: string): Promise<Collection>
     update(
       id: string,
-      patch: Partial<Pick<Collection, 'name' | 'parentId' | 'includeChildren'>>
+      patch: Partial<Pick<Collection, 'name' | 'parentId' | 'includeChildren' | 'color'>>
     ): Promise<Collection | undefined>
     rename(id: string, name: string): Promise<void>
     remove(id: string): Promise<void>
@@ -263,6 +266,7 @@ export interface ZotAgentApi {
     remove(id: string): Promise<void>
   }
   chats: {
+    batchRemove(ids: string[]): Promise<number>
     create(docIds: string[]): Promise<ChatSession>
     update(id: string, patch: Partial<Pick<ChatSession, 'title' | 'docIds' | 'messages'>>): Promise<ChatSession | undefined>
     remove(id: string): Promise<void>
@@ -365,6 +369,7 @@ export interface ZotAgentApi {
     createSession(): Promise<AliSession>
     updateSession(id: string, patch: AliSessionPatch): Promise<AliSession | undefined>
     deleteSession(id: string): Promise<void>
+    batchDeleteSessions(ids: string[]): Promise<number>
     send(req: AliSendRequest): Promise<{ ok: boolean }>
     cancel(requestId: string): Promise<void>
     test(): Promise<AliTestResult>
@@ -448,6 +453,7 @@ export interface ZotAgentApi {
     sendOutline(docId: string, state: ReaderPanelOutlineState): void
   }
   events: {
+    onAliSessionsChanged(cb: () => void): () => void
     onLibraryChanged(cb: () => void): () => void
     onChat(cb: (event: ChatEvent) => void): () => void
     onAli(cb: (event: AliEvent) => void): () => void

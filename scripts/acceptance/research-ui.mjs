@@ -6,6 +6,9 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
+import { testBatchUi } from './batch-ui.mjs'
+import { testFoldersAndFont } from './folders-ui.mjs'
+import { testUnsavedNavigation } from './unsaved-ui.mjs'
 
 const require = createRequire(import.meta.url)
 const dir = await mkdtemp(join(tmpdir(), 'arbor-ui-'))
@@ -136,6 +139,7 @@ try {
   await evaluate('document.querySelector(".reader-toolbar-menu-wrap button").click()')
   await waitFor(() => evaluate('!document.querySelector(".document-tone-menu") && window.api.web.state().then(s => s.visible)'))
   console.log('PASS: reader popovers also appear above the native webpage')
+  await testUnsavedNavigation({ evaluate, waitFor })
   await webClient.call('Runtime.evaluate', { expression: 'document.querySelector("a").click()', userGesture: true })
   webClient.close()
   await waitFor(() => evaluate('document.querySelector(".web-navigation input")?.value.endsWith("/next")'))
@@ -276,6 +280,53 @@ try {
   originalClient.close()
   readerClient.close()
   blankClient.close()
+  await testBatchUi({ evaluate, waitFor, url, capture: async name => {
+    await client.call('Page.bringToFront')
+    await evaluate('[...document.querySelectorAll(".modal")].forEach(node => node.getAnimations().forEach(animation => { if (Number.isFinite(animation.effect.getComputedTiming().endTime)) animation.finish() }))')
+    const screenshot = await client.call('Page.captureScreenshot', { format: 'png' })
+    await writeFile(join(output, name + '.png'), Buffer.from(screenshot.data, 'base64'))
+  } })
+  await evaluate('window.api.pet.openAliChat()')
+  const aliWindowTarget = await waitFor(async () => (await targets()).find(t => t.url.includes('ali-chat.html')))
+  const aliWindowClient = await connect(aliWindowTarget)
+  client = aliWindowClient
+  await waitFor(() => evaluate('!!document.querySelector(".ali-view.compact button[title=\\"批量管理会话\\"]")'))
+  await evaluate('document.querySelector("button[title=\\"批量管理会话\\"]").click()')
+  await waitFor(() => evaluate('!!document.querySelector("[role=dialog][aria-label=\\"批量管理会话\\"]")'))
+  await evaluate('[...document.querySelectorAll("[role=dialog] .batch-toolbar button")].find(b => b.textContent === "全选").click()')
+  await evaluate('[...document.querySelectorAll("[role=dialog] .batch-toolbar button")].find(b => b.textContent === "批量删除").click()')
+  await waitFor(() => evaluate('!!document.querySelector("#batch-delete-code")'))
+  assert.equal(await evaluate('document.querySelector(".batch-delete-dialog button[type=submit]").disabled'), true)
+  await evaluate(`(() => {
+    const input = document.querySelector('#batch-delete-code');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, document.querySelector('[data-testid=batch-delete-challenge]').textContent);
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  })()`)
+  await evaluate('document.querySelector(".batch-delete-dialog button[type=submit]").click()')
+  await waitFor(() => evaluate('!document.querySelector(".batch-delete-dialog") && window.api.ali.getState().then(s => s.sessions.length === 0)'))
+  client = otherClient
+  await waitFor(() => evaluate('document.querySelectorAll(".ali-view .session-item").length === 0'))
+  aliWindowClient.close()
+  console.log('PASS: compact Ali chat supports bulk deletion with random confirmation and synchronizes the main conversation list')
+  const capture = async name => {
+    await client.call('Page.bringToFront')
+    await evaluate('[...document.querySelectorAll(".modal")].forEach(node => node.getAnimations().forEach(animation => { if (Number.isFinite(animation.effect.getComputedTiming().endTime)) animation.finish() }))')
+    const screenshot = await client.call('Page.captureScreenshot', {format:'png'})
+    await writeFile(join(output, name + '.png'), Buffer.from(screenshot.data, 'base64'))
+  }
+  await testFoldersAndFont({ evaluate, waitFor, capture, url, filePath: pdfFile })
+  const knownFontWindows = new Set((await targets()).map(t => t.id))
+  await evaluate('window.api.app.newWindow()')
+  const fontTarget = await waitFor(async () => (await targets()).find(t => t.url.includes('index.html') && !knownFontWindows.has(t.id)))
+  const fontClient = await connect(fontTarget)
+  client = fontClient
+  await waitFor(() => evaluate('document.documentElement.dataset.uiFontSize === "20" && !!document.querySelector(".library-folder-panel")'))
+  assert.ok(Math.abs(await evaluate('parseFloat(getComputedStyle(document.body).fontSize)') - 20) < 0.1)
+  await evaluate('window.api.settings.save({uiFontSize:14})')
+  client = otherClient
+  await waitFor(() => evaluate('document.documentElement.dataset.uiFontSize === "14"'))
+  fontClient.close()
+  console.log('PASS: new and existing windows share persistent interface font settings')
   await evaluate('window.api.library.getState().then(s => window.api.library.remove(s.documents[0].id))')
 } catch (error) {
   if (client) console.error(await evaluate('Promise.all([document.body.innerText.slice(-3500), window.api.web.state().catch(e => e.message), document.querySelector(".web-navigation input")?.value])').catch(() => 'UI unavailable'))

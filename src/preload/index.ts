@@ -23,6 +23,7 @@ import type {
   ActiveUsage
 } from '../shared/types'
 import type { ComposeScope } from '../shared/compose'
+import type { DocumentBatchPatch } from '../shared/batch'
 import type { AliEvent, AliSendRequest, AliSessionPatch } from '../shared/ali'
 import type { WebBounds, WebPageAction, WebPageSource } from '../shared/web'
 import type {
@@ -41,11 +42,13 @@ function subscribe<T>(channel: string, callback: (payload: T) => void): () => vo
 
 const api: ZotAgentApi = {
   library: {
+    batchUpdate: (ids: string[], patch: DocumentBatchPatch) => ipcRenderer.invoke('library:batch-update', { ids, patch }),
+    batchRemove: (ids: string[]) => ipcRenderer.invoke('library:batch-delete', ids),
     getState: () => ipcRenderer.invoke('library:get-state'),
     pickDocuments: () => ipcRenderer.invoke('library:pick-documents'),
-    importDocument: (filePath: string, title: string) =>
-      ipcRenderer.invoke('library:import-document', { filePath, title }),
-    importUrl: (url: string, requestId?: string) => ipcRenderer.invoke('library:import-url', { url, requestId }),
+    importDocument: (filePath: string, title: string, collectionId?: string) =>
+      ipcRenderer.invoke('library:import-document', { filePath, title, collectionId }),
+    importUrl: (url: string, requestId?: string, collectionId?: string) => ipcRenderer.invoke('library:import-url', { url, requestId, collectionId }),
     cancelImport: (requestId: string) => ipcRenderer.invoke('library:cancel-import', requestId),
     extractText: (id: string) => ipcRenderer.invoke('library:extract-text', id),
     setText: (id: string, pages: string[], meta?: { title?: string; authors?: string }) =>
@@ -68,8 +71,8 @@ const api: ZotAgentApi = {
     openExternal: (url: string) => ipcRenderer.invoke('web:open-external', url)
   },
   collections: {
-    add: (name: string, parentId?: string) => ipcRenderer.invoke('collection:add', { name, parentId }),
-    update: (id: string, patch: Partial<Pick<Collection, 'name' | 'parentId' | 'includeChildren'>>) =>
+    add: (name: string, parentId?: string, color?: string) => ipcRenderer.invoke('collection:add', { name, parentId, color }),
+    update: (id: string, patch: Partial<Pick<Collection, 'name' | 'parentId' | 'includeChildren' | 'color'>>) =>
       ipcRenderer.invoke('collection:update', { id, patch }),
     rename: (id: string, name: string) => ipcRenderer.invoke('collection:rename', { id, name }),
     remove: (id: string) => ipcRenderer.invoke('collection:delete', id)
@@ -115,6 +118,7 @@ const api: ZotAgentApi = {
     remove: (id: string) => ipcRenderer.invoke('canvas:delete', id)
   },
   chats: {
+    batchRemove: (ids: string[]) => ipcRenderer.invoke('chat:batch-delete', ids),
     create: (docIds: string[]) => ipcRenderer.invoke('chat:create', docIds),
     update: (id: string, patch: Partial<Pick<ChatSession, 'title' | 'docIds' | 'messages'>>) =>
       ipcRenderer.invoke('chat:update', { id, patch }),
@@ -207,6 +211,7 @@ const api: ZotAgentApi = {
     updateSession: (id: string, patch: AliSessionPatch) =>
       ipcRenderer.invoke('ali:session:update', { id, patch }),
     deleteSession: (id: string) => ipcRenderer.invoke('ali:session:delete', id),
+    batchDeleteSessions: (ids: string[]) => ipcRenderer.invoke('ali:session:batch-delete', ids),
     send: (req: AliSendRequest) => ipcRenderer.invoke('ali:send', req),
     cancel: (requestId: string) => ipcRenderer.invoke('ali:cancel', requestId),
     test: () => ipcRenderer.invoke('ali:test'),
@@ -288,6 +293,7 @@ const api: ZotAgentApi = {
     sendOutline: (docId, state) => ipcRenderer.send('reader-panel:send-outline', { docId, ...state })
   },
   events: {
+    onAliSessionsChanged: (cb) => subscribe('ali:sessions-changed', cb),
     onLibraryChanged: (cb) => subscribe('library:changed', cb),
     onChat: (cb) => subscribe<ChatEvent>('chat:event', cb),
     onAli: (cb) => subscribe<AliEvent>('ali:event', cb),

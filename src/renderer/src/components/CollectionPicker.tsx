@@ -3,6 +3,8 @@ import { FolderPlus, Plus, X } from 'lucide-react'
 import type { Collection, DocumentMeta } from '@shared/types'
 import { cx } from '../ui'
 import { t } from '@shared/i18n'
+import { collectionPath } from '@shared/collections'
+import { Folder } from 'lucide-react'
 
 interface Props {
   doc: DocumentMeta
@@ -82,7 +84,7 @@ export default function CollectionPicker({ doc, collections, onClose, onChanged,
                   onChange={() => toggle(collection.id)}
                 />
                 <div>
-                  <div className="doc-pick-title">{collection.name}</div>
+                  <div className="doc-pick-title"><Folder size={14} style={{ color: collection.color || 'var(--accent)', marginRight: 6 }} />{collectionPath(collections, collection.id)}</div>
                 </div>
               </label>
             ))}

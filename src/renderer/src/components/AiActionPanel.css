@@ -27,7 +27,7 @@
   align-items: center;
   gap: 6px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .ai-action-source {
@@ -37,7 +37,7 @@
   border-radius: var(--radius-sm, 1.1rem);
   border: 1px solid var(--border);
   background: var(--surface-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.6;
   color: var(--text-soft, #6b6258);
   white-space: pre-wrap;
@@ -56,7 +56,7 @@
   border: 1px solid var(--border);
   border-radius: var(--pill, 999px);
   background: var(--panel, #fffdf9);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .ai-action-body {
@@ -69,13 +69,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .ai-action-error {
   margin: 0;
   color: var(--danger);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.6;
 }
 
@@ -129,7 +129,7 @@
   color: var(--text);
   text-align: left;
   white-space: normal;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   cursor: pointer;
 }
 
@@ -139,5 +139,5 @@
 }
 
 .selection-action-menu .muted {
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
