@@ -11,6 +11,7 @@ import { initCapture, startCapture } from './capture'
 import { startMcpServer } from './mcp'
 import { startBackupScheduler } from './backup'
 import { initPet } from './pet'
+import { registerBlindBoxWindowIpc } from './blindBoxWindow'
 import { aliStore } from './ali/store'
 import { aliMemory } from './ali/memory'
 import { setLocale, t } from '../shared/i18n'
@@ -224,6 +225,7 @@ if (gotLock) {
     initCapture(() => mainWindow)
     initReaderPanel(() => mainWindow)
     registerIpc(createMainWindow)
+    registerBlindBoxWindowIpc(path.join(__dirname, '../preload/index.js'))
     store.onChanged(() => {
       for (const win of mainWindows) {
         if (!win.isDestroyed()) win.webContents.send('library:changed')

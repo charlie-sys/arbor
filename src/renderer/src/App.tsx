@@ -589,6 +589,7 @@ export default function App(): React.JSX.Element {
     },
     { id: 'new-chat', label: t("新建对话"), hint: activeDoc ? t("围绕《{0}》提问", [activeDoc.title]) : t("创建空白对话"), keywords: '对话 chat new', run: () => newChat() },
     { id: 'ali', label: t("和阿栗聊天"), hint: t("陪伴聊天、记住偏好、解答 Arbor 使用问题"), keywords: '阿栗 ali 陪伴 助手 chat', run: () => setView({ name: 'ali' }) },
+    { id: 'blind-box', label: t("摸鱼盲盒"), hint: t("抽一个一分钟内能做完的小休息"), keywords: '摸鱼 盲盒 休息 放空 break blind box', run: () => window.api.blindBox.open() },
     { id: 'new-collection', label: t("新建分类"), hint: t("为文献创建新的分类"), keywords: '分类 collection folder', run: () => undefined },
     { id: 'properties', label: t("属性管理"), hint: t("新建文献属性（文本/数字/单选/多选/日期/复选框/URL）"), keywords: '属性 property 字段 自定义', run: () => setPropertiesOpen(true) },
     { id: 'translate', label: t("截图翻译"), hint: t("Ctrl+Shift+T，框选区域翻译"), keywords: '翻译 translate ocr', run: () => window.api.translate.start().then((res) => !res.ok && notify(res.reason || t("截图翻译不可用"), 'error')) },

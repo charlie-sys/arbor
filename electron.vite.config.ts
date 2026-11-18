@@ -24,7 +24,8 @@ export default defineConfig({
           index: resolve('src/renderer/index.html'),
           overlay: resolve('src/renderer/overlay.html'),
           pet: resolve('src/renderer/pet.html'),
-          aliChat: resolve('src/renderer/ali-chat.html')
+          aliChat: resolve('src/renderer/ali-chat.html'),
+          blindBox: resolve('src/renderer/blind-box.html')
         }
       }
     }

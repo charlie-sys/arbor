@@ -9,6 +9,7 @@ import {
   type PetState,
   type PetView
 } from '../shared/pet'
+import type { PetSkillId } from '../shared/petPlay'
 import {
   closePetWindow,
   getPetWindow,
@@ -20,6 +21,7 @@ import {
   sendToPet
 } from './petWindow'
 import { openAliChatWindow } from './aliChatWindow'
+import { openBlindBoxWindow } from './blindBoxWindow'
 
 const MIN_DWELL = 2800
 let getMainWindow: () => BrowserWindow | null = () => null
@@ -38,6 +40,11 @@ let keys: number[] = []
 let appFocused = true
 let locked = false
 let happyUntil = 0
+const skillCooldowns: Record<PetSkillId, number> = {
+  zoomies: 0,
+  fetch: 0,
+  dash: 0
+}
 const envState = process.env['ARBOR_PET_FORCE'] as PetState | undefined
 let forced: PetState | null = envState && envState in PET_STATE_LABEL ? envState : null
 const busyKeys = new Set<string>()
@@ -104,6 +111,22 @@ function resetPosition(): void {
   resetPetWindowPosition()
 }
 
+function runSkill(skill: PetSkillId, cooldownMs: number): void {
+  const now = Date.now()
+  if (skillCooldowns[skill] > now) return
+  skillCooldowns[skill] = now + cooldownMs
+  sendToPet('pet:skill', skill)
+}
+
+function skillMenuItem(skill: PetSkillId, label: string, cooldownMs: number) {
+  const remaining = Math.max(0, skillCooldowns[skill] - Date.now())
+  return {
+    label: remaining > 0 ? `${t(label)} · ${Math.ceil(remaining / 1000)}s` : t(label),
+    enabled: remaining === 0,
+    click: () => runSkill(skill, cooldownMs)
+  }
+}
+
 function showMenu(): void {
   const win = getPetWindow()
   const menu = Menu.buildFromTemplate([
@@ -127,6 +150,15 @@ function showMenu(): void {
       }
     },
     { type: 'separator' },
+    { label: t('摸一会儿鱼'), click: () => openBlindBoxWindow(preloadPath, petWindowBounds() ?? undefined) },
+    {
+      label: t('陪阿栗玩'),
+      submenu: [
+        skillMenuItem('zoomies', '撒欢跑', 120000),
+        skillMenuItem('fetch', '叼球', 0),
+        skillMenuItem('dash', '冲刺', 15000)
+      ]
+    },
     { label: t('重置位置'), click: resetPosition },
     { label: t('打开 Arbor'), click: focusMain },
     { label: t('和阿栗聊天'), click: openAliChat },

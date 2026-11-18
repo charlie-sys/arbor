@@ -33,6 +33,7 @@ import type {
   PetSnapshot,
   PetState
 } from '../shared/pet'
+import type { PetSkillId, PetStageState } from '../shared/petPlay'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
@@ -320,6 +321,9 @@ const api: ZotAgentApi = {
     select: (rect) => ipcRenderer.invoke('capture:selection', rect),
     cancel: () => ipcRenderer.invoke('capture:cancel')
   },
+  blindBox: {
+    open: () => ipcRenderer.invoke('blind-box:open')
+  },
   pet: {
     signal: (signal: PetSignal) => ipcRenderer.send('pet:signal', signal),
     getState: (): Promise<PetSnapshot> => ipcRenderer.invoke('pet:get-state'),
@@ -336,8 +340,9 @@ const api: ZotAgentApi = {
     openAliChat: () => ipcRenderer.send('pet:open-ali-chat'),
     debugForce: (state: PetState | null) => ipcRenderer.send('pet:debug-force', state),
     window: {
-      bounds: () => ipcRenderer.invoke('pet:window-bounds'),
-      move: (x: number, y: number) => ipcRenderer.send('pet:window-move', { x, y }),
+      state: () => ipcRenderer.invoke('pet:window-state'),
+      saveActor: (xRatio: number, yRatio: number) =>
+        ipcRenderer.send('pet:actor-position', { xRatio, yRatio }),
       ignoreMouse: (ignore: boolean) => ipcRenderer.send('pet:mouse-ignore', ignore),
       reset: () => ipcRenderer.invoke('pet:window-reset')
     },
@@ -346,7 +351,9 @@ const api: ZotAgentApi = {
     onConfig: (cb: (config: PetRuntimeConfig) => void) => subscribe('pet:config', cb),
     onSettingsChanged: (cb: (settings: PetSettings) => void) => subscribe('pet:settings-changed', cb),
     onOpenSettings: (cb: () => void) => subscribe('pet:open-settings', cb),
-    onOpenAli: (cb: () => void) => subscribe('pet:open-ali', cb)
+    onOpenAli: (cb: () => void) => subscribe('pet:open-ali', cb),
+    onSkill: (cb: (skill: PetSkillId) => void) => subscribe('pet:skill', cb),
+    onStageChanged: (cb: (state: PetStageState) => void) => subscribe('pet:stage-changed', cb)
   }
 }
 

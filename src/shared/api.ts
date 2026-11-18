@@ -45,9 +45,9 @@ import type {
   PetSettings,
   PetSignal,
   PetSnapshot,
-  PetState,
-  PetWindowBounds
+  PetState
 } from './pet'
+import type { PetSkillId, PetStageState } from './petPlay'
 
 export interface ChatEvent {
   requestId: string
@@ -485,6 +485,9 @@ export interface ZotAgentApi {
     select(rect: { x: number; y: number; width: number; height: number }): Promise<void>
     cancel(): Promise<void>
   }
+  blindBox: {
+    open(): Promise<void>
+  }
   pet: {
     signal(signal: PetSignal): void
     getState(): Promise<PetSnapshot>
@@ -500,10 +503,10 @@ export interface ZotAgentApi {
     openAliChat(): void
     debugForce(state: PetState | null): void
     window: {
-      bounds(): Promise<PetWindowBounds | null>
-      move(x: number, y: number): void
+      state(): Promise<PetStageState>
+      saveActor(xRatio: number, yRatio: number): void
       ignoreMouse(ignore: boolean): void
-      reset(): Promise<PetWindowBounds>
+      reset(): Promise<PetStageState>
     }
     onState(cb: (snapshot: PetSnapshot) => void): () => void
     onTheme(cb: (theme: string) => void): () => void
@@ -511,6 +514,8 @@ export interface ZotAgentApi {
     onSettingsChanged(cb: (settings: PetSettings) => void): () => void
     onOpenSettings(cb: () => void): () => void
     onOpenAli(cb: () => void): () => void
+    onSkill(cb: (skill: PetSkillId) => void): () => void
+    onStageChanged(cb: (state: PetStageState) => void): () => void
   }
 }
 
