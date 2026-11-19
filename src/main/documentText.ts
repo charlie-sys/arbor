@@ -30,7 +30,7 @@ export async function extractDocumentText(docId: string): Promise<ExtractedDocum
   const format = documentFormatOf(doc)
   if (format === 'web') throw new Error(t('网页直接读取当前页面，无需提取分页正文'))
   if (format === 'pdf') throw new Error(t("PDF 文本请在阅读器中提取"))
-  const filePath = await store.resolveDocumentFile(docId)
+  const filePath = path.join(store.filesDir, doc.fileName)
   let body = ''
   try {
     body = await readDocumentBody(filePath, format)

@@ -273,9 +273,7 @@ const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(props, r
 
     const init = async (): Promise<void> => {
       try {
-        const task = pdfjsLib.getDocument(
-          pdfOptions(await window.api.library.pdfUrl(props.docId)) as never
-        )
+        const task = pdfjsLib.getDocument(pdfOptions(window.api.library.pdfUrl(props.docId)) as never)
         loadingTaskRef.current = task
         const pdf = await task.promise
         if (cancelled) {

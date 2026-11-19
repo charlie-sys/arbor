@@ -21,7 +21,6 @@ import { isDefaultSystemPrompt } from '@shared/i18n/defaults'
 import { applyUiFontSize } from '../appearance'
 import { useDraftField } from '../useDraftField'
 import SettingsSection, { SettingsDialogContext } from './SettingsSection'
-import AccountView from './AccountView'
 
 interface Props {
   visible?: boolean
@@ -287,7 +286,7 @@ export default function SettingsView({
       <header className="view-head">
         <div>
           <h1>{t("设置")}</h1>
-          <p className="muted">{t("配置账户同步、模型服务、界面与本地数据。")}</p>
+          <p className="muted">{t("模型通过 OpenAI 兼容接口接入；所有文献与笔记保存在本机。")}</p>
         </div>
         <button className="btn primary" onClick={() => void save()} disabled={saving}>
           {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
@@ -321,20 +320,6 @@ export default function SettingsView({
               </button>
             ))}
           </div>
-        </SettingsSection>
-
-        <SettingsSection
-          id="account"
-          title="账户与同步"
-          description="登录、设备、同步状态和云端快照"
-          className="account-settings-dialog"
-        >
-          <AccountView
-            visible
-            embedded
-            mode="settings"
-            notify={notify}
-          />
         </SettingsSection>
 
         <SettingsSection id="models" title="模型服务" description="配置服务地址、密钥和模型">

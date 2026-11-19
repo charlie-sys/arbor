@@ -17,7 +17,6 @@ import type { InboxAttachment } from '@shared/types'
 import { cx, Markdown } from '../ui'
 import { useUnsavedChanges } from '../unsaved'
 import { t } from '@shared/i18n'
-import { ResolvedImage } from '../assetUrl'
 
 export interface MarkdownEditorModalProps {
   heading: string
@@ -285,7 +284,7 @@ export default function MarkdownEditorModal({
                 {attachments.map((attachment) => (
                   <div className="inbox-attachment" key={attachment.id}>
                     {attachment.kind === 'image' ? (
-                      <ResolvedImage src={attachmentUrl(attachment.file)} alt="" />
+                      <img src={attachmentUrl(attachment.file)} alt="" />
                     ) : (
                       <span className="inbox-attachment-file">
                         <FileText size={16} />
@@ -396,7 +395,7 @@ export default function MarkdownEditorModal({
                     onClick={() => insertAttachment(attachment)}
                     title={attachment.name}
                   >
-                    <ResolvedImage src={attachmentUrl(attachment.file)} alt="" />
+                    <img src={attachmentUrl(attachment.file)} alt="" />
                     <span>{attachment.name}</span>
                   </button>
                 ))}

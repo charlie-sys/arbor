@@ -55,7 +55,6 @@ class AliStore {
   metaFile = ''
   private sessions: AliSession[] = []
   private saveChain: Promise<void> = Promise.resolve()
-  private changeListeners = new Set<() => void>()
 
   async init(): Promise<void> {
     this.root = path.join(app.getPath('userData'), 'data', 'ali')
@@ -76,11 +75,6 @@ class AliStore {
 
   list(): AliSession[] {
     return [...this.sessions].sort((a, b) => b.updatedAt - a.updatedAt)
-  }
-
-  onChanged(listener: () => void): () => void {
-    this.changeListeners.add(listener)
-    return () => this.changeListeners.delete(listener)
   }
 
   get(id: string): AliSession | undefined {
@@ -136,13 +130,6 @@ class AliStore {
     return before - this.sessions.length
   }
 
-  async replaceAll(sessions: AliSession[]): Promise<void> {
-    this.sessions = sessions
-      .map((session) => normalizeSession(session))
-      .filter((session): session is AliSession => Boolean(session))
-    await this.save()
-  }
-
   private async readSessions(): Promise<AliSession[]> {
     let raw: string
     try {
@@ -178,10 +165,7 @@ class AliStore {
   }
 
   save(): Promise<void> {
-    this.saveChain = this.saveChain.then(async () => {
-      await this.writeNow()
-      for (const listener of this.changeListeners) listener()
-    }).catch((error) => {
+    this.saveChain = this.saveChain.then(() => this.writeNow()).catch((error) => {
       console.error('Failed to save Ali sessions', error)
     })
     return this.saveChain

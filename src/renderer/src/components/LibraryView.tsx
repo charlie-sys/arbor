@@ -37,8 +37,6 @@ interface Props {
   data: LibraryData
   collectionId?: string
   savedViewId?: string
-  initialStatus?: ReadingStatus | 'all'
-  initialStarredOnly?: boolean
   importing: { done: number; total: number } | null
   onOpen(docId: string): void
   onChat(docId: string): Promise<void> | void
@@ -133,8 +131,6 @@ export default function LibraryView({
   data,
   collectionId,
   savedViewId,
-  initialStatus,
-  initialStarredOnly,
   importing,
   onOpen,
   onChat,
@@ -157,14 +153,14 @@ export default function LibraryView({
       ? { key: savedSort.key as TableSortKey, dir: savedSort.dir }
       : { key: 'addedAt', dir: 'desc' }
   const [query, setQuery] = useState(savedConfig?.query ?? '')
-  const [starredOnly, setStarredOnly] = useState(savedConfig?.starredOnly ?? initialStarredOnly ?? false)
+  const [starredOnly, setStarredOnly] = useState(savedConfig?.starredOnly ?? false)
   const [pickerDoc, setPickerDoc] = useState<DocumentMeta | null>(null)
   const [batchEditing, setBatchEditing] = useState(false)
   const [newFolder, setNewFolder] = useState(false)
   const [deleting, setDeleting] = useState<DocumentMeta[] | null>(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
   const [saveViewName, setSaveViewName] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ReadingStatus | 'all'>(savedConfig?.status ?? initialStatus ?? 'all')
+  const [statusFilter, setStatusFilter] = useState<ReadingStatus | 'all'>(savedConfig?.status ?? 'all')
   const [yearFilter, setYearFilter] = useState(savedConfig?.year ?? 'all')
   const [tagFilter, setTagFilter] = useState(savedConfig?.tag ?? 'all')
   const [propertyFilters, setPropertyFilters] = useState<Record<string, string>>(
@@ -175,14 +171,6 @@ export default function LibraryView({
   const [pageSize, setPageSize] = useState(loadLibraryPageSize)
   const [pagination, setPagination] = useState({ scope: '', page: 1 })
   const tableScrollRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (initialStatus !== undefined) setStatusFilter(initialStatus)
-  }, [initialStatus])
-
-  useEffect(() => {
-    if (initialStarredOnly !== undefined) setStarredOnly(initialStarredOnly)
-  }, [initialStarredOnly])
 
   const persistColumnWidths = (next: Record<string, number>): void => {
     try {

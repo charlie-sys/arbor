@@ -1,8 +1,4 @@
 node_modules/
-server/dist/
-server/.env
-server/data/
-web/dist/
 out/
 release/
 release-*/
@@ -12,7 +8,6 @@ scripts/acceptance/.generated/
 *.log
 docs/*.md
 !docs/使用说明.md
-!docs/production-readiness-checklist.md
 docs/progress.json
 docs/progress.lock
 docs/ali-progress.json

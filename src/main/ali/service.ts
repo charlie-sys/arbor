@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { store } from '../store'
 import { aliStore } from './store'
 import { aliMemory } from './memory'
-import { streamAliWithTools, testAli, completeAli, type AliServiceConfig } from './llm'
+import { streamAliWithTools, testAli, completeAli, type AliServiceConfig, type AliChatMessage } from './llm'
 import { aliToolDefinitions, executeAliTool } from './tools'
 import { selectRecent, shouldSummarize, unsummarized } from './context'
 import { parseMemoryOps, applyMemoryOps, hasReceipt, writeReceipt, saveDraft, removeMemoryLines, parseConsolidationOps, applyConsolidationOps } from './memoryOps'
@@ -13,10 +13,6 @@ import { usage } from '../usage'
 import { estimateTokens } from '../../shared/usage'
 import type { AliEvent, AliSendRequest, AliSession, AliSource, AliState, AliTestResult, AliToolTrace } from '../../shared/ali'
 import { outputLanguageName } from '../../shared/i18n'
-import {
-  runAliWithTools,
-  type AliChatMessage
-} from '../../shared/aliAgent'
 
 const controllers = new Map<string, AbortController>()
 const requestSessions = new Map<string, string>()
@@ -107,31 +103,86 @@ async function runWithTools(
   signal: AbortSignal
 ): Promise<{ text: string; sources: AliSource[] }> {
   const key = `${config.baseUrl}|${config.model}`
-  const tools = toolsDisabled.has(key)
-    ? []
-    : aliToolDefinitions(store.data.settings.ali.searchPolicy !== 'off')
-  try {
-    return await runAliWithTools(
-      messages,
-      tools,
-      (nextMessages, nextTools, emitDelta) =>
-        streamAliWithTools(
-          config,
-          nextMessages,
-          nextTools,
-          emitDelta,
-          signal
-        ),
-      executeAliTool,
-      onDelta,
-      onTool
-    )
-  } catch (error) {
-    if (tools.length && /400|tool|function/i.test((error as Error).message || '')) {
-      toolsDisabled.add(key)
+  let tools = toolsDisabled.has(key) ? [] : aliToolDefinitions(store.data.settings.ali.searchPolicy !== 'off')
+  let output = ''
+  let calls = 0
+  let toolChars = 0
+  const sources = new Map<string, AliSource>()
+
+  for (let round = 0; round < 4; round += 1) {
+    let result
+    try {
+      result = await streamAliWithTools(config, messages, tools, onDelta, signal)
+    } catch (error) {
+      const message = (error as Error).message || ''
+      if (tools.length && /400|tool|function/i.test(message)) {
+        toolsDisabled.add(key)
+        tools = []
+        result = await streamAliWithTools(config, messages, [], onDelta, signal)
+      } else {
+        throw error
+      }
     }
-    throw error
+    output += result.content
+    if (!result.toolCalls.length) return { text: output, sources: [...sources.values()] }
+    messages.push({
+      role: 'assistant',
+      content: result.content || null,
+      tool_calls: result.toolCalls.map((call) => ({
+        id: call.id,
+        type: 'function' as const,
+        function: { name: call.name, arguments: call.arguments }
+      }))
+    })
+    for (const call of result.toolCalls) {
+      if (calls >= 8) break
+      calls += 1
+      const startedAt = Date.now()
+      onTool({ id: call.id, name: call.name, args: call.arguments, status: 'running', startedAt })
+      let content = ''
+      let status: 'ok' | 'error' = 'ok'
+      try {
+        const args = call.arguments ? (JSON.parse(call.arguments) as Record<string, unknown>) : {}
+        content = await executeAliTool(call.name, args)
+      } catch (error) {
+        status = 'error'
+        content = `工具执行失败：${(error as Error).message}`
+      }
+      const remaining = Math.max(0, 12000 - toolChars)
+      if (content.length > remaining) content = content.slice(0, remaining)
+      if (content.length > 6000) content = content.slice(0, 6000)
+      toolChars += content.length
+      if (status === 'ok' && (call.name === 'search_web' || call.name === 'search_github')) {
+        try {
+          const data = JSON.parse(content) as { sources?: { title?: string; url?: string; snippet?: string }[] }
+          for (const source of data.sources || []) {
+            if (!source.url) continue
+            sources.set(source.url, {
+              title: source.title || source.url,
+              url: source.url,
+              provider: call.name === 'search_github' ? 'github' : 'web',
+              ...(source.snippet ? { snippet: source.snippet } : {})
+            })
+          }
+        } catch {
+          // tool output is not structured; ignore sources
+        }
+      }
+      onTool({
+        id: call.id,
+        name: call.name,
+        args: call.arguments,
+        status,
+        summary: content.slice(0, 120),
+        ...(status === 'error' ? { error: content } : {}),
+        startedAt,
+        finishedAt: Date.now()
+      })
+      messages.push({ role: 'tool', tool_call_id: call.id, content })
+    }
+    if (calls >= 8) break
   }
+  return { text: output, sources: [...sources.values()] }
 }
 
 async function updateSummary(sessionId: string): Promise<void> {

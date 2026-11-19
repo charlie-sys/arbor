@@ -79,7 +79,6 @@ export async function runBackup(): Promise<BackupInfo> {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const target = path.join(base, stamp)
   await fs.mkdir(target, { recursive: true })
-  await store.prepareBackup()
   await fs.cp(store.root, path.join(target, 'data'), { recursive: true })
   const createdAt = Date.now()
   await fs.writeFile(
@@ -123,42 +122,13 @@ export async function restoreBackup(name: string): Promise<void> {
   const stat = await fs.stat(source).catch(() => null)
   if (!stat || !stat.isDirectory()) throw new Error(t("备份不存在或不完整"))
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const userData = app.getPath('userData')
-  const safety = path.join(userData, 'restore-safety', stamp)
-  const incoming = path.join(userData, `data.restore-${stamp}`)
-  const previous = path.join(userData, `data.pre-restore-${stamp}`)
-  await aliStore.flush()
+  const safety = path.join(app.getPath('userData'), 'restore-safety', new Date().toISOString().replace(/[:.]/g, '-'))
   await fs.mkdir(safety, { recursive: true })
   await fs.cp(store.root, safety, { recursive: true })
 
-  let movedCurrent = false
-  let installedRestored = false
-  try {
-    await fs.rm(incoming, { recursive: true, force: true })
-    await fs.cp(source, incoming, { recursive: true })
-    await store.prepareRestore()
-    await fs.rename(store.root, previous)
-    movedCurrent = true
-    await fs.rename(incoming, store.root)
-    installedRestored = true
-    await store.init()
-    await aliStore.reload().catch(() => undefined)
-    await aliMemory.init().catch(() => undefined)
-    await fs.rm(previous, { recursive: true, force: true }).catch(() => undefined)
-  } catch (error) {
-    if (movedCurrent) {
-      await fs.rm(store.root, { recursive: true, force: true }).catch(() => undefined)
-      await fs.rename(previous, store.root).catch(() => undefined)
-    } else {
-      await fs.rm(incoming, { recursive: true, force: true }).catch(() => undefined)
-    }
-    await store.init().catch(() => undefined)
-    await aliStore.reload().catch(() => undefined)
-    await aliMemory.init().catch(() => undefined)
-    if (installedRestored) {
-      throw new Error(`${t("恢复失败")}：${(error as Error).message}`)
-    }
-    throw error
-  }
+  await fs.rm(store.root, { recursive: true, force: true })
+  await fs.cp(source, store.root, { recursive: true })
+  await store.init()
+  await aliStore.reload().catch(() => undefined)
+  await aliMemory.init().catch(() => undefined)
 }

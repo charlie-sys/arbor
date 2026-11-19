@@ -24,12 +24,8 @@ function run(): void {
           if (node.parent.parent.tagName.getText(source) === 'SettingsSection') requireEnglish(node.initializer.text, file)
           else if (/[\u4e00-\u9fff]/.test(node.initializer.text)) missing.push(`${file}: untranslated attribute ${node.initializer.text}`)
         }
-        // Main-process and shared agent tool schemas contain model instructions,
-        // rather than visible UI labels.
-        const isModelSchema =
-          file.startsWith(path.join('src', 'main')) ||
-          file.endsWith(path.join('src', 'shared', 'aliAgent.ts'))
-        if (!isModelSchema && ts.isPropertyAssignment(node) && /^(label|title|name|description|hint)$/.test(node.name.getText(source)) && ts.isStringLiteralLike(node.initializer)) requireEnglish(node.initializer.text, file)
+        // Main-process tool schemas contain model instructions, rather than visible UI labels.
+        if (!file.startsWith(path.join('src', 'main')) && ts.isPropertyAssignment(node) && /^(label|title|name|description|hint)$/.test(node.name.getText(source)) && ts.isStringLiteralLike(node.initializer)) requireEnglish(node.initializer.text, file)
         ts.forEachChild(node, visit)
       }
       visit(source)

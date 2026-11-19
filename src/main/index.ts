@@ -10,17 +10,11 @@ import { closeReaderPanel, initReaderPanel, registerReaderPanelIpc } from './rea
 import { initCapture, startCapture } from './capture'
 import { startMcpServer } from './mcp'
 import { startBackupScheduler } from './backup'
-import { initPet, setPetAccountLocked } from './pet'
-import { closeAliChatWindow } from './aliChatWindow'
-import { cancelAliSessions } from './ali/service'
+import { initPet } from './pet'
 import { registerBlindBoxWindowIpc } from './blindBoxWindow'
 import { aliStore } from './ali/store'
 import { aliMemory } from './ali/memory'
-import { seedAliSyncFromLocal, watchAliSync } from './aliSync'
 import { setLocale, t } from '../shared/i18n'
-import { accountService } from './accountService'
-import { hasAccountAccess, type AccountState } from '../shared/account'
-import { syncEngine } from './syncEngine'
 
 const APP_NAME = 'Arbor'
 app.setName(APP_NAME)
@@ -100,15 +94,6 @@ const MIME_TYPES: Record<string, string> = {
 
 let mainWindow: BrowserWindow | null = null
 const mainWindows = new Set<BrowserWindow>()
-
-function applyAccountAccessControl(state: AccountState): void {
-  const unlocked = hasAccountAccess(state)
-  setPetAccountLocked(!unlocked)
-  if (!unlocked) {
-    cancelAliSessions(aliStore.list().map((session) => session.id))
-    closeAliChatWindow()
-  }
-}
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -211,43 +196,14 @@ function registerProtocols(): void {
         }
         return await serveFile(filePath)
       }
+      if (!/^[0-9a-f-]{36}(?:-translated)?\.(?:pdf|png|docx|doc|txt|md|markdown)$/i.test(name)) {
+        return new Response('Forbidden', { status: 403 })
+      }
       let base = ''
       if (url.host === 'files') base = store.filesDir
       else if (url.host === 'translations') base = store.translationsDir
       else return new Response('Not found', { status: 404 })
-      const rawSegments = url.pathname.split('/').filter(Boolean)
-      const segments = rawSegments.map((segment) => decodeURIComponent(segment))
-      if (
-        !segments.length ||
-        segments.length > 2 ||
-        segments.some(
-          (segment) =>
-            !segment ||
-            segment === '.' ||
-            segment === '..' ||
-            segment.includes('/') ||
-            segment.includes('\\')
-        )
-      ) {
-        return new Response('Forbidden', { status: 403 })
-      }
-      const leaf = segments.at(-1) ?? ''
-      const allowedLeaf =
-        /\.(?:pdf|png|docx|doc|txt|md|markdown|mhtml|html)$/i.test(
-          leaf
-        )
-      const validPath =
-        segments.length === 1
-          ? /^[0-9a-f-]{36}(?:-translated)?\.[a-z0-9]+$/i.test(leaf)
-          : /^[0-9a-f-]{36}$/i.test(segments[0])
-      if (!allowedLeaf || !validPath) {
-        return new Response('Forbidden', { status: 403 })
-      }
-      const filePath = path.normalize(path.join(base, ...segments))
-      if (!filePath.startsWith(base + path.sep)) {
-        return new Response('Forbidden', { status: 403 })
-      }
-      return await serveFile(filePath)
+      return await serveFile(path.join(base, name))
     } catch {
       return new Response('Bad request', { status: 400 })
     }
@@ -259,27 +215,10 @@ if (gotLock) {
 
   app.whenReady().then(async () => {
     await store.init()
-    await accountService.init(app.getPath('userData'))
     await aliStore.init().catch((error) => console.warn('[ali] init failed', error))
     await aliMemory.init().catch((error) => console.warn('[ali] memory init failed', error))
     setLocale(store.data.settings.language)
     await usage.init(store.root)
-    usage.attachSync({
-      upsert: (record) =>
-        store.upsertSyncEntity('usage_record', record.id, record),
-      remove: (ids) => {
-        for (const id of ids) store.deleteSyncEntity('usage_record', id)
-      }
-    })
-    usage.mergeSyncedRecords(
-      store
-        .listSyncBindings('usage_record')
-        .map((entity) => entity.payload as import('../shared/types').UsageRecord)
-    )
-    await seedAliSyncFromLocal()
-    await store.save()
-    watchAliSync(() => void syncEngine.syncNow())
-    syncEngine.init()
     startBackupScheduler()
     void startMcpServer()
     registerProtocols()
@@ -304,10 +243,6 @@ if (gotLock) {
     })
     createMainWindow()
     initPet(path.join(__dirname, '../preload/index.js'), () => mainWindow)
-    applyAccountAccessControl(accountService.state())
-    const unsubscribeAccountAccess = accountService.onStateChange(
-      applyAccountAccessControl
-    )
 
     const registered = globalShortcut.register('CommandOrControl+Shift+T', () => {
       startCapture()
@@ -319,7 +254,6 @@ if (gotLock) {
     app.on('activate', () => {
       if (mainWindows.size === 0) createMainWindow()
     })
-    app.on('will-quit', unsubscribeAccountAccess)
   })
 
   app.on('will-quit', () => {

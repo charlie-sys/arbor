@@ -48,19 +48,6 @@ import type {
   PetState
 } from './pet'
 import type { PetSkillId, PetStageState } from './petPlay'
-import type {
-  AccountDevice,
-  AccountState,
-  DeviceEnrollment,
-  DeviceLoginIntent,
-  DevLoginInput
-} from './account'
-import type {
-  SyncConflict,
-  SyncSnapshot,
-  SyncSnapshotDetail,
-  SyncStatus
-} from './sync'
 
 export interface ChatEvent {
   requestId: string
@@ -220,7 +207,7 @@ export interface ZotAgentApi {
     update(id: string, patch: Partial<DocumentMeta>): Promise<DocumentMeta | undefined>
     remove(id: string): Promise<void>
     getTexts(id: string): Promise<string[]>
-    pdfUrl(id: string): string | Promise<string>
+    pdfUrl(id: string): string
   }
   web: {
     mount(docId: string, bounds: WebBounds, source?: WebPageSource): Promise<WebPageState>
@@ -270,9 +257,6 @@ export interface ZotAgentApi {
   }
   readingPlan: {
     generate(goal: string): Promise<ReadingPlan>
-    list(): Promise<ReadingPlan[]>
-    save(plan: ReadingPlan): Promise<ReadingPlan>
-    remove(id: string): Promise<void>
   }
   imports: {
     bibtex(): Promise<ImportResult>
@@ -496,39 +480,10 @@ export interface ZotAgentApi {
     onUsageRecorded(cb: (event: UsageRecordedEvent) => void): () => void
     onUsageLive(cb: (active: ActiveUsage[]) => void): () => void
     onSettingsChanged(cb: (settings: AppSettings) => void): () => void
-    onAccountChanged(cb: (state: AccountState) => void): () => void
-    onSessionReplaced(cb: (state: AccountState) => void): () => void
-    onSyncStatus(cb: (status: SyncStatus) => void): () => void
   }
   overlay: {
     select(rect: { x: number; y: number; width: number; height: number }): Promise<void>
     cancel(): Promise<void>
-  }
-  account: {
-    state(): Promise<AccountState>
-    signInDev(input: DevLoginInput): Promise<AccountState>
-    signInOidc(serverUrl: string, intent?: DeviceLoginIntent): Promise<AccountState>
-    logout(): Promise<AccountState>
-    devices(): Promise<AccountDevice[]>
-    revokeDevice(id: string): Promise<AccountDevice[]>
-    deviceRequests(): Promise<DeviceEnrollment[]>
-    approveDeviceRequest(id: string): Promise<DeviceEnrollment[]>
-    rejectDeviceRequest(id: string): Promise<DeviceEnrollment[]>
-    transferPrimary(id: string): Promise<AccountDevice[]>
-  }
-  sync: {
-    status(): Promise<SyncStatus>
-    conflicts(): Promise<SyncConflict[]>
-    snapshots(): Promise<{ retentionDays: number; snapshots: SyncSnapshot[] }>
-    snapshotChanges(id: string): Promise<SyncSnapshotDetail>
-    restoreSnapshot(id: string): Promise<{ ok: boolean; latestSeq: number }>
-    resolveConflict(
-      opId: string,
-      strategy: 'local' | 'server' | 'merge' | 'custom',
-      payload?: unknown
-    ): Promise<SyncStatus>
-    applyInitialMerge(): Promise<SyncStatus>
-    now(): Promise<void>
   }
   blindBox: {
     open(): Promise<void>

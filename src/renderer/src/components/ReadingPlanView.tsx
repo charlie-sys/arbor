@@ -11,7 +11,7 @@ interface Props {
 
 const STORAGE_KEY = 'zotagent-reading-plans'
 
-function loadLegacyPlans(): ReadingPlan[] {
+function loadPlans(): ReadingPlan[] {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]') as unknown
     return Array.isArray(parsed) ? (parsed as ReadingPlan[]) : []
@@ -23,28 +23,11 @@ function loadLegacyPlans(): ReadingPlan[] {
 export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props): React.JSX.Element {
   const [goal, setGoal] = useState('')
   const [busy, setBusy] = useState(false)
-  const [plans, setPlans] = useState<ReadingPlan[]>([])
+  const [plans, setPlans] = useState<ReadingPlan[]>(() => loadPlans())
 
   useEffect(() => {
-    let alive = true
-    const migrate = async (): Promise<void> => {
-      const legacy = loadLegacyPlans()
-      const stored = await window.api.readingPlan.list().catch(() => [])
-      const merged = new Map(stored.map((plan) => [plan.id, plan]))
-      for (const plan of legacy) {
-        if (!merged.has(plan.id)) {
-          await window.api.readingPlan.save(plan).catch(() => undefined)
-          merged.set(plan.id, plan)
-        }
-      }
-      if (!alive) return
-      setPlans([...merged.values()].sort((a, b) => b.createdAt - a.createdAt))
-    }
-    void migrate()
-    return () => {
-      alive = false
-    }
-  }, [])
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(plans))
+  }, [plans])
 
   const generate = async (): Promise<void> => {
     const value = goal.trim()
@@ -55,8 +38,7 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
     setBusy(true)
     try {
       const plan = await window.api.readingPlan.generate(value)
-      await window.api.readingPlan.save(plan)
-      setPlans((prev) => [plan, ...prev.filter((item) => item.id !== plan.id)])
+      setPlans((prev) => [plan, ...prev])
       setGoal('')
       notify(t("已生成 {0} 篇文献的阅读计划", [plan.items.length]), 'success')
     } catch (err) {
@@ -68,9 +50,7 @@ export default function ReadingPlanView({ documents, onOpenDoc, notify }: Props)
 
   const removePlan = (id: string): void => {
     if (!window.confirm(t("删除这份阅读计划？"))) return
-    void window.api.readingPlan.remove(id).then(() => {
-      setPlans((prev) => prev.filter((plan) => plan.id !== id))
-    })
+    setPlans((prev) => prev.filter((plan) => plan.id !== id))
   }
 
   const byId = new Map(documents.map((doc) => [doc.id, doc]))

@@ -27,8 +27,6 @@ import { cancelAli, cancelAliSessions, getAliState, sendAli, testAliConnection, 
 import { removeMemoryLines, restoreMemoryLine } from './ali/memoryOps'
 import { loadHelpSections } from './ali/help'
 import { aliMemory } from './ali/memory'
-import { accountService } from './accountService'
-import { syncEngine } from './syncEngine'
 import { createZip, readZip } from './zip'
 import type { AliEvent, AliSendRequest, AliSessionPatch } from '../shared/ali'
 import type {
@@ -49,7 +47,6 @@ import type {
 import type { ChatEvent } from '../shared/api'
 import type { ComposeScope } from '../shared/compose'
 import { t } from '../shared/i18n'
-import { hasAccountAccess } from '../shared/account'
 import { actOnWebPage, closeWebPage, importWebUrl, mountWebPage, navigateWebPage, saveWebPage, selectedWebText, setWebBounds, switchWebPageSource, webPageState } from './webPage'
 import { normalizeWebUrl, type WebBounds, type WebPageAction, type WebPageSource } from '../shared/web'
 import { randomUUID } from 'crypto'
@@ -60,12 +57,6 @@ import type { DocumentBatchPatch } from '../shared/batch'
 const webImports = new Map<string, { controller: AbortController; saving: boolean }>()
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'])
-
-function assertAliAccess(): void {
-  if (!hasAccountAccess(accountService.state())) {
-    throw new Error(t('请先登录后再使用阿栗'))
-  }
-}
 
 function attachmentKind(filePath: string): 'image' | 'file' {
   return IMAGE_EXTENSIONS.has(path.extname(filePath).toLowerCase()) ? 'image' : 'file'
@@ -99,82 +90,6 @@ function resolveAttachmentPath(ownerId: string, file: string): string {
 }
 
 export function registerIpc(createWindow: (docId?: string) => void): void {
-  ipcMain.handle('account:state', () => accountService.state())
-  ipcMain.handle('account:dev-login', (_event, input: { serverUrl?: unknown; email?: unknown; displayName?: unknown; intent?: unknown }) =>
-    accountService.signInDev({
-      serverUrl: String(input?.serverUrl ?? ''),
-      email: String(input?.email ?? ''),
-      displayName:
-        typeof input?.displayName === 'string' ? input.displayName : undefined,
-      intent: input?.intent === 'merge-local' ? 'merge-local' : 'cloud-first'
-    })
-  )
-  ipcMain.handle('account:oidc-login', (_event, input: { serverUrl?: unknown; intent?: unknown }) => {
-    if (typeof input?.serverUrl !== 'string') throw new Error(t('同步服务器地址无效'))
-    return accountService.signInOidc(
-      input.serverUrl,
-      input.intent === 'merge-local' ? 'merge-local' : 'cloud-first'
-    )
-  })
-  ipcMain.handle('account:logout', () => accountService.logout())
-  ipcMain.handle('account:devices', () => accountService.devices())
-  ipcMain.handle('account:device-revoke', (_event, id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('设备 ID 无效'))
-    return accountService.revokeDevice(id)
-  })
-  ipcMain.handle('account:device-requests', () => accountService.deviceRequests())
-  ipcMain.handle('account:device-request-approve', (_event, id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('设备 ID 无效'))
-    return accountService.approveDeviceRequest(id)
-  })
-  ipcMain.handle('account:device-request-reject', (_event, id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('设备 ID 无效'))
-    return accountService.rejectDeviceRequest(id)
-  })
-  ipcMain.handle('account:device-primary-transfer', (_event, id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('设备 ID 无效'))
-    return accountService.transferPrimary(id)
-  })
-  ipcMain.handle('sync:status', () => syncEngine.getStatus())
-  ipcMain.handle('sync:conflicts', () => syncEngine.conflicts())
-  ipcMain.handle('sync:snapshots', () => accountService.snapshots())
-  ipcMain.handle('sync:snapshot-changes', (_event, id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('快照 ID 无效'))
-    return accountService.snapshotChanges(id)
-  })
-  ipcMain.handle('sync:restore-snapshot', async (_event, id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('快照 ID 无效'))
-    const result = await accountService.restoreSnapshot(id)
-    await syncEngine.syncNow()
-    return result
-  })
-  ipcMain.handle(
-    'sync:resolve-conflict',
-    (
-      _event,
-      input: { opId?: unknown; strategy?: unknown; payload?: unknown }
-    ) => {
-      if (typeof input?.opId !== 'string' || !input.opId) throw new Error(t('同步冲突无效'))
-      if (
-        input.strategy !== 'local' &&
-        input.strategy !== 'server' &&
-        input.strategy !== 'merge' &&
-        input.strategy !== 'custom'
-      ) {
-        throw new Error(t('同步冲突策略无效'))
-      }
-      if (input.strategy === 'custom' && input.payload === undefined) {
-        throw new Error(t('合并内容不能为空'))
-      }
-      syncEngine.resolveConflict(input.opId, input.strategy, input.payload)
-      return syncEngine.getStatus()
-    }
-  )
-  ipcMain.handle('sync:apply-initial-merge', () => {
-    syncEngine.applyInitialMerge()
-    return syncEngine.getStatus()
-  })
-  ipcMain.handle('sync:now', () => syncEngine.syncNow())
   ipcMain.handle('library:batch-update', (_event, input: { ids: string[]; patch: DocumentBatchPatch }) => updateDocuments(input.ids, input.patch))
   ipcMain.handle('library:batch-delete', (_event, ids: string[]) => deleteDocuments(ids))
   ipcMain.handle('chat:batch-delete', (_event, ids: string[]) => deleteChats(ids))
@@ -274,11 +189,6 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
 
   ipcMain.handle('library:get-texts', async (_event, id: string) => {
     return store.getDocumentTexts(id)
-  })
-
-  ipcMain.handle('library:pdf-url', async (_event, id: string) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('文献不存在'))
-    return store.documentFileUrl(id)
   })
 
   ipcMain.handle('collection:add', async (_event, payload: string | { name: string; parentId?: string; color?: string }) => {
@@ -389,19 +299,6 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
 
   ipcMain.handle('reading-plan:generate', (_event, goal: string) => {
     return generateReadingPlan(goal)
-  })
-  ipcMain.handle('reading-plan:list', () => {
-    return [...store.data.readingPlans].sort((a, b) => b.createdAt - a.createdAt)
-  })
-  ipcMain.handle('reading-plan:save', async (_event, plan: import('../shared/types').ReadingPlan) => {
-    if (!plan || typeof plan.id !== 'string' || !plan.id.trim() || !Array.isArray(plan.items)) {
-      throw new Error(t('阅读计划无效'))
-    }
-    return store.saveReadingPlan(plan)
-  })
-  ipcMain.handle('reading-plan:remove', async (_event, id: string) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(t('阅读计划无效'))
-    await store.removeReadingPlan(id)
   })
 
   ipcMain.handle('canvas:add', (_event, name: string) => {
@@ -690,20 +587,15 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
     await store.deleteTask(id)
   })
 
-  ipcMain.handle('ali:get-state', () => {
-    assertAliAccess()
-    return getAliState()
-  })
+  ipcMain.handle('ali:get-state', () => getAliState())
 
   ipcMain.handle('ali:session:create', async () => {
-    assertAliAccess()
     const session = await aliStore.create()
     broadcast('ali:sessions-changed', null)
     return session
   })
 
   ipcMain.handle('ali:session:update', async (_event, payload: { id: string; patch: AliSessionPatch }) => {
-    assertAliAccess()
     if (!payload || typeof payload.id !== 'string' || !payload.patch || typeof payload.patch !== 'object') {
       throw new Error(t("请求参数无效"))
     }
@@ -713,7 +605,6 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
   })
 
   ipcMain.handle('ali:session:delete', async (_event, id: string) => {
-    assertAliAccess()
     if (typeof id !== 'string' || !id) throw new Error(t("请求参数无效"))
     cancelAliSessions([id])
     await aliStore.remove(id)
@@ -721,7 +612,6 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
   })
 
   ipcMain.handle('ali:session:batch-delete', async (_event, ids: string[]) => {
-    assertAliAccess()
     if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) throw new Error(t('批量操作参数无效'))
     const existing = [...new Set(ids)].filter(id => !!aliStore.get(id))
     cancelAliSessions(existing)
@@ -731,7 +621,6 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
   })
 
   ipcMain.handle('ali:send', async (event, req: AliSendRequest) => {
-    assertAliAccess()
     const sender = event.sender
     const finish = (): void => setPetBusy(req.requestId, false)
     setPetBusy(req.requestId, true)
@@ -750,29 +639,18 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
     if (typeof requestId === 'string') cancelAli(requestId)
   })
 
-  ipcMain.handle('ali:test', () => {
-    assertAliAccess()
-    return testAliConnection()
-  })
+  ipcMain.handle('ali:test', () => testAliConnection())
 
   ipcMain.handle('ali:memory:undo', async (_event, lines: string[]) => {
-    assertAliAccess()
     if (!Array.isArray(lines)) return 0
     return removeMemoryLines(lines.filter((line): line is string => typeof line === 'string'))
   })
 
-  ipcMain.handle('ali:help', () => {
-    assertAliAccess()
-    return loadHelpSections()
-  })
+  ipcMain.handle('ali:help', () => loadHelpSections())
 
-  ipcMain.handle('ali:memory:get', () => {
-    assertAliAccess()
-    return aliMemory.getState()
-  })
+  ipcMain.handle('ali:memory:get', () => aliMemory.getState())
 
   ipcMain.handle('ali:memory:save', async (_event, payload: { doc: string; content: string }) => {
-    assertAliAccess()
     if (!payload || typeof payload.doc !== 'string' || typeof payload.content !== 'string') {
       throw new Error(t("请求参数无效"))
     }
@@ -781,32 +659,24 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
   })
 
   ipcMain.handle('ali:memory:remove', async (_event, doc: string) => {
-    assertAliAccess()
     await aliMemory.deleteTopic(doc)
   })
 
   ipcMain.handle('ali:memory:pin', async (_event, payload: { doc: string; pinned: boolean }) => {
-    assertAliAccess()
     await aliMemory.setPinned(payload.doc, !!payload.pinned)
   })
 
   ipcMain.handle('ali:memory:clear', async () => {
-    assertAliAccess()
     await aliMemory.clear()
   })
 
-  ipcMain.handle('ali:memory:consolidate', () => {
-    assertAliAccess()
-    return consolidateMemory(true)
-  })
+  ipcMain.handle('ali:memory:consolidate', () => consolidateMemory(true))
 
   ipcMain.handle('ali:memory:restore', async (_event, payload: { doc: 'MEMORY.md' | 'SELF.md'; line: string }) => {
-    assertAliAccess()
     await restoreMemoryLine(payload.doc, payload.line)
   })
 
   ipcMain.handle('ali:memory:export', async () => {
-    assertAliAccess()
     const entries: { name: string; data: Buffer }[] = []
     const add = async (rel: string): Promise<void> => {
       try {
@@ -833,7 +703,6 @@ export function registerIpc(createWindow: (docId?: string) => void): void {
   })
 
   ipcMain.handle('ali:memory:import', async () => {
-    assertAliAccess()
     const result = await dialog.showOpenDialog({
       title: t("导入阿栗记忆"),
       properties: ['openFile'],

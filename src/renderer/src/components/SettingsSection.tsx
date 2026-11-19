@@ -51,7 +51,7 @@ export default function SettingsSection({ id, title, description, children, clas
     {opened && createPortal(<div className="modal-backdrop settings-dialog-backdrop" data-web-overlay onMouseDown={event => {
       if (event.target === event.currentTarget && !context.busy) context.open(null)
     }}>
-      <div className={`modal settings-dialog ${className}`} ref={dialog} role="dialog" aria-modal="true" aria-labelledby={`settings-${id}-title`} tabIndex={-1}>
+      <div className="modal settings-dialog" ref={dialog} role="dialog" aria-modal="true" aria-labelledby={`settings-${id}-title`} tabIndex={-1}>
         <div className="modal-head"><h2 id={`settings-${id}-title`}>{t(title)}</h2><button type="button" className="icon-btn" aria-label={t('关闭')} disabled={context.busy} onClick={() => context.open(null)}><X size={18} /></button></div>
         <div className={`card settings-section-content ${className}`}>{children}</div>
         <div className="modal-foot">

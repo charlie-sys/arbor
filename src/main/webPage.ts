@@ -328,10 +328,8 @@ export function setWebBounds(senderId: number, bounds: WebBounds | null): void {
 }
 
 function archiveUrlFor(doc: DocumentMeta): string {
-  if (!/^[0-9a-f-]{36}$/i.test(doc.id)) {
-    throw new Error(t('该网页尚未保存离线归档'))
-  }
-  return pathToFileURL(store.resolveDocumentFileSync(doc.id)).href
+  if (!/^[0-9a-f-]{36}$/i.test(doc.id) || doc.fileName !== `${doc.id}.mhtml`) throw new Error(t('该网页尚未保存离线归档'))
+  return pathToFileURL(path.join(store.filesDir, doc.fileName)).href
 }
 
 export function mountWebPage(sender: WebContents, docId: string, bounds: WebBounds, source: WebPageSource = 'online', targetUrl?: string): WebPageState {

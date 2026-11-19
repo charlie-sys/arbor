@@ -36,12 +36,6 @@ class AliMemory {
   memoryFile = ''
   topicsDir = ''
   archiveDir = ''
-  private changeListeners = new Set<() => void>()
-
-  onChanged(listener: () => void): () => void {
-    this.changeListeners.add(listener)
-    return () => this.changeListeners.delete(listener)
-  }
 
   async init(): Promise<void> {
     this.root = path.join(app.getPath('userData'), 'data', 'ali', 'memory')
@@ -76,7 +70,6 @@ class AliMemory {
     assertMemoryDocPath(doc)
     validateMemoryDoc(doc, content)
     await writeTextAtomic(path.join(this.root, doc), content)
-    for (const listener of this.changeListeners) listener()
   }
 
   async archive(doc: string, lines: string[]): Promise<void> {
@@ -91,7 +84,6 @@ class AliMemory {
     }
     const entries = lines.map((line) => `- [${doc}] ${line.replace(/^- /, '')}`).join('\n')
     await writeTextAtomic(file, `${text.trimEnd()}\n\n## ${new Date().toISOString()}\n${entries}\n`)
-    for (const listener of this.changeListeners) listener()
   }
 
   async readArchive(): Promise<string> {
@@ -145,76 +137,10 @@ class AliMemory {
     }
   }
 
-  async hasUserData(): Promise<boolean> {
-    const [self, memory, topics, archive] = await Promise.all([
-      this.readSelf(),
-      this.readMemory(),
-      this.listTopics(),
-      this.readArchive()
-    ])
-    return (
-      self !== DEFAULT_SELF ||
-      memory !== DEFAULT_MEMORY ||
-      topics.length > 0 ||
-      Boolean(archive.trim())
-    )
-  }
-
-  async replaceState(state: AliMemoryState): Promise<void> {
-    const current = await this.getState()
-    const sameTopics =
-      JSON.stringify(
-        [...current.topics].sort((a, b) => a.doc.localeCompare(b.doc))
-      ) ===
-      JSON.stringify(
-        [...state.topics].sort((a, b) => a.doc.localeCompare(b.doc))
-      )
-    if (
-      current.self === (state.self || DEFAULT_SELF) &&
-      current.memory === (state.memory || DEFAULT_MEMORY) &&
-      current.archive === state.archive &&
-      sameTopics
-    ) {
-      return
-    }
-    await this.ensure(this.selfFile, DEFAULT_SELF)
-    await this.ensure(this.memoryFile, DEFAULT_MEMORY)
-    await writeTextAtomic(this.selfFile, state.self || DEFAULT_SELF)
-    await writeTextAtomic(this.memoryFile, state.memory || DEFAULT_MEMORY)
-    const currentTopics = await fs.readdir(this.topicsDir).catch(() => [] as string[])
-    for (const name of currentTopics) {
-      if (name.endsWith('.md')) {
-        await fs.rm(path.join(this.topicsDir, name), { force: true })
-      }
-    }
-    for (const topic of state.topics) {
-      assertMemoryDocPath(topic.doc)
-      if (!topic.doc.startsWith('topics/') || !topic.content.trim()) continue
-      const name = path.basename(topic.doc)
-      await writeTextAtomic(
-        path.join(this.topicsDir, name),
-        topic.content
-      )
-    }
-    const month = new Date().toISOString().slice(0, 7)
-    if (state.archive.trim()) {
-      await writeTextAtomic(
-        path.join(this.archiveDir, `${month}.md`),
-        state.archive
-      )
-    } else {
-      await fs.rm(path.join(this.archiveDir, `${month}.md`), {
-        force: true
-      })
-    }
-    for (const listener of this.changeListeners) listener()
-  }
-
   async deleteTopic(doc: string): Promise<void> {
     if (!doc.startsWith('topics/')) throw new Error('只能删除主题记忆')
     assertMemoryDocPath(doc)
     await fs.rm(path.join(this.root, doc), { force: true })
-    for (const listener of this.changeListeners) listener()
   }
 
   async setPinned(doc: string, pinned: boolean): Promise<void> {
@@ -230,7 +156,6 @@ class AliMemory {
     } else if (pinned) {
       await writeTextAtomic(file, `---\npinned: true\n---\n${text}`)
     }
-    for (const listener of this.changeListeners) listener()
   }
 
   async clear(): Promise<void> {
@@ -240,7 +165,6 @@ class AliMemory {
     await fs.rm(this.archiveDir, { recursive: true, force: true })
     await fs.mkdir(this.topicsDir, { recursive: true })
     await fs.mkdir(this.archiveDir, { recursive: true })
-    for (const listener of this.changeListeners) listener()
   }
 
   private async ensure(file: string, content: string): Promise<void> {

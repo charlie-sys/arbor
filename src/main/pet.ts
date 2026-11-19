@@ -39,7 +39,6 @@ let lastScroll = 0
 let keys: number[] = []
 let appFocused = true
 let locked = false
-let accountLocked = true
 let happyUntil = 0
 const skillCooldowns: Record<PetSkillId, number> = {
   zoomies: 0,
@@ -52,12 +51,7 @@ const busyKeys = new Set<string>()
 let ticker: NodeJS.Timeout | null = null
 
 function config() {
-  return {
-    enabled: enabled && !accountLocked,
-    bubbles,
-    quietUntil,
-    language: store.data.settings.language
-  }
+  return { enabled, bubbles, quietUntil, language: store.data.settings.language }
 }
 
 function snapshot(): PetSnapshot {
@@ -90,14 +84,13 @@ function openSettings(): void {
 }
 
 function openAli(): void {
-  if (accountLocked) return
   focusMain()
   const main = getMainWindow()
   if (main && !main.isDestroyed()) main.webContents.send('pet:open-ali')
 }
 
 function openAliChat(): void {
-  if (accountLocked || !preloadPath) return
+  if (!preloadPath) return
   openAliChatWindow(preloadPath, petWindowBounds() ?? undefined)
 }
 
@@ -105,7 +98,7 @@ function persistEnabled(next: boolean): void {
   enabled = next
   void store.updateSettings({ petEnabled: next })
   if (next) {
-    if (preloadPath && !accountLocked) openPetWindow(preloadPath)
+    if (preloadPath) openPetWindow(preloadPath)
     sendConfig()
   } else {
     closePetWindow()
@@ -135,7 +128,6 @@ function skillMenuItem(skill: PetSkillId, label: string, cooldownMs: number) {
 }
 
 function showMenu(): void {
-  if (accountLocked) return
   const win = getPetWindow()
   const menu = Menu.buildFromTemplate([
     {
@@ -181,7 +173,7 @@ function applySettings(next: Partial<PetSettings>): void {
   if (typeof next.enabled === 'boolean' && next.enabled !== enabled) {
     enabled = next.enabled
     if (enabled) {
-      if (preloadPath && !accountLocked) openPetWindow(preloadPath)
+      if (preloadPath) openPetWindow(preloadPath)
       sendConfig()
     } else {
       closePetWindow()
@@ -229,24 +221,6 @@ export function celebratePet(): void {
 export function setPetTheme(next: string): void {
   theme = next
   sendToPet('pet:theme', theme)
-}
-
-export function setPetAccountLocked(value: boolean): void {
-  if (accountLocked === value) return
-  accountLocked = value
-  if (value) {
-    closePetWindow()
-  } else if (enabled && preloadPath) {
-    openPetWindow(preloadPath)
-  }
-  sendConfig()
-  const main = getMainWindow()
-  if (main && !main.isDestroyed()) {
-    main.webContents.send('pet:settings-changed', {
-      enabled: enabled && !accountLocked,
-      bubbles
-    })
-  }
 }
 
 function evaluate(): void {
@@ -300,7 +274,6 @@ export function initPet(preload: string, getter: () => BrowserWindow | null): vo
   ipcMain.handle('pet:get-state', () => snapshot())
   ipcMain.handle('pet:get-config', () => config())
   ipcMain.handle('pet:set-enabled', (_event, value: boolean) => {
-    if (accountLocked && value) return config()
     persistEnabled(!!value)
     return config()
   })
@@ -334,7 +307,7 @@ export function initPet(preload: string, getter: () => BrowserWindow | null): vo
     lastInput = Date.now()
   })
 
-  if (enabled && !accountLocked) openPetWindow(preload)
+  if (enabled) openPetWindow(preload)
   broadcastState()
   ticker = setInterval(evaluate, 1000)
   app.on('will-quit', () => {

@@ -4,7 +4,6 @@ import type { TranslationRecord } from '@shared/types'
 import type { TranslateEvent } from '@shared/api'
 import { Markdown, cx, formatFullDate, formatTime } from '../ui'
 import { t } from '@shared/i18n'
-import { ResolvedImage } from '../assetUrl'
 
 interface Props {
   records: TranslationRecord[]
@@ -144,7 +143,7 @@ export default function TranslationsView({ records, selectedId, status, onChange
                   setTab('structured')
                 }}
               >
-                <ResolvedImage src={`zotfile://translations/${record.imageFile}`} alt="" loading="lazy" />
+                <img src={`zotfile://translations/${record.imageFile}`} alt="" loading="lazy" />
                 <div className="translate-item-main">
                   <div className="translate-item-preview">
                     {record.structured.replace(/[#>*`|-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48) || t("翻译记录")}
@@ -202,7 +201,7 @@ export default function TranslationsView({ records, selectedId, status, onChange
                     {' '}{t("未能生成译文图（系统 OCR 或排版翻译不可用）；原图与文字译文均已保存。")}{' '}</div>
                 )}
                 <div className="translate-image" onClick={() => setLightbox(true)} title={t("点击查看大图")}>
-                  <ResolvedImage src={imageUrl} alt={showingTranslated ? t("译文截图") : t("截图原文")} />
+                  <img src={imageUrl} alt={showingTranslated ? t("译文截图") : t("截图原文")} />
                   <div className="image-hint">
                     <ImageIcon size={13} /> {showingTranslated ? t("译文图（系统字体）") : t("原文截图")}
                   </div>
@@ -234,7 +233,7 @@ export default function TranslationsView({ records, selectedId, status, onChange
           <button className="lightbox-close" onClick={() => setLightbox(false)} title={t("关闭")}>
             <X size={20} />
           </button>
-          <ResolvedImage src={imageUrl} alt={t("截图原文")} onClick={(event) => event.stopPropagation()} />
+          <img src={imageUrl} alt={t("截图原文")} onClick={(event) => event.stopPropagation()} />
         </div>
       )}
     </div>

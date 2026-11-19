@@ -1,5 +1,5 @@
 export type View =
-  | { name: 'library'; collectionId?: string; savedViewId?: string; status?: 'unread' | 'reading' | 'read'; starred?: boolean }
+  | { name: 'library'; collectionId?: string; savedViewId?: string }
   | { name: 'reader'; docId: string; page?: number; navigationId?: number }
   | { name: 'chats'; chatId?: string; question?: string }
   | { name: 'ali' }
