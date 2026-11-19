@@ -526,3 +526,32 @@
     max-height: 90px;
   }
 }
+.ali-chat-locked {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+  background: var(--app-bg, #f3f5f9);
+}
+
+.ali-chat-lock-card {
+  width: min(360px, 100%);
+  padding: 28px;
+  border: 1px solid var(--border, #ddd7d0);
+  border-radius: 20px;
+  background: var(--panel, #fff);
+  text-align: center;
+  box-shadow: var(--shadow-soft, 0 18px 50px rgba(45, 35, 25, 0.08));
+}
+
+.ali-chat-lock-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.ali-chat-lock-card p {
+  margin: 0;
+  color: var(--text-muted, #756c64);
+}

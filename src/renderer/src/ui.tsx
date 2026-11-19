@@ -5,6 +5,7 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { localeTag } from '@shared/i18n'
+import { ResolvedImage } from './assetUrl'
 
 export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ')
@@ -96,6 +97,9 @@ function MarkdownView({
             : defaultUrlTransform(url)
         }
         components={{
+          img: ({ src, alt, title }) => (
+            <ResolvedImage src={src} alt={alt} title={title} loading="lazy" />
+          ),
           a: ({ href, children: content }) => {
             if (href?.startsWith('zotagent:page:') && onPageRef) {
               return (

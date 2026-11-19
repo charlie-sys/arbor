@@ -518,7 +518,9 @@ export async function exportDocumentPackage(docId: string): Promise<{ canceled: 
     }
   ]
   try {
-    const original = await fs.readFile(path.join(store.filesDir, doc.fileName))
+    const original = await fs.readFile(
+      await store.resolveDocumentFile(docId)
+    )
     const extension = path.extname(doc.fileName) || '.pdf'
     entries.unshift({ name: `${safeFileName(doc.title)}${extension}`, data: original })
   } catch {

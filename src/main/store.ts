@@ -1,5 +1,6 @@
 import { app, safeStorage } from 'electron'
 import { promises as fs } from 'fs'
+import { existsSync, statSync } from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { formatFromFileName } from '../shared/documents'
@@ -9,6 +10,8 @@ import { localeFromStored, localeFromSystemTag, t, type Locale } from '../shared
 import { defaultSystemPrompt, isDefaultSystemPrompt } from '../shared/i18n/defaults'
 import type { WebPageSnapshot } from '../shared/web'
 import { splitIntoPages } from './documentPages'
+import { LocalSyncStore, type LocalSyncStatus } from './localSync'
+import type { SyncChange, SyncConflict, SyncEntity, SyncOperation } from '../shared/sync'
 import type {
   AppSettings,
   CanvasBoard,
@@ -23,6 +26,7 @@ import type {
   LibraryData,
   Property,
   PropertyType,
+  ReadingPlan,
   ResearchTopic,
   SavedView,
   SavedViewConfig,
@@ -69,6 +73,7 @@ function emptyData(): LibraryData {
     tags: [],
     properties: [],
     savedViews: [],
+    readingPlans: [],
     settings: { ...DEFAULT_SETTINGS, ali: defaultAliSettings() }
   }
 }
@@ -92,6 +97,7 @@ class Store {
   translationsDir = ''
   attachmentsDir = ''
   data: LibraryData = emptyData()
+  private localSync = new LocalSyncStore()
   private saveChain: Promise<void> = Promise.resolve()
   private changeListeners = new Set<() => void>()
 
@@ -105,6 +111,7 @@ class Store {
   }
 
   async init(): Promise<void> {
+    this.localSync.close()
     this.root = path.join(app.getPath('userData'), 'data')
     this.filesDir = path.join(this.root, 'files')
     this.textsDir = path.join(this.root, 'texts')
@@ -114,7 +121,9 @@ class Store {
     await fs.mkdir(this.textsDir, { recursive: true })
     await fs.mkdir(this.translationsDir, { recursive: true })
     await fs.mkdir(this.attachmentsDir, { recursive: true })
+    await this.localSync.init(this.root)
 
+    let diskData: LibraryData | null = null
     try {
       const raw = await fs.readFile(this.libraryFile, 'utf-8')
       const parsed = JSON.parse(raw) as StoredData
@@ -159,7 +168,7 @@ class Store {
           if (!tags.some((tag) => tag.name === name)) tags.push({ id: uid(), name })
         }
       }
-      this.data = {
+      diskData = {
         version: 1,
         documents,
         collections: parsed.collections ?? [],
@@ -178,13 +187,30 @@ class Store {
         tags,
         properties: parsed.properties ?? [],
         savedViews: parsed.savedViews ?? [],
+        readingPlans: parsed.readingPlans ?? [],
         settings
       }
     } catch {
       const locale: Locale = localeFromSystemTag(app.getLocale())
-      this.data = emptyData()
-      this.data.settings.language = locale
-      this.data.settings.systemPrompt = defaultSystemPrompt(locale)
+      diskData = emptyData()
+      diskData.settings.language = locale
+      diskData.settings.systemPrompt = defaultSystemPrompt(locale)
+    }
+
+    if (this.localSync.hasLibrarySnapshot()) {
+      this.data = this.localSync.loadLibrary(diskData.settings) ?? diskData
+    } else {
+      this.data = diskData
+      await this.localSync.importLibrary(this.data, this.libraryFile)
+    }
+    if (
+      !this.localSync.listLocalEntities('reading_plan').length &&
+      diskData.readingPlans.length
+    ) {
+      this.data.readingPlans = diskData.readingPlans
+      await this.save()
+    }
+    if (!diskData.documents.length && !diskData.collections.length && !diskData.chats.length) {
       await this.save()
     }
   }
@@ -197,6 +223,7 @@ class Store {
   }
 
   private async writeNow(): Promise<void> {
+    this.localSync.persistLibrary(this.data)
     const ali = { ...(this.data.settings.ali ?? defaultAliSettings()) }
     const settings: StoredSettings = { ...this.data.settings, ali }
     const encrypt = (value?: string): string | undefined =>
@@ -215,8 +242,226 @@ class Store {
     for (const listener of this.changeListeners) listener()
   }
 
+  async prepareBackup(): Promise<void> {
+    await this.saveChain
+    this.localSync.checkpoint()
+  }
+
+  async prepareRestore(): Promise<void> {
+    await this.saveChain
+    this.localSync.checkpoint()
+    this.localSync.close()
+  }
+
+  localSyncStatus(): LocalSyncStatus {
+    return this.localSync.status()
+  }
+
+  userDataEntityCount(): number {
+    return this.localSync.userDataEntityCount()
+  }
+
+  exportSyncSnapshot(): SyncEntity[] {
+    return this.localSync.exportSnapshot()
+  }
+
+  pendingSyncOperations(limit = 200): SyncOperation[] {
+    return this.localSync.pendingOperations(limit)
+  }
+
+  acknowledgeSyncOperations(opIds: string[]): void {
+    this.localSync.acknowledgeOperations(opIds)
+  }
+
+  clearPendingSyncOperations(): void {
+    this.localSync.clearPendingOperations()
+  }
+
+  markSyncConflicts(opIds: string[]): void {
+    this.localSync.markOperationsConflict(opIds)
+  }
+
+  recordSyncConflicts(
+    operations: SyncOperation[],
+    conflicts: Array<{
+      opId: string
+      serverVersion: number
+      serverPayload?: unknown
+      serverDeleted?: boolean
+    }>
+  ): void {
+    this.localSync.recordConflicts(operations, conflicts)
+  }
+
+  syncConflicts(): SyncConflict[] {
+    return this.localSync.listConflicts()
+  }
+
+  resolveSyncConflict(
+    opId: string,
+    strategy: 'local' | 'server' | 'merge' | 'custom',
+    payload?: unknown
+  ): void {
+    this.localSync.resolveConflict(opId, strategy, payload)
+    this.reloadFromLocalSync()
+  }
+
+  syncConflictCount(): number {
+    return this.localSync.conflictCount()
+  }
+
+  reconcileEquivalentBlobConflicts(): number {
+    return this.localSync.reconcileEquivalentBlobConflicts()
+  }
+
+  clearSyncConflicts(): number {
+    return this.localSync.clearConflicts()
+  }
+
+  initialMergePreview(userId?: string) {
+    return this.localSync.initialMergePreview(userId)
+  }
+
+  stageInitialMerge(entities: SyncEntity[], userId: string, snapshotSeq: number) {
+    return this.localSync.stageInitialMerge(entities, userId, snapshotSeq)
+  }
+
+  applyInitialMerge(userId: string): void {
+    this.localSync.applyInitialMerge(userId)
+    this.reloadFromLocalSync()
+  }
+
+  discardInitialMerge(): void {
+    this.localSync.discardInitialMerge()
+  }
+
+  upsertSyncBinding(entityType: string, entityId: string, payload: unknown): void {
+    this.localSync.upsertLocalEntity(entityType, entityId, payload)
+  }
+
+  upsertSyncEntity(entityType: string, entityId: string, payload: unknown): void {
+    this.localSync.upsertLocalEntity(entityType, entityId, payload)
+  }
+
+  deleteSyncEntity(entityType: string, entityId: string): void {
+    this.localSync.deleteLocalEntity(entityType, entityId)
+  }
+
+  getSyncBinding(entityType: string, entityId: string): unknown | null {
+    return this.localSync.getLocalEntity(entityType, entityId)
+  }
+
+  listSyncBindings(entityType = 'blob_binding'): SyncEntity[] {
+    return this.localSync.listLocalEntities(entityType)
+  }
+
+  syncServerUserId(): string | null {
+    return this.localSync.serverUserId()
+  }
+
+  syncCursor(userId: string): number {
+    return this.localSync.serverCursor(userId)
+  }
+
+  setSyncCursor(userId: string, seq: number): void {
+    this.localSync.setServerCursor(userId, seq)
+  }
+
+  replaceFromSyncSnapshot(entities: SyncEntity[], userId: string, seq: number): void {
+    this.localSync.replaceFromSnapshot(entities, userId, seq)
+    this.reloadFromLocalSync()
+  }
+
+  applySyncChanges(changes: SyncChange[]): void {
+    this.localSync.applyChanges(changes)
+    this.reloadFromLocalSync()
+  }
+
+  reloadFromLocalSync(): void {
+    const next = this.localSync.loadLibrary(this.data.settings)
+    if (!next) return
+    this.data = next
+    for (const listener of this.changeListeners) listener()
+  }
+
   getDocument(id: string): DocumentMeta | undefined {
     return this.data.documents.find((d) => d.id === id)
+  }
+
+  private documentFileCandidates(doc: DocumentMeta): Set<string> {
+    const fileName = path.basename(doc.fileName || '')
+    const extension =
+      path.extname(fileName).toLowerCase() ||
+      (doc.sourceFormat === 'pdf'
+        ? '.pdf'
+        : doc.sourceFormat === 'docx'
+          ? '.docx'
+          : doc.sourceFormat === 'doc'
+            ? '.doc'
+            : doc.sourceFormat === 'txt'
+              ? '.txt'
+              : '')
+    const candidates = new Set<string>()
+    if (fileName) {
+      candidates.add(path.join(this.filesDir, doc.id, fileName))
+      candidates.add(path.join(this.filesDir, fileName))
+    }
+    if (extension) {
+      candidates.add(path.join(this.filesDir, `${doc.id}${extension}`))
+    }
+    const nestedPrefix = `files/${doc.id}/`
+    for (const binding of this.listSyncBindings('blob_binding')) {
+      const bindingPath =
+        binding.payload &&
+        typeof binding.payload === 'object' &&
+        typeof (binding.payload as { path?: unknown }).path === 'string'
+          ? String((binding.payload as { path: string }).path)
+          : ''
+      if (!bindingPath.startsWith(nestedPrefix)) continue
+      const segment = bindingPath.slice(nestedPrefix.length)
+      if (!segment || segment.includes('/') || segment.includes('\\')) continue
+      candidates.add(path.join(this.filesDir, doc.id, segment))
+    }
+    return candidates
+  }
+
+  resolveDocumentFileSync(id: string): string {
+    const doc = this.getDocument(id)
+    if (!doc) throw new Error(t('文献不存在'))
+    if (!/^[0-9a-f-]{36}$/i.test(doc.id)) {
+      throw new Error(t('文献文件不存在'))
+    }
+    for (const candidate of this.documentFileCandidates(doc)) {
+      const relative = path.relative(this.filesDir, candidate)
+      if (
+        !relative ||
+        relative.startsWith('..') ||
+        path.isAbsolute(relative)
+      ) {
+        continue
+      }
+      try {
+        if (!existsSync(candidate) || !statSync(candidate).isFile()) continue
+      } catch {
+        continue
+      }
+      return candidate
+    }
+    throw new Error(t('文献文件尚未同步到本机'))
+  }
+
+  async resolveDocumentFile(id: string): Promise<string> {
+    return this.resolveDocumentFileSync(id)
+  }
+
+  async documentFileUrl(id: string): Promise<string> {
+    const filePath = await this.resolveDocumentFile(id)
+    const relative = path.relative(this.filesDir, filePath)
+    const encoded = relative
+      .split(path.sep)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/')
+    return `zotfile://files/${encoded}`
   }
 
   private importCollections(collectionId?: string): string[] {
@@ -368,8 +613,19 @@ class Store {
         excerpt.updatedAt = Date.now()
       }
     })
+    const resolvedFile = removed
+      ? await this.resolveDocumentFile(id).catch(() => null)
+      : null
+    const legacyFile = path.join(
+      this.filesDir,
+      removed?.fileName || `${id}.pdf`
+    )
+    const nestedDirectory = path.join(this.filesDir, id)
     await Promise.allSettled([
-      fs.unlink(path.join(this.filesDir, removed?.fileName || `${id}.pdf`)),
+      fs.rm(resolvedFile || legacyFile, { force: true }),
+      path.dirname(resolvedFile || legacyFile) === nestedDirectory
+        ? fs.rm(nestedDirectory, { recursive: true, force: true })
+        : Promise.resolve(),
       fs.unlink(path.join(this.textsDir, `${id}.json`))
     ])
     if (persist) await this.save()
@@ -883,6 +1139,19 @@ class Store {
 
   async deleteSavedView(id: string): Promise<void> {
     this.data.savedViews = this.data.savedViews.filter((item) => item.id !== id)
+    await this.save()
+  }
+
+  async saveReadingPlan(plan: ReadingPlan): Promise<ReadingPlan> {
+    const index = this.data.readingPlans.findIndex((item) => item.id === plan.id)
+    if (index >= 0) this.data.readingPlans[index] = plan
+    else this.data.readingPlans.unshift(plan)
+    await this.save()
+    return plan
+  }
+
+  async removeReadingPlan(id: string): Promise<void> {
+    this.data.readingPlans = this.data.readingPlans.filter((item) => item.id !== id)
     await this.save()
   }
 

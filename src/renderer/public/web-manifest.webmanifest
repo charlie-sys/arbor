@@ -1,0 +1,18 @@
+{
+  "name": "Arbor — 文献阅读与 AI 研究工坊",
+  "short_name": "Arbor",
+  "description": "独立 Web 文献阅读、知识整理与 AI 研究工坊",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f5f9",
+  "theme_color": "#3f342d",
+  "icons": [
+    {
+      "src": "/arbor-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

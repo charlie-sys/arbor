@@ -3,8 +3,9 @@ import type { ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { ImportResult, LibraryData, SearchResult } from '@shared/types'
 import type { TranslateEvent, UpdateInfo, UpdateProgress } from '@shared/api'
+import type { AccountState } from '@shared/account'
+import type { SyncStatus } from '@shared/sync'
 import type { View } from './nav'
-import Sidebar from './components/Sidebar'
 import LibraryView from './components/LibraryView'
 import WebImportDialog from './components/WebImportDialog'
 import './components/web.css'
@@ -21,7 +22,6 @@ import InboxView, { QuickCapture } from './components/InboxView'
 import TopicsView from './components/TopicsView'
 import CanvasView from './components/CanvasView'
 import ReadingPlanView from './components/ReadingPlanView'
-import PaneResizer from './components/PaneResizer'
 import { hasUnsavedChanges } from './unsaved'
 import { extractPdf } from './pdf'
 import { documentFormatOf } from '@shared/documents'
@@ -31,6 +31,11 @@ import { applyTheme, persistTheme, readTheme, themeById } from './themes'
 import type { ThemeId } from './themes'
 import { reportPetView, startPetActivity } from './petActivity'
 import { getLocale, localeTag, setLocale, subscribeLocale, t } from '@shared/i18n'
+import { WebAuthScreen, WebContextPanel, WebMobileNav, WebRail, WebTopbar } from './components/WebShell'
+
+interface AppProps {
+  mode?: 'desktop' | 'web'
+}
 
 interface Toast {
   id: number
@@ -42,7 +47,7 @@ function ViewSlot({ active, children }: { active: boolean; children: ReactNode }
   return <div className={`view-slot${active ? ' active' : ''}`}>{children}</div>
 }
 
-export default function App(): React.JSX.Element {
+export default function App({ mode = 'desktop' }: AppProps = {}): React.JSX.Element {
   const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [data, setData] = useState<LibraryData | null>(null)
   const [view, setViewState] = useState<View>(() => {
@@ -68,47 +73,17 @@ export default function App(): React.JSX.Element {
   const [translateStatus, setTranslateStatus] = useState<TranslateEvent | null>(null)
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const [paletteMode, setPaletteMode] = useState<'search' | 'command' | null>(null)
+  const [accountState, setAccountState] = useState<AccountState | null>(null)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [captureOpen, setCaptureOpen] = useState(false)
   const [webImportOpen, setWebImportOpen] = useState(false)
   const [webImportCollectionId, setWebImportCollectionId] = useState<string | undefined>()
   const [propertiesOpen, setPropertiesOpen] = useState(false)
-  const [sidebarPeek, setSidebarPeek] = useState(false)
-  const sidebarHideTimer = useRef<number | null>(null)
-  const cancelSidebarHide = (): void => {
-    if (sidebarHideTimer.current !== null) {
-      window.clearTimeout(sidebarHideTimer.current)
-      sidebarHideTimer.current = null
-    }
-  }
-  const showSidebar = (): void => {
-    cancelSidebarHide()
-    setSidebarPeek(true)
-  }
-  const scheduleSidebarHide = (): void => {
-    cancelSidebarHide()
-    sidebarHideTimer.current = window.setTimeout(() => {
-      sidebarHideTimer.current = null
-      if (document.querySelector('[data-sidebar-overlay]')) { scheduleSidebarHide(); return }
-      setSidebarPeek(false)
-    }, 220)
-  }
-  useEffect(() => () => cancelSidebarHide(), [])
-  const [sidebarRatio, setSidebarRatio] = useState(() => {
-    const raw = Number(window.localStorage.getItem('zotagent-sidebar-ratio'))
-    return Number.isFinite(raw) && raw > 0 ? raw : 0.15
-  })
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
+  const [contextOpen, setContextOpen] = useState(false)
   useEffect(() => {
-    const onResize = (): void => setViewportWidth(window.innerWidth)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  const sidebarWidth = Math.min(380, Math.max(200, Math.round(viewportWidth * sidebarRatio)))
-  const setSidebarWidth = (value: number): void => {
-    const ratio = Math.min(0.3, Math.max(0.1, value / viewportWidth))
-    setSidebarRatio(ratio)
-    window.localStorage.setItem('zotagent-sidebar-ratio', String(ratio))
-  }
+    if (view.name !== 'library') setContextOpen(false)
+  }, [view.name])
+
   const [readerTranslationId, setReaderTranslationId] = useState<string | null>(null)
   const [lastReaderTranslationId, setLastReaderTranslationId] = useState<string | null>(null)
   const [lastReaderDocId, setLastReaderDocId] = useState<string | null>(null)
@@ -157,6 +132,27 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     notifyRef.current = notify
   }, [notify])
+
+  useEffect(() => {
+    let plans: unknown = null
+    try {
+      plans = JSON.parse(
+        window.localStorage.getItem('zotagent-reading-plans') ?? 'null'
+      )
+    } catch {
+      plans = null
+    }
+    if (!Array.isArray(plans)) return
+    for (const plan of plans) {
+      if (!plan || typeof plan !== 'object' || typeof plan.id !== 'string') continue
+      void window.api.readingPlan.save(plan).catch(() => undefined)
+    }
+  }, [])
+
+  useEffect(() => {
+    void window.api.sync.status().then(setSyncStatus)
+    return window.api.events.onSyncStatus(setSyncStatus)
+  }, [])
 
   const checkUpdates = useCallback(
     async (force = false): Promise<UpdateInfo | null> => {
@@ -280,6 +276,19 @@ export default function App(): React.JSX.Element {
       setData((prev) => (prev ? { ...prev, settings: { ...prev.settings, ...next } } : prev))
     })
   }, [])
+
+  useEffect(() => {
+    void window.api.account.state().then(setAccountState)
+    const offChanged = window.api.events.onAccountChanged(setAccountState)
+    const offReplaced = window.api.events.onSessionReplaced((state) => {
+      setAccountState(state)
+      notify(state.lastError || t("账号已在另一台设备登录"), 'info')
+    })
+    return () => {
+      offChanged()
+      offReplaced()
+    }
+  }, [notify])
 
   useEffect(() => {
     document.documentElement.lang = localeTag(locale)
@@ -408,7 +417,9 @@ export default function App(): React.JSX.Element {
           succeeded += 1
           try {
             if (documentFormatOf(doc) === 'pdf') {
-              const extracted = await extractPdf(window.api.library.pdfUrl(doc.id))
+              const extracted = await extractPdf(
+                await window.api.library.pdfUrl(doc.id)
+              )
               await window.api.library.setText(doc.id, extracted.pages, {
                 title: extracted.title,
                 authors: extracted.author
@@ -452,6 +463,26 @@ export default function App(): React.JSX.Element {
     } catch (err) {
       notify(t("创建对话失败：{0}", [(err as Error).message]), 'error')
     }
+  }
+
+  const accountNeedsGate =
+    accountState === null ||
+    accountState.status === 'signedOut' ||
+    accountState.status === 'signingIn' ||
+    accountState.status === 'revoked' ||
+    accountState.status === 'pendingApproval' ||
+    (['active', 'offline'].includes(accountState.status) &&
+      (!syncStatus || !syncStatus.initialSyncReady))
+
+  if (accountNeedsGate) {
+    return (
+      <WebAuthScreen
+        account={accountState}
+        syncStatus={syncStatus}
+        localCount={data?.documents.length ?? 0}
+        notify={notify}
+      />
+    )
   }
 
   if (!data) {
@@ -670,46 +701,58 @@ export default function App(): React.JSX.Element {
   ]
 
   return (
-    <div className="app-shell">
-      <div className="sidebar-edge" title={t("移动到左侧显示侧栏")} onMouseEnter={showSidebar} />
-      {sidebarPeek && (
-        <>
-          <div className="sidebar-backdrop" data-web-overlay />
-          <div
-            className="sidebar-host drawer"
-            style={{ width: sidebarWidth }}
-            onMouseEnter={cancelSidebarHide}
-            onMouseLeave={scheduleSidebarHide}
-          >
-            <Sidebar
-              data={data}
-              view={view}
-              importing={importing}
-              onNavigate={setView}
-              onImport={() => void importDocuments()}
-              onChanged={onChanged}
-              notify={notify}
-            />
-            <div className="sidebar-drawer-resizer">
-              <PaneResizer
-                value={sidebarWidth}
-                onChange={setSidebarWidth}
-                min={200}
-                max={380}
-                label={t("调整侧栏宽度")}
-              />
-            </div>
-          </div>
-        </>
+    <div className="app-shell web-shell">
+      <WebRail
+        view={view}
+        data={data}
+        account={accountState}
+        desktop={mode === 'desktop'}
+        lastReaderDocId={lastReaderDocId}
+        onNavigate={setView}
+        onSearch={() => setPaletteMode('search')}
+        onSettings={() => setView({ name: 'settings' })}
+        onNewWindow={() => void window.api.app.newWindow().catch((err: Error) => notify(err.message, 'error'))}
+        notify={notify}
+      />
+      {view.name === 'library' && (
+        <WebContextPanel
+          data={data}
+          view={view}
+          open={contextOpen}
+          desktop={mode === 'desktop'}
+          importing={importing}
+          onClose={() => setContextOpen(false)}
+          onNavigate={setView}
+          onImport={(collectionId) => void importDocuments(collectionId)}
+          onImportWeb={(collectionId) => openWebImport(collectionId)}
+          onChanged={onChanged}
+          notify={notify}
+        />
       )}
 
       <main className="main-area">
+        {!['reader', 'chats', 'canvas'].includes(view.name) && (
+          <WebTopbar
+            view={view}
+            data={data}
+            account={accountState}
+            syncStatus={syncStatus}
+            onSearch={() => setPaletteMode('search')}
+            onSettings={() => setView({ name: 'settings' })}
+            onToggleContext={() => setContextOpen((open) => !open)}
+            contextOpen={contextOpen}
+            showContextToggle={view.name === 'library'}
+          />
+        )}
+        <div className="web-view-frame">
         <ViewSlot active={view.name === 'library'}>
           <LibraryView
             key={(view.name === 'library' ? view.savedViewId : lastLibraryViewId) ?? 'library'}
             data={data}
             collectionId={view.name === 'library' ? view.collectionId : lastLibraryCollectionId}
             savedViewId={view.name === 'library' ? view.savedViewId : lastLibraryViewId}
+            initialStatus={view.name === 'library' && !view.savedViewId ? view.status ?? 'all' : undefined}
+            initialStarredOnly={view.name === 'library' && !view.savedViewId ? Boolean(view.starred) : undefined}
             importing={importing}
             onOpen={(docId) => setView({ name: 'reader', docId })}
             onChat={startDocChat}
@@ -832,6 +875,7 @@ export default function App(): React.JSX.Element {
           <UsageView notify={notify} />
         </ViewSlot>
 
+
         <ViewSlot active={view.name === 'settings'}>
           <SettingsView
             visible={view.name === 'settings'}
@@ -846,6 +890,7 @@ export default function App(): React.JSX.Element {
             notify={notify}
           />
         </ViewSlot>
+        </div>
       </main>
 
       {paletteMode && (
@@ -860,6 +905,7 @@ export default function App(): React.JSX.Element {
           notify={notify}
         />
       )}
+
 
       {captureOpen && (
         <QuickCapture onClose={() => setCaptureOpen(false)} onSaved={refresh} notify={notify} />
@@ -895,6 +941,14 @@ export default function App(): React.JSX.Element {
           </div>
         ))}
       </div>
+
+      <WebMobileNav
+        view={view}
+        lastReaderDocId={lastReaderDocId}
+        onNavigate={setView}
+        onSettings={() => setView({ name: 'settings' })}
+        notify={notify}
+      />
     </div>
   )
 }

@@ -12,6 +12,8 @@ export default function WebPageViewer({ doc, onCaptured, onQuote, notify }: {
   notify(message: string, kind?: 'info' | 'success' | 'error'): void
 }): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
+  const iframe = useRef<HTMLIFrameElement>(null)
+  const browserMode = document.documentElement.dataset.arborWeb === 'true'
   const [source, setSource] = useState<WebPageSource>(doc.webArchivedAt ? 'offline' : 'online')
   const [state, setState] = useState<WebPageState>({ url: doc.url, title: doc.title, loading: true, canGoBack: false, canGoForward: false,
     source, hasArchive: !!doc.webArchivedAt })
@@ -19,11 +21,14 @@ export default function WebPageViewer({ doc, onCaptured, onQuote, notify }: {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
+  const [iframeUrl, setIframeUrl] = useState('')
+  const [archiveText, setArchiveText] = useState('')
   const previousUrl = useRef(doc.url)
   const isZhihuExit = (() => {
     try { return new URL(state.url).hostname === 'link.zhihu.com' } catch { return false }
   })()
   useEffect(() => {
+    if (browserMode) return
     let disposed = false
     let lastBounds = ''
     let mounted = false
@@ -78,7 +83,49 @@ export default function WebPageViewer({ doc, onCaptured, onQuote, notify }: {
       window.clearInterval(timer)
       void window.api.web.unmount().catch(() => undefined)
     }
-  }, [doc.id])
+  }, [doc.id, browserMode])
+
+  useEffect(() => {
+    if (!browserMode) return
+    let disposed = false
+    setReady(false)
+    setError('')
+    void window.api.web
+      .mount(doc.id, { x: 0, y: 0, width: 0, height: 0 }, source)
+      .then(async (initial) => {
+        if (disposed) return
+        setState(initial)
+        setSource(initial.source)
+        if (source === 'offline') {
+          const url = await window.api.library.pdfUrl(doc.id)
+          if (!disposed) setIframeUrl(url)
+          const pages = await window.api.library.getTexts(doc.id)
+          if (!disposed) setArchiveText(pages.join('\n\n'))
+        } else {
+          setIframeUrl(doc.url)
+          const pages = await window.api.library.getTexts(doc.id)
+          if (!disposed) setArchiveText(pages.join('\n\n'))
+        }
+        setReady(true)
+      })
+      .catch((err: Error) => {
+        if (!disposed) setError(err.message)
+      })
+    return () => {
+      disposed = true
+      ;(window as unknown as { __arborWebSelection?: string }).__arborWebSelection = ''
+      void window.api.web.unmount().catch(() => undefined)
+    }
+  }, [browserMode, doc.id, doc.url, source])
+
+  const captureSelection = (): void => {
+    const selected =
+      window.getSelection()?.toString() ||
+      iframe.current?.contentDocument?.getSelection()?.toString() ||
+      ''
+    ;(window as unknown as { __arborWebSelection?: string }).__arborWebSelection =
+      selected.trim()
+  }
 
   const perform = async (task: () => Promise<unknown>): Promise<void> => {
     setError('')
@@ -124,6 +171,30 @@ export default function WebPageViewer({ doc, onCaptured, onQuote, notify }: {
     </div>
     <div className="web-snapshot-hint"><strong>{state.title || doc.title}</strong> · {isZhihuExit ? t('当前为知乎外链确认页，请在网页中点击“继续访问”后打开目标内容。') : source === 'offline' ? t('正在阅读离线网页归档。问答直接读取归档中的页面内容。') : t('问答直接读取当前网页；点击链接后可继续提问。配置视觉模型后可同时识别当前可见区域的图片和布局。')}</div>
     {(error || state.error) && <div className="web-error" role="alert">{error || state.error}</div>}
-    <div ref={host} className="web-page-host" title={t('Ctrl + 滚轮缩放网页，Ctrl + 0 恢复原始大小')} />
+    <div ref={host} className="web-page-host" title={t('Ctrl + 滚轮缩放网页，Ctrl + 0 恢复原始大小')}>
+      {browserMode ? (
+        <article
+          className="web-browser-archive"
+          onMouseUp={captureSelection}
+          onKeyUp={captureSelection}
+        >
+          {archiveText
+            .split(/\n{2,}/)
+            .filter(Boolean)
+            .map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+        </article>
+      ) : null}
+      {browserMode && iframeUrl && !archiveText ? (
+        <iframe
+          ref={iframe}
+          className="web-browser-frame"
+          src={iframeUrl}
+          sandbox="allow-same-origin allow-popups"
+          onLoad={() => setReady(true)}
+        />
+      ) : null}
+    </div>
   </div>
 }

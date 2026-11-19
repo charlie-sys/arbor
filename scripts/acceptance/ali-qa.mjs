@@ -265,6 +265,10 @@ async function main() {
     const speechSpoken = await evaluate(`window.__aliSpeech?.length || 0`)
     await evaluate(`document.querySelector('[data-testid="ali-voice-settings-button"]')?.click()`)
     const voiceSettings = await waitFor(`Boolean(document.querySelector('[data-testid="ali-voice-settings"]'))`, 5000)
+    const voiceFieldsReady = await waitFor(`[
+      'ali-voice-rate', 'ali-voice-volume', 'ali-base', 'ali-key',
+      'ali-aux-model', 'ali-aux-base', 'ali-aux-key'
+    ].every((id) => document.querySelector('[data-testid="' + id + '"]'))`, 5000)
     await evaluate(`(() => { const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; const rate=document.querySelector('[data-testid="ali-voice-rate"]'); set.call(rate,'1.2'); rate.dispatchEvent(new Event('input',{bubbles:true})); const vol=document.querySelector('[data-testid="ali-voice-volume"]'); set.call(vol,'0.7'); vol.dispatchEvent(new Event('input',{bubbles:true})); const mainBase=document.querySelector('[data-testid="ali-base"]'); set.call(mainBase,'http://127.0.0.1:${apiPort}/v1'); mainBase.dispatchEvent(new Event('input',{bubbles:true})); const mainKey=document.querySelector('[data-testid="ali-key"]'); set.call(mainKey,'main-secret'); mainKey.dispatchEvent(new Event('input',{bubbles:true})); const aux=document.querySelector('[data-testid="ali-aux-model"]'); set.call(aux,'aux-mock'); aux.dispatchEvent(new Event('input',{bubbles:true})); const auxBase=document.querySelector('[data-testid="ali-aux-base"]'); set.call(auxBase,'http://127.0.0.1:${auxPort}/v1'); auxBase.dispatchEvent(new Event('input',{bubbles:true})); const auxKey=document.querySelector('[data-testid="ali-aux-key"]'); set.call(auxKey,'aux-secret'); auxKey.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('[data-testid="ali-voice-auto"]')?.click(); return true })()`)
     await sleep(200)
     const settingsShot = await client.send('Page.captureScreenshot', { format: 'png' })

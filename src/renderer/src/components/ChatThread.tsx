@@ -6,6 +6,7 @@ import { formatChatUsage, useChatUsageSummary } from '../chatUsage'
 import { applyChatScale, getChatScale } from '../chatZoom'
 import ChatMinimap from './ChatMinimap'
 import { isDefaultChatTitle, localeTag, t } from '@shared/i18n'
+import { ResolvedImage } from '../assetUrl'
 
 interface Quote {
   text: string
@@ -74,7 +75,7 @@ function AttachmentItem({
           title={t("预览 {0}", [attachment.name])}
           onClick={() => onPreview(attachment)}
         >
-          <img src={url} alt={attachment.name} />
+          <ResolvedImage src={url} alt={attachment.name} />
         </button>
         <div className="chat-attachment-info">
           <span className="chat-attachment-name" title={attachment.name}>
@@ -1072,7 +1073,7 @@ export default function ChatThread({ chat, docs, initialQuestion, quote, current
                 </button>
               </div>
             </div>
-            <img src={attachmentUrl(preview)} alt={preview.name} />
+            <ResolvedImage src={attachmentUrl(preview)} alt={preview.name} />
           </div>
         </div>
       )}

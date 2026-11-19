@@ -433,6 +433,7 @@ export interface LibraryData {
   tags: Tag[]
   properties: Property[]
   savedViews: SavedView[]
+  readingPlans: ReadingPlan[]
   settings: AppSettings
 }
 

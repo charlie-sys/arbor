@@ -34,6 +34,19 @@ import type {
   PetState
 } from '../shared/pet'
 import type { PetSkillId, PetStageState } from '../shared/petPlay'
+import type {
+  AccountDevice,
+  AccountState,
+  DeviceEnrollment,
+  DeviceLoginIntent,
+  DevLoginInput
+} from '../shared/account'
+import type {
+  SyncConflict,
+  SyncSnapshot,
+  SyncSnapshotDetail,
+  SyncStatus
+} from '../shared/sync'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
@@ -57,7 +70,7 @@ const api: ZotAgentApi = {
     update: (id: string, patch: Partial<DocumentMeta>) => ipcRenderer.invoke('library:update', { id, patch }),
     remove: (id: string) => ipcRenderer.invoke('library:delete', id),
     getTexts: (id: string) => ipcRenderer.invoke('library:get-texts', id),
-    pdfUrl: (id: string) => `zotfile://files/${id}.pdf`
+    pdfUrl: (id: string) => ipcRenderer.invoke('library:pdf-url', id)
   },
   web: {
     mount: (docId: string, bounds: WebBounds, source?: WebPageSource) => ipcRenderer.invoke('web:mount', { docId, bounds, source }),
@@ -106,7 +119,11 @@ const api: ZotAgentApi = {
     suggest: (id: string): Promise<string[]> => ipcRenderer.invoke('topic:suggest', id)
   },
   readingPlan: {
-    generate: (goal: string) => ipcRenderer.invoke('reading-plan:generate', goal)
+    generate: (goal: string) => ipcRenderer.invoke('reading-plan:generate', goal),
+    list: () => ipcRenderer.invoke('reading-plan:list'),
+    save: (plan: import('../shared/types').ReadingPlan) =>
+      ipcRenderer.invoke('reading-plan:save', plan),
+    remove: (id: string) => ipcRenderer.invoke('reading-plan:remove', id)
   },
   imports: {
     bibtex: () => ipcRenderer.invoke('import:bibtex'),
@@ -315,11 +332,51 @@ const api: ZotAgentApi = {
     onUpdateProgress: (cb) => subscribe<UpdateProgress>('update:progress', cb),
     onUsageRecorded: (cb) => subscribe<UsageRecordedEvent>('usage:recorded', cb),
     onUsageLive: (cb) => subscribe<ActiveUsage[]>('usage:live', cb),
-    onSettingsChanged: (cb) => subscribe<AppSettings>('settings:changed', cb)
+    onSettingsChanged: (cb) => subscribe<AppSettings>('settings:changed', cb),
+    onAccountChanged: (cb) => subscribe<AccountState>('account:changed', cb),
+    onSessionReplaced: (cb) => subscribe<AccountState>('account:session-replaced', cb),
+    onSyncStatus: (cb) => subscribe<SyncStatus>('sync:status', cb)
   },
   overlay: {
     select: (rect) => ipcRenderer.invoke('capture:selection', rect),
     cancel: () => ipcRenderer.invoke('capture:cancel')
+  },
+  account: {
+    state: () => ipcRenderer.invoke('account:state'),
+    signInDev: (input: DevLoginInput) => ipcRenderer.invoke('account:dev-login', input),
+    signInOidc: (serverUrl: string, intent?: DeviceLoginIntent) =>
+      ipcRenderer.invoke('account:oidc-login', { serverUrl, intent }),
+    logout: () => ipcRenderer.invoke('account:logout'),
+    devices: (): Promise<AccountDevice[]> => ipcRenderer.invoke('account:devices'),
+    revokeDevice: (id: string): Promise<AccountDevice[]> =>
+      ipcRenderer.invoke('account:device-revoke', id),
+    deviceRequests: (): Promise<DeviceEnrollment[]> =>
+      ipcRenderer.invoke('account:device-requests'),
+    approveDeviceRequest: (id: string): Promise<DeviceEnrollment[]> =>
+      ipcRenderer.invoke('account:device-request-approve', id),
+    rejectDeviceRequest: (id: string): Promise<DeviceEnrollment[]> =>
+      ipcRenderer.invoke('account:device-request-reject', id),
+    transferPrimary: (id: string): Promise<AccountDevice[]> =>
+      ipcRenderer.invoke('account:device-primary-transfer', id)
+  },
+  sync: {
+    status: (): Promise<SyncStatus> => ipcRenderer.invoke('sync:status'),
+    conflicts: (): Promise<SyncConflict[]> => ipcRenderer.invoke('sync:conflicts'),
+    snapshots: (): Promise<{ retentionDays: number; snapshots: SyncSnapshot[] }> =>
+      ipcRenderer.invoke('sync:snapshots'),
+    snapshotChanges: (id: string): Promise<SyncSnapshotDetail> =>
+      ipcRenderer.invoke('sync:snapshot-changes', id),
+    restoreSnapshot: (id: string): Promise<{ ok: boolean; latestSeq: number }> =>
+      ipcRenderer.invoke('sync:restore-snapshot', id),
+    resolveConflict: (
+      opId: string,
+      strategy: 'local' | 'server' | 'merge' | 'custom',
+      payload?: unknown
+    ): Promise<SyncStatus> =>
+      ipcRenderer.invoke('sync:resolve-conflict', { opId, strategy, payload }),
+    applyInitialMerge: (): Promise<SyncStatus> =>
+      ipcRenderer.invoke('sync:apply-initial-merge'),
+    now: (): Promise<void> => ipcRenderer.invoke('sync:now')
   },
   blindBox: {
     open: () => ipcRenderer.invoke('blind-box:open')

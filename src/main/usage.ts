@@ -18,6 +18,11 @@ interface UsageInput {
   estimated?: boolean
 }
 
+interface UsageSyncHooks {
+  upsert(record: UsageRecord): void
+  remove(ids: string[]): void
+}
+
 function cleanTokens(value: unknown): number {
   const token = Number(value)
   return Number.isFinite(token) && token > 0 ? Math.round(token) : 0
@@ -47,6 +52,7 @@ class UsageTracker {
   private active = new Map<string, ActiveUsage>()
   private saveChain: Promise<void> = Promise.resolve()
   private lastLiveAt = new Map<string, number>()
+  private syncHooks: UsageSyncHooks | null = null
 
   async init(root: string): Promise<void> {
     this.file = path.join(root, 'usage.json')
@@ -85,6 +91,59 @@ class UsageTracker {
     return {
       records: this.records.map((record) => ({ ...record })),
       active: [...this.active.values()].map((item) => ({ ...item }))
+    }
+  }
+
+  attachSync(hooks: UsageSyncHooks): void {
+    this.syncHooks = hooks
+  }
+
+  mergeSyncedRecords(records: UsageRecord[]): void {
+    const byId = new Map(this.records.map((record) => [record.id, record]))
+    const syncedIds = new Set(records.map((record) => record.id))
+    for (const record of this.records) {
+      if (!syncedIds.has(record.id)) this.syncHooks?.upsert(record)
+    }
+    for (const record of records) {
+      if (!record?.id || !Number.isFinite(record.createdAt)) continue
+      if (!byId.has(record.id)) this.syncHooks?.upsert(record)
+      byId.set(record.id, record)
+    }
+    this.records = [...byId.values()]
+      .sort((left, right) => left.createdAt - right.createdAt)
+      .slice(-MAX_RECORDS)
+    void this.save()
+  }
+
+  applySyncedRecords(records: UsageRecord[]): void {
+    const next = [
+      ...new Map(
+        records
+          .filter((record) => record?.id && Number.isFinite(record.createdAt))
+          .map((record) => [record.id, record])
+      ).values()
+    ]
+      .sort((left, right) => left.createdAt - right.createdAt)
+      .slice(-MAX_RECORDS)
+    const previousIds = new Set(this.records.map((record) => record.id))
+    const nextIds = new Set(next.map((record) => record.id))
+    const removed = this.records.some((record) => !nextIds.has(record.id))
+    this.records = next
+    void this.save()
+    if (removed) {
+      broadcast('usage:recorded', {
+        cleared: true,
+        active: this.snapshot().active
+      })
+      return
+    }
+    for (const record of next) {
+      if (!previousIds.has(record.id)) {
+        broadcast('usage:recorded', {
+          record,
+          active: this.snapshot().active
+        })
+      }
     }
   }
 
@@ -144,13 +203,16 @@ class UsageTracker {
     }
     this.records.push(record)
     if (this.records.length > MAX_RECORDS) this.records = this.records.slice(-MAX_RECORDS)
+    this.syncHooks?.upsert(record)
     void this.save()
     broadcast('usage:recorded', { record, active: this.snapshot().active })
     return record
   }
 
   async clear(): Promise<void> {
+    const ids = this.records.map((record) => record.id)
     this.records = []
+    this.syncHooks?.remove(ids)
     await this.save()
     broadcast('usage:recorded', { cleared: true, active: this.snapshot().active })
   }

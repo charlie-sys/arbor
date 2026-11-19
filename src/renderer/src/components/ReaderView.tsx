@@ -54,6 +54,7 @@ import { isDocumentToneId, readLastTone, toneById, writeLastTone } from '../docu
 import { useUnsavedChanges } from '../unsaved'
 import { cx, formatTime, Markdown } from '../ui'
 import { t } from '@shared/i18n'
+import { ResolvedImage } from '../assetUrl'
 
 interface Props {
   doc: DocumentMeta
@@ -894,7 +895,7 @@ export default function ReaderView({ doc, documents, chats, collections, highlig
                 >
                   {' '}{t("译文图")}{' '}</button>
               </div>
-              <img
+              <ResolvedImage
                 className="translation-drawer-image"
                 src={`zotfile://translations/${translationImageFile}`}
                 alt={translationImageMode === 'translated' ? t("译文截图") : t("截图原文")}

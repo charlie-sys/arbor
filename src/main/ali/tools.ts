@@ -3,15 +3,10 @@ import { loadHelpSections, searchHelp } from './help'
 import { searchWeb, fetchUrl } from './web'
 import { searchGitHub, type GitHubSearchType } from './github'
 import { store } from '../store'
-
-export interface AliToolDefinition {
-  type: 'function'
-  function: {
-    name: string
-    description: string
-    parameters: Record<string, unknown>
-  }
-}
+import {
+  aliToolDefinitions as sharedAliToolDefinitions,
+  type AliToolDefinition
+} from '../../shared/aliAgent'
 
 export interface AliTool {
   definition: AliToolDefinition
@@ -172,10 +167,7 @@ const fetchUrlTool: AliTool = {
 export const aliTools: AliTool[] = [searchMemory, searchHelpTool, readHelpTool, searchWebTool, searchGitHubTool, fetchUrlTool]
 
 export function aliToolDefinitions(includeNetwork = true): AliToolDefinition[] {
-  const network = new Set(['search_web', 'search_github', 'fetch_url'])
-  return aliTools
-    .filter((tool) => includeNetwork || !network.has(tool.definition.function.name))
-    .map((tool) => tool.definition)
+  return sharedAliToolDefinitions(includeNetwork)
 }
 
 export async function executeAliTool(name: string, args: Record<string, unknown>): Promise<string> {
